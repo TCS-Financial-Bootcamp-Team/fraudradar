@@ -1,0 +1,3 @@
+# Permite `docker compose up` a partir da raiz. A definição fica em infra/.
+include:
+  - infra/docker-compose.yml

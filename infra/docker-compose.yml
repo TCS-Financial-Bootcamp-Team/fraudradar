@@ -1,0 +1,73 @@
+name: fraudradar
+
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fraudradar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fraudradar}
+      POSTGRES_DB: ${POSTGRES_DB:-fraudradar}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ../db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: ..
+      dockerfile: api/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fraudradar}:${POSTGRES_PASSWORD:-fraudradar}@db:5432/${POSTGRES_DB:-fraudradar}
+      MODEL_DIR: /app/models
+    volumes:
+      - ../models:/app/models:ro
+    ports:
+      - "${API_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/saude')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    profiles: [worker]
+    build:
+      context: ..
+      dockerfile: worker/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fraudradar}:${POSTGRES_PASSWORD:-fraudradar}@db:5432/${POSTGRES_DB:-fraudradar}
+      MODEL_DIR: /app/models
+    volumes:
+      - ../models:/app/models
+      - ../dados:/app/dados:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:

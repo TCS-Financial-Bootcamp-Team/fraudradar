@@ -1,0 +1,55 @@
+# Dados (SAML-D tem ~1 GB) — só o README fica no git
+dados/*
+!dados/README.md
+
+# Modelos treinados
+models/*
+!models/.gitkeep
+
+# Artefatos grandes em qualquer lugar
+*.csv
+*.parquet
+*.pkl
+*.joblib
+*.feather
+
+# Segredos
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# Node / Next
+node_modules/
+.next/
+out/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Temporários locais
+trash/
