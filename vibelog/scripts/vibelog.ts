@@ -5,7 +5,8 @@ import { readFile, readdir } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import matter from "gray-matter";
+import { lerMarkdownSeguro } from "./markdown";
+import { prepararEvidencia } from "./evidencias";
 import { z } from "zod";
 import { areas, tipos } from "../src/features/registros/schemas/index";
 import { lerTranscrito, redigir, sanitizar, type Registro } from "./importadores";
@@ -126,33 +127,10 @@ async function evidencia(
   if (arquivo || buffer) {
     const nome = path.basename(arquivo ?? "captura.png").replace(/[^\w.\-]/g, "_");
     storage_path = `${no}/${Date.now()}-${randomUUID().slice(0, 8)}-${nome}`;
-    let bytes = buffer ?? (await readFile(arquivo!));
-    const ext = path.extname(nome).toLowerCase();
-    const textual = [
-      ".log",
-      ".txt",
-      ".md",
-      ".json",
-      ".jsonl",
-      ".csv",
-      ".yaml",
-      ".yml",
-      ".sql",
-      ".ts",
-      ".js",
-      ".py",
-    ].includes(ext);
-    if (textual) bytes = Buffer.from(redigir(bytes.toString("utf8")));
-    const mime =
-      ext === ".png"
-        ? "image/png"
-        : ext === ".webp"
-          ? "image/webp"
-          : [".jpg", ".jpeg"].includes(ext)
-            ? "image/jpeg"
-            : textual
-              ? "text/plain; charset=utf-8"
-              : "application/octet-stream";
+    const { bytes, mime } = prepararEvidencia(
+      arquivo ?? "captura.png",
+      buffer ?? (await readFile(arquivo!)),
+    );
     const { error } = await sb()
       .storage.from("vibelog-evidencias")
       .upload(storage_path, bytes, { contentType: mime, upsert: false });
@@ -183,8 +161,7 @@ async function importarMd(dir: string) {
   for (const arquivo of arquivos) {
     const origem = path.join(dir, arquivo);
     const raw = await readFile(origem, "utf8");
-    const { data, content } = matter(raw);
-    const header = raw.split(/^---\s*$/m)[1] ?? "";
+    const { data, content, header } = lerMarkdownSeguro(raw);
     const id = campoRaw(header, "id");
     if (!id) throw new Error(`Frontmatter sem id: ${arquivo}`);
     const pai = campoRaw(header, "pai");

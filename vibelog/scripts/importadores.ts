@@ -21,9 +21,14 @@ export type Registro = {
 };
 export function redigir(texto: string) {
   return texto
+    .replace(
+      /(\b(?:proxy-)?authorization["']?\s*[:=]\s*)("[^"\r\n]*"|'[^'\r\n]*'|[^\r\n]+)/gi,
+      (_texto, prefixo: string, valor: string) =>
+        `${prefixo}${valor.startsWith('"') ? '"[AUTORIZAÇÃO REMOVIDA]"' : valor.startsWith("'") ? "'[AUTORIZAÇÃO REMOVIDA]'" : "[AUTORIZAÇÃO REMOVIDA]"}`,
+    )
     .replace(/\b(?:sbp_|sb_secret_|sk-)[a-zA-Z0-9_.-]+/g, "[SEGREDO REMOVIDO]")
     .replace(/\beyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/g, "[JWT REMOVIDO]")
-    .replace(/(postgres(?:ql)?:\/\/[^\s:/@]+:)[^\s@]+@/gi, "$1[SENHA REMOVIDA]@")
+    .replace(/(postgres(?:ql)?:\/\/[^\s:/@]*:)[^\s@]+@/gi, "$1[SENHA REMOVIDA]@")
     .replace(
       /((?:password|senha|api[_-]?key|access[_-]?token|refresh[_-]?token|SUPABASE_SECRET_KEY)\s*["']?\s*[:=]\s*)("[^"\r\n]*"|'[^'\r\n]*'|[^\s"',;}]+)/gi,
       (_texto, prefixo: string, valor: string) =>
@@ -34,7 +39,12 @@ export function sanitizar<T>(valor: T): T {
   if (typeof valor === "string") return redigir(valor) as T;
   if (Array.isArray(valor)) return valor.map((item) => sanitizar(item)) as T;
   if (valor && typeof valor === "object")
-    return Object.fromEntries(Object.entries(valor).map(([k, v]) => [k, sanitizar(v)])) as T;
+    return Object.fromEntries(
+      Object.entries(valor).map(([k, v]) => [
+        k,
+        /^(?:proxy-)?authorization$/i.test(k) ? "[AUTORIZAÇÃO REMOVIDA]" : sanitizar(v),
+      ]),
+    ) as T;
   return valor;
 }
 type Objeto = Record<string, unknown>;
@@ -98,7 +108,7 @@ export async function* lerTranscrito(
       let papel = "",
         conteudo = "",
         final = false;
-      let uuid = String(x.uuid ?? x.id ?? p.id ?? "");
+      const uuid = String(x.uuid ?? x.id ?? p.id ?? "");
       if (fonte === "claude") {
         sessao = String(x.sessionId ?? sessao);
         if (x.isMeta || x.isSidechain) continue;
@@ -121,7 +131,6 @@ export async function* lerTranscrito(
         papel = "assistant";
         conteudo = String(p.last_agent_message);
         final = true;
-        uuid = String(p.turn_id ?? uuid);
       }
       conteudo = limpar(conteudo);
       if (!conteudo) continue;
@@ -152,7 +161,7 @@ export async function* lerTranscrito(
         };
         resposta = null;
       } else if (papel === "assistant" && final && pendente) {
-        const id = `${fonte}:${sessao}:${uuid || hash(`${x.timestamp ?? ""}:${numero}:${conteudo}`)}:resposta`;
+        const id: string = `${pendente.origem_id}:resposta`;
         resposta = {
           tipo: "resposta",
           area,

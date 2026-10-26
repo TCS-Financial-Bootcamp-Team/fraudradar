@@ -163,10 +163,44 @@ test("credenciais só entram no pedido de conexão; resposta pública contém ap
   assert.equal("connection_string" in fonte, false);
 });
 
-test("mensagens livres ocultam identificadores numéricos curtos, longos e alfanuméricos", () => {
+test("mensagens livres ocultam contas com aliases distintos e preservam os dados da análise", () => {
   const texto = pseudonimizar(
-    "Contas 123, 123456789 e BR123456789; origem AB12. Conta 123-4.",
+    "Contas 123, 123456789 e BR123456789; origem AB12. Conta 123-4. Analise R-014, 10.000, 24 horas e 2026-10-19. Repito conta 123.",
   );
-  assert.doesNotMatch(texto, /\d/);
-  assert.ok(texto.includes("[identificador protegido]"));
+  assert.doesNotMatch(texto, /123|BR123456789|AB12/);
+  for (const dado of ["R-014", "10.000", "24 horas", "2026-10-19"])
+    assert.ok(texto.includes(dado), dado);
+  assert.equal(new Set(texto.match(/\[conta \d+\]/g)).size, 5);
+  assert.equal(texto.match(/\[conta 1\]/g)?.length, 2);
+  assert.equal(
+    pseudonimizar(texto),
+    texto,
+    "Aliases não podem ser pseudonimizados novamente.",
+  );
+});
+
+test("aliases persistem na conversa e também ocultam referências repetidas sem rótulo", () => {
+  const contas = new Map<string, string>();
+  assert.equal(pseudonimizar("Conta 123-4", contas), "Conta [conta 1]");
+  assert.equal(
+    pseudonimizar("Compare 123-4 com conta AB12", contas),
+    "Compare [conta 1] com conta [conta 2]",
+  );
+  assert.equal(
+    pseudonimizar('Sender_account: "87654321" e CTA-811', contas),
+    'Sender_account: "[conta 3]" e [conta 4]',
+  );
+  assert.equal(
+    pseudonimizar("R-014: 10.000 em 24 horas, 2026-10-19"),
+    "R-014: 10.000 em 24 horas, 2026-10-19",
+  );
+});
+
+test("números de contas não apagam valores e durações iguais aos identificadores", () => {
+  assert.equal(
+    pseudonimizar(
+      "Contas 24, 10.000, 24 horas e 2026-10-19. Compare conta 123 e R-014; R$ 123 e 123 reais.",
+    ),
+    "Contas [conta 1], 10.000, 24 horas e 2026-10-19. Compare conta [conta 2] e R-014; R$ 123 e 123 reais.",
+  );
 });

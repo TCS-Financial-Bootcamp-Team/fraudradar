@@ -12,11 +12,12 @@ export function useAssistente(alertaId?: string) {
   const [ocupado, setOcupado] = useState(false);
   const controle = useRef<AbortController | null>(null);
   const bloqueado = useRef(false);
+  const contas = useRef(new Map<string, string>());
   const pagina = usePathname();
   const { semana } = useContextoApp();
   useEffect(() => () => controle.current?.abort(), []);
   async function enviar(texto: string) {
-    const mensagem = pseudonimizar(texto.trim());
+    const mensagem = pseudonimizar(texto.trim(), contas.current);
     if (!mensagem || bloqueado.current) return false;
     bloqueado.current = true;
     const abortador = new AbortController();
@@ -31,6 +32,7 @@ export function useAssistente(alertaId?: string) {
           historico: mensagens.slice(-20),
         },
         abortador.signal,
+        contas.current,
       );
       if (!abortador.signal.aborted)
         setMensagens((m) => [

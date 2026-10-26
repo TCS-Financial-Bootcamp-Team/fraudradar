@@ -28,6 +28,84 @@ test("redige os padrões secretos sem corromper Markdown ou objetos", () => {
     texto: 'Diga "olá"\n```json\n{"password":"[SEGREDO REMOVIDO]"}\n```',
   });
 });
+
+test("redige Authorization completo, tokens opacos e Postgres com usuário vazio", () => {
+  for (const cabecalho of [
+    "Authorization: Basic dXN1YXJpbzpzZW5oYQ==",
+    "Authorization: Bearer token-opaco",
+    "authorization: Digest credencial opaca com espaços",
+    '"Authorization": "Bearer token-opaco"',
+    "'Proxy-Authorization': 'Basic dXN1YXJpbzpzZW5oYQ=='",
+  ]) {
+    const resultado = redigir(cabecalho);
+    assert.match(resultado, /AUTORIZAÇÃO REMOVIDA/);
+    assert.doesNotMatch(resultado, /dXN1YXJpbzpzZW5oYQ|token-opaco|credencial opaca/);
+  }
+  assert.deepEqual(JSON.parse(redigir('{"Authorization":"Bearer token-opaco"}')), {
+    Authorization: "[AUTORIZAÇÃO REMOVIDA]",
+  });
+  assert.deepEqual(sanitizar({ headers: { Authorization: "Basic opaco" } }), {
+    headers: { Authorization: "[AUTORIZAÇÃO REMOVIDA]" },
+  });
+  for (const protocolo of ["postgres", "postgresql"]) {
+    const resultado = redigir(`${protocolo}://:senha%40especial@host/banco`);
+    assert.equal(resultado, `${protocolo}://:[SENHA REMOVIDA]@host/banco`);
+  }
+});
+
+test("Codex mantém IDs e pais ao acrescentar task_complete ao mesmo transcrito", async () => {
+  const linhas = [
+    { type: "session_meta", payload: { id: "sessao-estavel" } },
+    {
+      type: "response_item",
+      payload: { type: "message", role: "user", content: "Primeiro pedido" },
+    },
+    {
+      type: "response_item",
+      payload: {
+        type: "message",
+        role: "assistant",
+        phase: "final_answer",
+        content: "Primeira resposta",
+      },
+    },
+  ];
+  const antes = await transcrito(linhas, "codex");
+  const depois = await transcrito(
+    [
+      ...linhas,
+      {
+        type: "event_msg",
+        payload: {
+          type: "task_complete",
+          turn_id: "turno-1",
+          last_agent_message: "Primeira resposta",
+        },
+      },
+      {
+        type: "response_item",
+        payload: { type: "message", role: "user", content: "Segundo pedido" },
+      },
+      {
+        type: "response_item",
+        payload: {
+          type: "message",
+          role: "assistant",
+          phase: "final_answer",
+          content: "Segunda resposta",
+        },
+      },
+    ],
+    "codex",
+  );
+  assert.equal(antes[1].origem_id, `${antes[0].origem_id}:resposta`);
+  assert.equal(depois[1].origem_id, antes[1].origem_id);
+  assert.equal(depois[1].pai, antes[1].pai);
+  assert.equal(depois[2].pai, antes[1].origem_id);
+  assert.notEqual(depois[3].origem_id, antes[1].origem_id);
+  const upsert = new Map([...antes, ...depois].map((n) => [n.origem_id, n]));
+  assert.equal(upsert.size, 4);
+});
 test("Claude ignora ferramentas e usa só a última resposta de cada turno", async () => {
   const dados = [
     { type: "user", uuid: "u1", message: { role: "user", content: "Treine o modelo" } },
