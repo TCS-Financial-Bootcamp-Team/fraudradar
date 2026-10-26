@@ -1,0 +1,9 @@
+.next/
+.next-test/
+.cache/
+node_modules/
+pnpm-lock.yaml
+AGENTS.md
+trash/
+test-results/
+.env*
