@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, Radar, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Campo, Input } from "@/components/ui/campo";
+import { CampoSenha } from "@/components/ui/campo-senha";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
   configuracaoSupabase,
@@ -24,23 +26,37 @@ import {
 type Modo = "login" | "cadastro" | "recuperar" | "redefinir";
 function FormLogin() {
   const auth = useAutenticacao();
+  const [manter, setManter] = useState(true);
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<Login>({ resolver: zodResolver(loginSchema) });
   return (
-    <form className="grid gap-5" onSubmit={handleSubmit(auth.entrar)}>
+    <form
+      className="grid gap-5"
+      onSubmit={handleSubmit((dados) =>
+        auth.entrar({ ...dados, manterConectado: manter }),
+      )}
+    >
       <Campo nome="E-mail" erro={errors.email?.message}>
         <Input type="email" autoComplete="email" {...register("email")} />
       </Campo>
       <Campo nome="Senha" erro={errors.senha?.message}>
-        <Input
-          type="password"
-          autoComplete="current-password"
-          {...register("senha")}
-        />
+        <CampoSenha autoComplete="current-password" {...register("senha")} />
       </Campo>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          checked={manter}
+          onChange={(e) => setManter(e.target.checked)}
+        />{" "}
+        Manter conectado
+      </label>
+      <p className="text-xs text-muted-foreground">
+        Seu navegador pode oferecer salvar a senha. Sem manter conectado, a
+        sessão dura até fechar o navegador.
+      </p>
       <Link
         className="text-right text-sm text-primary hover:underline"
         href="/recuperar-senha"
@@ -76,22 +92,14 @@ function FormCadastro() {
         <Input type="email" autoComplete="email" {...register("email")} />
       </Campo>
       <Campo nome="Senha" erro={errors.senha?.message}>
-        <Input
-          type="password"
-          autoComplete="new-password"
-          {...register("senha")}
-        />
+        <CampoSenha autoComplete="new-password" {...register("senha")} />
       </Campo>
       <p className="text-xs text-muted-foreground">
         Use 8 ou mais caracteres, incluindo letras e números. Prefira uma frase
         longa e única.
       </p>
       <Campo nome="Confirmar senha" erro={errors.confirmacao?.message}>
-        <Input
-          type="password"
-          autoComplete="new-password"
-          {...register("confirmacao")}
-        />
+        <CampoSenha autoComplete="new-password" {...register("confirmacao")} />
       </Campo>
       <Button type="submit" className="h-11" disabled={auth.ocupado}>
         {auth.ocupado ? "Criando conta…" : "Criar conta"}
@@ -133,18 +141,10 @@ function FormRedefinir() {
   return (
     <form className="grid gap-5" onSubmit={handleSubmit(auth.redefinir)}>
       <Campo nome="Nova senha" erro={errors.senha?.message}>
-        <Input
-          type="password"
-          autoComplete="new-password"
-          {...register("senha")}
-        />
+        <CampoSenha autoComplete="new-password" {...register("senha")} />
       </Campo>
       <Campo nome="Confirmar nova senha" erro={errors.confirmacao?.message}>
-        <Input
-          type="password"
-          autoComplete="new-password"
-          {...register("confirmacao")}
-        />
+        <CampoSenha autoComplete="new-password" {...register("confirmacao")} />
       </Campo>
       <Button type="submit" disabled={auth.ocupado}>
         {auth.ocupado ? "Salvando…" : "Atualizar senha"}

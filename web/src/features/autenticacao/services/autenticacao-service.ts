@@ -1,4 +1,5 @@
 import { clienteSupabase } from "@/lib/supabase/client";
+import { definirPersistencia } from "@/lib/supabase/persistencia";
 import {
   cadastroSchema,
   loginSchema,
@@ -12,6 +13,7 @@ import {
 
 export async function entrar(dados: Login) {
   const d = loginSchema.parse(dados);
+  definirPersistencia(d.manterConectado !== false);
   const { error } = await clienteSupabase().auth.signInWithPassword({
     email: d.email,
     password: d.senha,
@@ -21,6 +23,7 @@ export async function entrar(dados: Login) {
 }
 export async function cadastrar(dados: Cadastro) {
   const d = cadastroSchema.parse(dados);
+  definirPersistencia(true);
   const { error, data } = await clienteSupabase().auth.signUp({
     email: d.email,
     password: d.senha,

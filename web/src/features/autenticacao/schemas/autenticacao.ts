@@ -10,6 +10,7 @@ const senha = z
   .regex(/[A-Za-z]/, "Inclua uma letra.")
   .regex(/\d/, "Inclua um número.");
 export const loginSchema = z.object({
+  manterConectado: z.boolean().optional(),
   email: z.email("Informe um e-mail válido."),
   senha: z.string().min(1, "Informe sua senha."),
 });

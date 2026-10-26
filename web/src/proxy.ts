@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { configuracaoSupabase } from "@/lib/supabase/config";
+import { manterConectado, opcoesSessao } from "@/lib/supabase/persistencia";
 
 export async function proxy(request: NextRequest) {
   let resposta = NextResponse.next({ request });
@@ -30,7 +31,15 @@ export async function proxy(request: NextRequest) {
         valores.forEach(({ name, value }) => request.cookies.set(name, value));
         resposta = NextResponse.next({ request });
         valores.forEach(({ name, value, options }) =>
-          resposta.cookies.set(name, value, options),
+          resposta.cookies.set(
+            name,
+            value,
+            opcoesSessao(
+              options,
+              manterConectado(request.cookies.getAll()),
+              value,
+            ),
+          ),
         );
       },
     },
