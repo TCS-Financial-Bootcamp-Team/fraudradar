@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Providers } from "@/components/providers";
 import "./globals.css";
+import "@xyflow/react/dist/style.css";
 export const metadata: Metadata = {
   title: "VibeLog · FraudRadar",
   description: "A história de construção do FraudRadar, prompt a prompt.",

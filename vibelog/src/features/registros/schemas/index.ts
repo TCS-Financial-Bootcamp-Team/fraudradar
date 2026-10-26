@@ -32,6 +32,7 @@ export const indiceSchema = z.object({
   autor: z.string(),
   branch: z.string().nullable(),
   criado_em: z.string(),
+  titulo: z.string().optional(),
 });
 export const resumoSchema = indiceSchema.extend({
   titulo: z.string(),

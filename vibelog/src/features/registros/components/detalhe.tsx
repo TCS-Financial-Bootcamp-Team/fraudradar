@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import type { No, Resumo, Evidencia } from "../schemas";
 import { rotulos } from "../schemas";
 import { repoUrl, urlSegura } from "../services/arvore";
-import { IconeTipo } from "./explorador";
+import { IconeTipo } from "./registro-visual";
 export function Detalhe({
   data,
   selecionar,

@@ -94,7 +94,7 @@ export async function consultar(p: URLSearchParams) {
   for (let offset = 0; ; offset += 1000) {
     const { data, error } = await sb
       .from("vibelog_nos")
-      .select(campos)
+      .select(`${campos},titulo`)
       .order("id")
       .range(offset, offset + 999);
     if (error) throw error;

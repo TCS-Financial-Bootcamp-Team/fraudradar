@@ -5,7 +5,7 @@ import { Moon, Sun } from "lucide-react";
 import { Button } from "./ui/button";
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+    <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
       {children}
       <Toaster richColors position="bottom-right" />
     </ThemeProvider>

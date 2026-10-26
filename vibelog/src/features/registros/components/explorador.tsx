@@ -1,21 +1,16 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   GitBranch,
   Search,
   ChevronRight,
   ChevronDown,
-  MessageSquare,
-  CornerDownRight,
-  CheckCheck,
-  Flag,
   Network,
+  LayoutDashboard,
   List,
   Monitor,
   LogOut,
-  SlidersHorizontal,
-  ArrowUpRight,
   RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,31 +19,8 @@ import { useAuth } from "@/features/autenticacao/hooks/use-auth";
 import { useRegistros, useFilhos, useDetalhe, useLista } from "../hooks/use-registros";
 import { areas, tipos, rotulos, type Resumo, type Visao, type Filtros } from "../schemas";
 import { Detalhe } from "./detalhe";
-const icones = {
-  prompt_humano: MessageSquare,
-  prompt_ia: CornerDownRight,
-  resposta: CheckCheck,
-  marco: Flag,
-};
-export function IconeTipo({ tipo }: { tipo: Resumo["tipo"] }) {
-  const Icone = icones[tipo];
-  return (
-    <span className={`tipo-icon tipo-${tipo}`}>
-      <Icone size={15} />
-    </span>
-  );
-}
-export function Data({ valor }: { valor: string }) {
-  return (
-    <time dateTime={valor}>
-      {new Date(valor).toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "short",
-        timeZone: "UTC",
-      })}
-    </time>
-  );
-}
+import { IconeTipo, Data } from "./registro-visual";
+import { Quadro } from "./quadro";
 type Contexto = {
   visao: Visao;
   selecionado: string | null;
@@ -219,29 +191,46 @@ export function Explorador({ email }: { email: string }) {
   const r = useRegistros();
   const detalhe = useDetalhe(r.selecionado);
   const { logout } = useAuth();
-  const [filtrosAbertos, setFiltrosAbertos] = useState(false);
   const autores = [...new Set(r.data?.indice.map((n) => n.autor) ?? [])].sort();
   const branches = [
     ...new Set(r.data?.indice.map((n) => n.branch).filter((b): b is string => !!b) ?? []),
   ].sort();
-  const filtrado = Object.entries(r.filtros).some(([, v]) =>
-    Array.isArray(v) ? v.length > 0 : !!v,
-  );
-  const prompts = r.data?.indice.filter((n) => n.tipo.startsWith("prompt_")) ?? [];
-  const selecionar = (id: string) => r.mudar({ no: id });
+  const filtrado = Object.values(r.filtros).some((v) => (Array.isArray(v) ? v.length > 0 : !!v));
+  const mudar = r.mudar;
+  const selecionar = useCallback((id: string) => mudar({ no: id }), [mudar]);
   const expandidos = new Set(detalhe.data?.ancestrais.map((n) => n.id) ?? []);
   const ctx = r.data
     ? { visao: r.data, selecionado: r.selecionado, selecionar, filtrado, expandidos }
     : null;
   function alterar(chave: keyof Filtros, valor: string) {
-    r.mudar({ [chave]: valor });
+    mudar({ [chave]: valor });
   }
   return (
     <div className={r.apresentacao ? "app apresentacao" : "app"}>
       <header className="topbar">
         <Link className="brand" href="/">
-          <GitBranch size={24} /> VibeLog <span>/ FraudRadar</span>
+          <GitBranch size={20} /> VibeLog <span>/ FraudRadar</span>
         </Link>
+        <form
+          className="search-row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            alterar("q", String(new FormData(e.currentTarget).get("q") ?? ""));
+          }}
+        >
+          <Search size={15} />
+          <input
+            key={r.filtros.q}
+            name="q"
+            defaultValue={r.filtros.q}
+            placeholder="Buscar em títulos e conteúdo…"
+            aria-label="Buscar em títulos e conteúdo"
+            maxLength={200}
+          />
+          <Button size="sm" variant="ghost" type="submit">
+            Buscar
+          </Button>
+        </form>
         <div className="flex items-center gap-1">
           <span className="user-email">{email}</span>
           <Button
@@ -249,155 +238,103 @@ export function Explorador({ email }: { email: string }) {
             size="icon"
             aria-label="Modo apresentação"
             aria-pressed={r.apresentacao}
-            onClick={() => r.mudar({ apresentacao: r.apresentacao ? "" : "1" })}
+            onClick={() => mudar({ apresentacao: r.apresentacao ? "" : "1" })}
           >
-            <Monitor size={18} />
+            <Monitor size={17} />
           </Button>
           <Tema />
           <Button variant="ghost" size="icon" aria-label="Sair" onClick={logout}>
-            <LogOut size={18} />
+            <LogOut size={17} />
           </Button>
         </div>
       </header>
-      <section className="intro">
-        <div>
-          <p className="eyebrow">MEMÓRIA DE CONSTRUÇÃO · BOOTCAMP IA APLICADA</p>
-          <h1>De ideia em ideia.</h1>
-          <p>As pessoas, os agentes e as decisões por trás do FraudRadar.</p>
-        </div>
-        <div className="intro-total">
-          <strong>{r.data?.indice.length ?? "—"}</strong>
-          <span>registros conectados</span>
-        </div>
-      </section>
-      <section className="area-strip" aria-label="Prompts por área">
-        {areas.map((a) => {
-          const quantidade = prompts.filter((n) => n.area === a).length;
-          const ativo = r.filtros.area.includes(a);
-          return (
-            <button
-              key={a}
-              aria-pressed={ativo}
-              className={`area-card ${ativo ? "active" : ""}`}
-              onClick={() =>
-                r.mudar({
-                  area: ativo ? r.filtros.area.filter((v) => v !== a) : [...r.filtros.area, a],
-                })
-              }
-            >
-              <span className={`area-dot area-${a}`} />
-              <span>{rotulos[a]}</span>
-              <strong>{quantidade}</strong>
-              <small>prompts</small>
-            </button>
-          );
-        })}
-      </section>
-      <section className="author-strip" aria-label="Prompts por autor">
-        <span>QUEM CONSTRÓI</span>
-        {autores.map((a) => (
-          <button
-            key={a}
-            aria-pressed={r.filtros.autor === a}
-            className={r.filtros.autor === a ? "active" : ""}
-            onClick={() => alterar("autor", r.filtros.autor === a ? "" : a)}
-          >
-            {a}
-            <b>{prompts.filter((n) => n.autor === a).length}</b>
-          </button>
-        ))}
-      </section>
-      <div className="workspace">
-        <section className="navigator">
-          <div className="navigator-head">
-            <div className="flex items-center gap-2">
-              <Network size={17} />
-              <h2>Registro de construção</h2>
-            </div>
-            <span className="count">{r.data?.correspondencias.length ?? 0}</span>
+      <div className={`studio ${r.selecionado ? "has-detail" : ""}`}>
+        <aside className="studio-sidebar" aria-label="Visualização e filtros">
+          <div className="sidebar-heading">
+            <Network size={15} />
+            <h1>Registro de construção</h1>
           </div>
-          <div className="view-tabs" role="group" aria-label="Visualização">
-            <Button
-              variant={!r.linha ? "outline" : "ghost"}
-              size="sm"
-              onClick={() => r.mudar({ vista: "" })}
-            >
-              <GitBranch size={14} />
-              Árvore de prompts
-            </Button>
-            <Button
-              variant={r.linha ? "outline" : "ghost"}
-              size="sm"
-              onClick={() => r.mudar({ vista: "tempo" })}
-            >
-              <List size={14} />
-              Linha do tempo
-            </Button>
-          </div>
-          <form
-            className="search-row"
-            onSubmit={(e) => {
-              e.preventDefault();
-              alterar("q", String(new FormData(e.currentTarget).get("q") ?? ""));
-            }}
-          >
-            <Search size={16} />
-            <input
-              key={r.filtros.q}
-              name="q"
-              defaultValue={r.filtros.q}
-              placeholder="Buscar em títulos e conteúdo…"
-              aria-label="Buscar em títulos e conteúdo"
-              maxLength={200}
-            />
-            <Button size="sm" variant="ghost" type="submit">
-              Buscar
-            </Button>
-            <Button
-              type="button"
-              size="icon"
-              variant={filtrosAbertos ? "outline" : "ghost"}
-              aria-label="Mostrar filtros"
-              aria-expanded={filtrosAbertos}
-              onClick={() => setFiltrosAbertos(!filtrosAbertos)}
-            >
-              <SlidersHorizontal size={16} />
-            </Button>
-          </form>
-          {filtrosAbertos && (
-            <div className="filter-grid">
-              <label>
-                Autor
-                <select value={r.filtros.autor} onChange={(e) => alterar("autor", e.target.value)}>
-                  <option value="">Todos</option>
-                  {autores.map((a) => (
-                    <option key={a}>{a}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Tipo
-                <select value={r.filtros.tipo} onChange={(e) => alterar("tipo", e.target.value)}>
-                  <option value="">Todos</option>
-                  {tipos.map((t) => (
-                    <option value={t} key={t}>
-                      {rotulos[t]}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="col-span-2">
-                Branch
-                <select
-                  value={r.filtros.branch}
-                  onChange={(e) => alterar("branch", e.target.value)}
+          <p className="eyebrow">VISUALIZAÇÃO</p>
+          <nav className="view-tabs" aria-label="Visualização">
+            {(
+              [
+                { valor: "quadro", nome: "Quadro", Icone: LayoutDashboard },
+                { valor: "arvore", nome: "Árvore", Icone: GitBranch },
+                { valor: "tempo", nome: "Linha do tempo", Icone: List },
+              ] as const
+            ).map(({ valor, nome, Icone }) => (
+              <Button
+                key={valor}
+                variant="ghost"
+                aria-pressed={r.vista === valor}
+                className={r.vista === valor ? "active" : ""}
+                onClick={() => mudar({ vista: valor })}
+              >
+                <Icone size={15} />
+                {nome}
+              </Button>
+            ))}
+          </nav>
+          <p className="eyebrow mt-6">ÁREAS</p>
+          <div className="sidebar-areas">
+            {areas.map((a) => {
+              const ativo = r.filtros.area.includes(a);
+              return (
+                <button
+                  key={a}
+                  aria-pressed={ativo}
+                  className={ativo ? "active" : ""}
+                  onClick={() =>
+                    mudar({
+                      area: ativo ? r.filtros.area.filter((v) => v !== a) : [...r.filtros.area, a],
+                    })
+                  }
                 >
-                  <option value="">Todas</option>
-                  {branches.map((b) => (
-                    <option key={b}>{b}</option>
-                  ))}
-                </select>
-              </label>
+                  <span className={`area-dot area-${a}`} />
+                  <span>{rotulos[a]}</span>
+                  <span className="count">
+                    {r.data?.indice.filter((n) => n.area === a).length ?? 0}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="eyebrow mt-6">FILTROS</p>
+          <div className="filter-grid">
+            <label>
+              Autor
+              <select value={r.filtros.autor} onChange={(e) => alterar("autor", e.target.value)}>
+                <option value="">Todos os autores</option>
+                {autores.map((a) => (
+                  <option key={a}>{a}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tipo
+              <select value={r.filtros.tipo} onChange={(e) => alterar("tipo", e.target.value)}>
+                <option value="">Todos os tipos</option>
+                {tipos.map((t) => (
+                  <option value={t} key={t}>
+                    {rotulos[t]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Branch
+              <select
+                className="font-mono"
+                value={r.filtros.branch}
+                onChange={(e) => alterar("branch", e.target.value)}
+              >
+                <option value="">Todas as branches</option>
+                {branches.map((b) => (
+                  <option key={b}>{b}</option>
+                ))}
+              </select>
+            </label>
+            <div className="date-filters">
               <label>
                 De
                 <input
@@ -416,42 +353,66 @@ export function Explorador({ email }: { email: string }) {
                 />
               </label>
             </div>
-          )}
+          </div>
           {filtrado && (
             <div className="filter-note">
               <span>Ancestrais mantidos para dar contexto.</span>
               <button
                 onClick={() =>
-                  r.mudar({ area: [], autor: "", tipo: "", branch: "", inicio: "", fim: "", q: "" })
+                  mudar({ area: [], autor: "", tipo: "", branch: "", inicio: "", fim: "", q: "" })
                 }
               >
                 Limpar filtros
               </button>
             </div>
           )}
-          <div className="tree-scroll">
-            {ctx ? (
-              r.data!.correspondencias.length ? (
-                r.linha ? (
-                  <LinhaTempo ctx={ctx} />
-                ) : (
-                  <Arvore ctx={ctx} />
-                )
+          <div className="sidebar-footer">
+            <span className="status-dot" />
+            Somente leitura<span className="font-mono">{r.data?.indice.length ?? "—"} nós</span>
+          </div>
+        </aside>
+        <main className="studio-main">
+          <div className="canvas-toolbar">
+            <h2>
+              {r.vista === "quadro"
+                ? "Quadro"
+                : r.vista === "arvore"
+                  ? "Árvore de prompts"
+                  : "Linha do tempo"}
+            </h2>
+            <span>
+              {r.data?.correspondencias.length ?? 0} registros
+              {filtrado ? " encontrados" : " conectados"}
+            </span>
+          </div>
+          {ctx ? (
+            r.data!.correspondencias.length ? (
+              r.vista === "quadro" ? (
+                <Quadro
+                  visao={ctx.visao}
+                  selecionado={r.selecionado}
+                  selecionar={selecionar}
+                  apresentacao={r.apresentacao}
+                />
               ) : (
-                <div className="empty-small">
-                  <Search size={24} />
-                  <h3>{filtrado ? "Nenhum registro encontrado" : "A história começa aqui"}</h3>
-                  <p>
-                    {filtrado
-                      ? "Ajuste os filtros para explorar outras conexões."
-                      : "Os registros aparecerão aqui quando os agentes publicarem seus prompts e resultados."}
-                  </p>
+                <div className="tree-scroll">
+                  {r.linha ? <LinhaTempo ctx={ctx} /> : <Arvore ctx={ctx} />}
                 </div>
               )
             ) : (
-              <Estado erro={r.erro} recarregar={r.recarregar} />
-            )}
-          </div>
+              <div className="empty-small">
+                <Search size={24} />
+                <h3>{filtrado ? "Nenhum registro encontrado" : "A história começa aqui"}</h3>
+                <p>
+                  {filtrado
+                    ? "Ajuste os filtros para explorar outras conexões."
+                    : "Os registros aparecerão quando os agentes publicarem seus prompts e resultados."}
+                </p>
+              </div>
+            )
+          ) : (
+            <Estado erro={r.erro} recarregar={r.recarregar} />
+          )}
           <div className="legend">
             {tipos.map((t) => (
               <span key={t}>
@@ -460,50 +421,28 @@ export function Explorador({ email }: { email: string }) {
               </span>
             ))}
           </div>
-        </section>
-        <section className="detail-panel" aria-label="Detalhe do registro">
-          {r.selecionado ? (
-            detalhe.data ? (
+        </main>
+        {r.selecionado && (
+          <section className="detail-panel" aria-label="Detalhe do registro">
+            {detalhe.data ? (
               <Detalhe
                 key={r.selecionado}
                 data={detalhe.data}
                 selecionar={selecionar}
-                fechar={() => r.mudar({ no: "" })}
+                fechar={() => mudar({ no: "" })}
                 atualizar={detalhe.recarregar}
               />
             ) : (
-              <Estado erro={detalhe.erro} recarregar={detalhe.recarregar} />
-            )
-          ) : (
-            <div className="empty-detail">
-              <div className="graph-mark">
-                <MessageSquare />
-                <span />
-                <CornerDownRight />
-                <span />
-                <CheckCheck />
-              </div>
-              <p className="eyebrow">CADA CONEXÃO CONTA</p>
-              <h2>
-                Explore o caminho
-                <br />
-                até a entrega.
-              </h2>
-              <p>
-                Selecione um registro na árvore para ver o prompt completo, suas conexões e as
-                evidências do resultado.
-              </p>
-              <span className="flex items-center gap-2 text-xs text-muted-foreground">
-                <ArrowUpRight size={14} /> Comece por um prompt humano
-              </span>
-            </div>
-          )}
-        </section>
+              <>
+                <Button variant="ghost" onClick={() => mudar({ no: "" })}>
+                  Fechar detalhe
+                </Button>
+                <Estado erro={detalhe.erro} recarregar={detalhe.recarregar} />
+              </>
+            )}
+          </section>
+        )}
       </div>
-      <footer>
-        VibeLog <span>Uma construção humana, ampliada por IA.</span>
-        <span>FraudRadar · 2026</span>
-      </footer>
     </div>
   );
 }

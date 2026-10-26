@@ -6,6 +6,22 @@ import assert from "node:assert/strict";
 import { chromium } from "playwright";
 const base = "http://127.0.0.1:4011",
   app = "http://localhost:3002";
+function curlStatus(caminho, cookie = "") {
+  return new Promise((resolve, reject) => {
+    const args = ["-sS", "-o", "NUL", "-w", "%{http_code}"];
+    if (cookie) args.push("-H", `Cookie: ${cookie}`);
+    args.push(`${app}${caminho}`);
+    const processo = spawn("curl.exe", args, { windowsHide: true });
+    let saida = "",
+      erro = "";
+    processo.stdout.on("data", (d) => (saida += d));
+    processo.stderr.on("data", (d) => (erro += d));
+    processo.on("error", reject);
+    processo.on("close", (codigo) =>
+      codigo === 0 ? resolve(Number(saida)) : reject(new Error(erro)),
+    );
+  });
+}
 const ids = [
   "11111111-1111-4111-8111-111111111111",
   "22222222-2222-4222-8222-222222222222",
@@ -55,7 +71,7 @@ const mock = http.createServer(async (req, res) => {
     res.end();
     return;
   }
-  if (u.pathname === "/auth/v1/token") {
+  if (u.pathname === "/auth/v1/token" || u.pathname === "/auth/v1/signup") {
     res.end(
       JSON.stringify({
         access_token: token,
@@ -162,18 +178,75 @@ try {
   await page.goto(app);
   assert.match(page.url(), /\/login/);
   assert.equal((await page.request.get(`${app}/api/registros`)).status(), 401);
+  for (const [caminho, codigo] of [
+    ["/", 307],
+    ["/login", 200],
+    ["/cadastro", 200],
+    ["/api/registros", 401],
+  ]) {
+    assert.equal(await curlStatus(caminho), codigo, `${caminho} sem sessão`);
+  }
   await mkdir("test-results", { recursive: true });
-  await page.screenshot({ path: "test-results/login-claro.png", fullPage: true });
+  await page.screenshot({ path: "test-results/login-escuro.png", fullPage: true });
+  await page.getByRole("link", { name: "Criar conta" }).click();
+  await page.getByRole("heading", { name: "Crie sua conta" }).waitFor();
+  await page.getByLabel("Nome", { exact: true }).fill("Pessoa Teste");
+  await page.getByLabel("E-mail", { exact: true }).fill(user.email);
+  await page.getByLabel("Senha", { exact: true }).fill("senha1234");
+  await page.getByLabel("Confirmar senha").fill("senha1234");
+  await page.getByRole("button", { name: "Mostrar senha" }).first().click();
+  assert.equal(await page.getByLabel("Senha", { exact: true }).getAttribute("type"), "text");
+  await page.getByRole("button", { name: "Ocultar senha" }).click();
+  await page.getByRole("button", { name: "Criar conta" }).click();
+  await page.getByRole("heading", { name: "Registro de construção" }).waitFor();
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await page.getByRole("heading", { name: "Entre na história" }).waitFor();
+  await page.getByRole("button", { name: "Mostrar senha" }).click();
+  assert.equal(await page.getByLabel("Senha", { exact: true }).getAttribute("type"), "text");
+  await page.getByRole("button", { name: "Ocultar senha" }).click();
+  await page.getByLabel("Manter conectado").uncheck();
   await page.getByLabel("E-mail", { exact: true }).fill(user.email);
   await page.getByLabel("Senha", { exact: true }).fill("senha-ficticia");
   await page.getByRole("button", { name: "Acessar VibeLog" }).click();
-  await page.getByRole("heading", { name: "De ideia em ideia." }).waitFor();
-  await page.getByText(nos[0].titulo, { exact: true }).waitFor();
-  assert.equal(pedidosFilhos, 1);
+  await page.getByRole("heading", { name: "Registro de construção" }).waitFor();
+  await page.locator(".react-flow__node").first().waitFor();
+  const authCookies = (await page.context().cookies()).filter((c) =>
+    c.name.startsWith("vibelog-auth"),
+  );
+  assert.ok(authCookies.length > 0);
+  assert.ok(authCookies.every((c) => c.expires === -1));
+  const cookieHeader = (await page.context().cookies())
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
+  for (const [caminho, codigo] of [
+    ["/", 200],
+    ["/?vista=arvore", 200],
+    ["/?vista=tempo", 200],
+    ["/login", 307],
+    ["/cadastro", 307],
+    ["/api/registros", 200],
+  ]) {
+    assert.equal(await curlStatus(caminho, cookieHeader), codigo, `${caminho} com sessão`);
+  }
+  await page.screenshot({ path: "test-results/quadro-escuro.png", fullPage: true });
+  await page.locator(".canvas-card h3").filter({ hasText: nos[2].titulo }).click();
+  await page.getByRole("heading", { name: nos[2].titulo, exact: true }).waitFor();
+  await page.getByRole("button", { name: "Modo apresentação" }).click();
+  await page.waitForURL(/apresentacao=1/);
+  assert.equal(new URL(page.url()).searchParams.get("apresentacao"), "1");
+  await page.getByRole("button", { name: "Alternar tema" }).click();
+  await page.waitForFunction(() => !document.documentElement.classList.contains("dark"));
+  await page.screenshot({ path: "test-results/quadro-claro.png", fullPage: true });
+  await page.getByRole("button", { name: "Registros", exact: true }).click();
+  await page.getByRole("button", { name: "Árvore", exact: true }).click();
+  await page.waitForURL(/vista=arvore/);
+  assert.equal(new URL(page.url()).searchParams.get("vista"), "arvore");
+  await page.locator(".tree .node-title").filter({ hasText: nos[0].titulo }).waitFor();
+  assert.ok(pedidosFilhos >= 1);
   await page.getByRole("button", { name: `Expandir ${nos[0].titulo}` }).click();
   await page.getByText(nos[1].titulo, { exact: true }).waitFor();
   await page.getByRole("button", { name: `Expandir ${nos[1].titulo}` }).click();
-  await page.getByText(nos[2].titulo, { exact: true }).click();
+  await page.locator(".tree .node-title").filter({ hasText: nos[2].titulo }).click();
   await page.getByRole("heading", { name: nos[2].titulo, exact: true }).waitFor();
   await page.waitForFunction(() => {
     const img = document.querySelector(".evidence-card img");
@@ -183,22 +256,18 @@ try {
   await page.getByRole("dialog").waitFor();
   await page.getByRole("button", { name: "Fechar imagem" }).click();
   await page.screenshot({ path: "test-results/arvore-claro.png", fullPage: true });
-  await page.getByRole("button", { name: "Machine learning 0 prompts" }).click();
+  await page.locator(".sidebar-areas button").filter({ hasText: "Machine learning" }).click();
   await page.getByText("Ancestrais mantidos para dar contexto.").waitFor();
   await page.getByText(nos[0].titulo, { exact: true }).first().waitFor();
   await page.getByText(nos[1].titulo, { exact: true }).first().waitFor();
-  await page.getByRole("button", { name: "Modo apresentação" }).click();
   assert.ok(new URL(page.url()).searchParams.get("area") === "ml");
   assert.ok(new URL(page.url()).searchParams.get("no") === ids[2]);
-  await page.getByRole("button", { name: "Alternar tema" }).click();
-  await page.waitForFunction(() => document.documentElement.classList.contains("dark"));
-  await page.screenshot({ path: "test-results/arvore-escuro.png", fullPage: true });
   await page.getByRole("button", { name: "Linha do tempo" }).click();
   await page.locator(".timeline-row").waitFor();
   assert.equal(await page.locator(".timeline-row").count(), 1);
   await page.getByRole("button", { name: "Limpar filtros" }).click();
   await page.locator(".timeline-row").nth(2).waitFor();
-  await page.getByRole("button", { name: "Árvore de prompts" }).click();
+  await page.getByRole("button", { name: "Árvore", exact: true }).click();
   await page.getByLabel("Buscar em títulos e conteúdo").fill("revisão humana");
   await page.getByRole("button", { name: "Buscar", exact: true }).click();
   await page.getByText("Ancestrais mantidos para dar contexto.").waitFor();
@@ -206,12 +275,14 @@ try {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: "test-results/mobile.png", fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
+  await page.getByRole("button", { name: "Registros", exact: true }).click();
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await page.getByRole("heading", { name: "Entre na história" }).waitFor();
   assert.deepEqual(erros, []);
   assert.equal(houveEscrita, false);
+  assert.doesNotMatch(log, /Blocking Route|prerendering|unstable value|Runtime Data/i);
   console.log(
-    "Navegador: login, proteção, filhos sob demanda, filtros com ancestrais, detalhes, Markdown, lightbox, temas, apresentação, linha do tempo, busca, mobile e logout passaram; nenhuma escrita pelo viewer.",
+    "Navegador: cadastro, login, cookies de sessão, quadro, árvore, filtros, detalhes, apresentação, tema, linha do tempo, busca, mobile e logout passaram; nenhuma escrita pelo viewer.",
   );
 } catch (e) {
   console.error(log.slice(-4000));

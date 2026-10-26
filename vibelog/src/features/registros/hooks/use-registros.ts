@@ -48,21 +48,30 @@ export function useRegistros() {
   const chave = parametros.toString();
   const carregar = useCallback((s: AbortSignal) => obterVisao(chave, s), [chave]);
   const consulta = useConsulta(chave, carregar);
-  function mudar(valores: Record<string, string | string[]>) {
-    const p = new URLSearchParams(parametrosAtuais.current);
-    for (const [k, v] of Object.entries(valores)) {
-      p.delete(k);
-      for (const item of Array.isArray(v) ? v : [v]) if (item) p.append(k, item);
-    }
-    parametrosAtuais.current = p.toString();
-    router.replace(`/?${p}`, { scroll: false });
-  }
+  const mudar = useCallback(
+    (valores: Record<string, string | string[]>) => {
+      const p = new URLSearchParams(parametrosAtuais.current);
+      for (const [k, v] of Object.entries(valores)) {
+        p.delete(k);
+        for (const item of Array.isArray(v) ? v : [v]) if (item) p.append(k, item);
+      }
+      parametrosAtuais.current = p.toString();
+      router.replace(`/?${p}`, { scroll: false });
+    },
+    [router],
+  );
   return {
     ...consulta,
     filtros,
     mudar,
     selecionado: params.get("no"),
     linha: params.get("vista") === "tempo",
+    vista:
+      params.get("vista") === "tempo"
+        ? "tempo"
+        : params.get("vista") === "arvore"
+          ? "arvore"
+          : "quadro",
     apresentacao: params.get("apresentacao") === "1",
   };
 }
