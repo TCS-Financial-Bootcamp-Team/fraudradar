@@ -1,13 +1,16 @@
-import { PainelSaude } from "@/features/saude/components/painel-saude";
+import { redirect } from "next/navigation";
+import { connection } from "next/server";
+import { Suspense } from "react";
 
-export default function Home() {
+async function Redirecionar() {
+  await connection();
+  return redirect("/dashboard");
+}
+
+export default function Inicio() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8">
-      <div className="text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">FraudRadar</h1>
-        <p className="text-muted-foreground">Monitoramento de PLD sobre o SAML-D</p>
-      </div>
-      <PainelSaude />
-    </main>
+    <Suspense fallback={<p role="status">Abrindo painel…</p>}>
+      <Redirecionar />
+    </Suspense>
   );
 }

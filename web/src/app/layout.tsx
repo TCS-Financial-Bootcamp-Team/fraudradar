@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
-import { Toaster } from "@/components/ui/sonner";
+import { Providers } from "@/components/providers";
+import { Carregando } from "@/components/ui/estados";
 
 import "./globals.css";
 
@@ -24,11 +26,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="pt-BR"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <Toaster />
+        <Providers>
+          <Suspense
+            fallback={
+              <main className="p-8">
+                <Carregando />
+              </main>
+            }
+          >
+            {children}
+          </Suspense>
+        </Providers>
       </body>
     </html>
   );
