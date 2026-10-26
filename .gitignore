@@ -53,3 +53,4 @@ Thumbs.db
 
 # Temporários locais
 trash/
+.pnpm-store/

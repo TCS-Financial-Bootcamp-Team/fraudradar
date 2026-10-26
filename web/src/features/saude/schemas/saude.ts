@@ -1,7 +1,10 @@
-// Espelha api/schemas/saude.py
-export type Saude = {
-  status: "ok" | "degradado";
-  banco: { ok: boolean; detalhe: string };
-  modelo: { ok: boolean; arquivo: string };
-  llm: { ok: boolean; provedor: string };
-};
+import { z } from "zod";
+
+// Espelha api/schemas/saude.py.
+export const saudeSchema = z.object({
+  status: z.enum(["ok", "degradado"]),
+  banco: z.object({ ok: z.boolean(), detalhe: z.string() }),
+  modelo: z.object({ ok: z.boolean(), arquivo: z.string() }),
+  llm: z.object({ ok: z.boolean(), provedor: z.string() }),
+});
+export type Saude = z.infer<typeof saudeSchema>;

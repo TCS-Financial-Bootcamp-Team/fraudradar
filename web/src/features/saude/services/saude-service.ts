@@ -1,7 +1,8 @@
-import { apiGet } from "@/lib/api";
+import { apiGet, USA_MOCKS } from "@/lib/api";
 
-import type { Saude } from "../schemas/saude";
+import { saudeSchema, type Saude } from "../schemas/saude";
 
-export function buscarSaude(signal?: AbortSignal): Promise<Saude> {
-  return apiGet<Saude>("/saude", { signal });
+export async function buscarSaude(signal?: AbortSignal): Promise<Saude> {
+  if (USA_MOCKS) return saudeSchema.parse((await import("./mocks")).saudeMock);
+  return saudeSchema.parse(await apiGet("/saude", { signal }));
 }
