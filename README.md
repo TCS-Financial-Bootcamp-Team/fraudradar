@@ -77,7 +77,7 @@ docker compose up -d --build    # sobe db, api e web
 Outros comandos:
 
 ```bash
-uv run pytest                               # testes (não precisam de Docker)
+uv run pytest                               # testes; os da API usam o Postgres do Compose
 uv run ruff check . && uv run ruff format .  # lint e formatação
 docker compose run --rm worker replay       # roda o worker (job em lote)
 docker compose run --rm worker lote --semana 2023-01-02
@@ -88,6 +88,36 @@ docker compose down -v                      # para e APAGA o banco (re-roda db/i
 
 As tabelas são criadas por `db/init/*.sql` só na **primeira** subida do volume.
 Mudou o SQL? `docker compose down -v` e suba de novo.
+
+Os testes da API criam e apagam o banco `fraudradar_teste` no Postgres do
+Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
+`TEST_DATABASE_URL` (o nome do banco precisa terminar em `_teste`).
+
+## API
+
+Swagger em http://localhost:8000/docs. Toda rota, menos `/saude`, exige o access
+token do Supabase Auth (`Authorization: Bearer ...`), validado pela chave
+pública do projeto; o nome do perfil do analista vai para decisões, aprovações
+e auditoria. Em desenvolvimento, `AUTH_DESLIGADA=true` dispensa o login.
+
+| Rota | O que faz |
+|---|---|
+| `GET /semanas` | semanas já liberadas pelo replay (`atual` é a mais recente) |
+| `POST /replay/proxima-semana` | libera a próxima semana já processada pelo worker |
+| `GET /alertas?semana=` | fila paginada da semana (filtros `status` e `pais`) |
+| `GET /alertas/{id}` | detalhe: contribuições, regras, movimentações e último parecer |
+| `GET /alertas/{id}/grafo` | vizinhança de 2 saltos da conta na semana |
+| `POST /alertas/{id}/decisao` | arquivar, aprofundar ou comunicar, com justificativa |
+| `GET /alertas/{id}/comunicacao` | rascunho da comunicação ao COAF |
+| `POST /alertas/{id}/comunicacao/aprovar` | aprova a comunicação e encerra o alerta |
+| `GET /monitoramento?semana=` | indicadores e séries da semana |
+| `POST /alertas/{id}/parecer`, `/chat` | ainda respondem 503: dependem do RAG (frente 3) |
+| `/ingestao/*` | ainda responde 501 |
+
+A API não roda o modelo: ela lê o que o worker grava, e o replay só libera
+semanas que o worker já processou (`lotes_semana`). Os formatos JSON que o
+worker grava (evidências e métricas da semana) estão comentados em
+`db/init/002_tabelas.sql`.
 
 Terraform (alternativa ao Compose, mesmos containers com prefixo
 `fraudradar-tf`; não rode os dois juntos, as portas colidem):
