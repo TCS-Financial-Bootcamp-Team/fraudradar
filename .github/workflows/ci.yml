@@ -11,6 +11,24 @@ concurrency:
 jobs:
   python:
     runs-on: ubuntu-latest
+    # Os testes da API rodam contra este Postgres (mesma imagem do Compose).
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: fraudradar
+          POSTGRES_PASSWORD: fraudradar
+          POSTGRES_DB: fraudradar
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U fraudradar"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      # Sem Postgres os testes da API falham em vez de serem pulados.
+      EXIGIR_BANCO_TESTE: "1"
     steps:
       - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
