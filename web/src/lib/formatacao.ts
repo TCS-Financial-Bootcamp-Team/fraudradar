@@ -1,7 +1,8 @@
+// Os valores do SAML-D estão em libras (a API devolve moeda "GBP" nas movimentações).
 export const moeda = (valor: number) =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency",
-    currency: "BRL",
+    currency: "GBP",
     maximumFractionDigits: 0,
   }).format(valor);
 export const numero = (valor: number) =>
