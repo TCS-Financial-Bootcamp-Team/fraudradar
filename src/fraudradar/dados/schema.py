@@ -51,6 +51,12 @@ RENOMEAR: dict[str, str] = {
     "Laundering_type": "tipologia_original",
 }
 
+# Amount está numa unidade só, qualquer que seja Payment_currency: a mediana fica entre
+# 6,5 mil e 7,7 mil nas 13 moedas (em iene ou naira seria centenas de vezes maior). O artigo
+# do SAML-D não diz qual é; adotamos libras porque o dataset é britânico (quase todas as
+# transações são em "UK pounds"), como registra o dossiê do projeto.
+MOEDA_DOS_VALORES = "GBP"
+
 # Rótulo e tipologia vão só para `avaliacao`. O modelo NUNCA lê estas colunas.
 COLUNAS_AVALIACAO: list[str] = ["Is_laundering", "Laundering_type"]
 
