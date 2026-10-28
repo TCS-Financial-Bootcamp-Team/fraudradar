@@ -103,6 +103,7 @@ resource "docker_container" "api" {
     "LLM_PROVIDER=${var.llm_provider}",
     "OPENAI_API_KEY=${var.openai_api_key}",
     "ANTHROPIC_API_KEY=${var.anthropic_api_key}",
+    "SUPABASE_URL=${var.supabase_url}",
   ]
 
   networks_advanced {

@@ -46,6 +46,12 @@ variable "llm_provider" {
   default = "openai"
 }
 
+# A API valida o login dos analistas com a chave pública deste projeto Supabase.
+variable "supabase_url" {
+  type    = string
+  default = ""
+}
+
 variable "openai_api_key" {
   type      = string
   default   = ""
