@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 RAIZ = Path(__file__).resolve().parents[2]
@@ -30,6 +30,13 @@ class Settings(BaseSettings):
     dados_dir: Path = RAIZ / "dados"
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:3000"])
+
+    # A API valida o JWT do Supabase Auth, o mesmo projeto do front (aceita a variável do front).
+    supabase_url: str | None = Field(
+        default=None, validation_alias=AliasChoices("SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL")
+    )
+    # Só para desenvolvimento e testes: aceita qualquer requisição como "Analista local".
+    auth_desligada: bool = False
 
     @field_validator("model_dir", "dados_dir")
     @classmethod

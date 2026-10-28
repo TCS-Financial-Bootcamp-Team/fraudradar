@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from api.rotas import alertas, monitoramento, replay, saude, semanas
+from api.dependencias import usuario_atual
+from api.rotas import alertas, decisoes, ia, ingestao, monitoramento, replay, saude, semanas
 from fraudradar import __version__
 from fraudradar.config import get_settings
 
@@ -14,8 +15,11 @@ def criar_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    for modulo in (saude, semanas, alertas, replay, monitoramento):
-        app.include_router(modulo.router)
+    # /saude fica aberta: o healthcheck do Compose não tem sessão.
+    app.include_router(saude.router)
+    protegidas = [Depends(usuario_atual)]
+    for modulo in (semanas, alertas, decisoes, ia, replay, monitoramento, ingestao):
+        app.include_router(modulo.router, dependencies=protegidas)
     return app
 
 
