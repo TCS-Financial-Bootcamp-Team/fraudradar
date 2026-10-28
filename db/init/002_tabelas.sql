@@ -55,23 +55,46 @@ CREATE TABLE scores_transacao (
     PRIMARY KEY (transacao_id, modelo_versao)
 );
 
-CREATE TABLE alertas (
-    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    conta         BIGINT      NOT NULL REFERENCES contas (conta),
-    semana        DATE        NOT NULL CHECK (extract(isodow FROM semana) = 1),
-    score         REAL        NOT NULL CHECK (score BETWEEN 0 AND 1),
-    posicao_fila  INTEGER     NOT NULL CHECK (posicao_fila > 0),
-    status        TEXT        NOT NULL DEFAULT 'novo'
-                  CHECK (status IN ('novo', 'em_analise', 'arquivado', 'aprofundado', 'comunicado')),
-    paises        TEXT[]      NOT NULL DEFAULT '{}',
+-- Um lote por semana processada pelo worker. `liberada_em` é o replay da demo:
+-- a API libera uma semana por vez (POST /replay/proxima-semana).
+-- metricas é a avaliação contra `avaliacao`, calculada pelo worker:
+--   {"recall": 0..1, "acerto_tipologia": 0..1,
+--    "taxa_paises": {"UK": 0..1, ...}, "taxa_meios": {"Cash Deposit": 0..1, ...}}
+CREATE TABLE lotes_semana (
+    semana        DATE        PRIMARY KEY CHECK (extract(isodow FROM semana) = 1),
     modelo_versao TEXT        NOT NULL REFERENCES modelo_versoes (versao),
-    criado_em     TIMESTAMPTZ NOT NULL DEFAULT now(),
-    atualizado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+    contas_ativas INTEGER     NOT NULL CHECK (contas_ativas >= 0),
+    metricas      JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    processado_em TIMESTAMPTZ NOT NULL DEFAULT now(),
+    liberada_em   TIMESTAMPTZ
+);
+
+-- Fila semanal por conta, escrita pelo worker. `paises` vem ordenado pelo valor
+-- movimentado (paises[1] é o país exibido na fila); `tipologia` é a prevista
+-- pelo modelo, nunca a de `avaliacao`; valor_total e qtd_transacoes resumem as
+-- transações da conta na semana, enviadas e recebidas.
+CREATE TABLE alertas (
+    id             BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    conta          BIGINT        NOT NULL REFERENCES contas (conta),
+    semana         DATE          NOT NULL CHECK (extract(isodow FROM semana) = 1),
+    score          REAL          NOT NULL CHECK (score BETWEEN 0 AND 1),
+    posicao_fila   INTEGER       NOT NULL CHECK (posicao_fila > 0),
+    status         TEXT          NOT NULL DEFAULT 'novo'
+                   CHECK (status IN ('novo', 'em_analise', 'arquivado', 'aprofundado', 'comunicado')),
+    paises         TEXT[]        NOT NULL DEFAULT '{}',
+    tipologia      TEXT,
+    valor_total    NUMERIC(16,2) NOT NULL DEFAULT 0 CHECK (valor_total >= 0),
+    qtd_transacoes INTEGER       NOT NULL DEFAULT 0 CHECK (qtd_transacoes >= 0),
+    modelo_versao  TEXT          NOT NULL REFERENCES modelo_versoes (versao),
+    criado_em      TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    atualizado_em  TIMESTAMPTZ   NOT NULL DEFAULT now(),
     UNIQUE (conta, semana)
 );
 CREATE INDEX alertas_fila_idx ON alertas (semana, status, posicao_fila);
 CREATE INDEX alertas_paises_idx ON alertas USING gin (paises);
 
+-- contribuicoes: {"<feature>": contribuição SHAP em log-odds} (positiva = puxa para suspeito).
+-- regras: [{"codigo": "R-001", "descricao": "...", "detalhe": {...}}], ver db/regras/.
 CREATE TABLE evidencias (
     alerta_id      BIGINT      PRIMARY KEY REFERENCES alertas (id) ON DELETE CASCADE,
     contribuicoes  JSONB       NOT NULL DEFAULT '{}'::jsonb,
@@ -81,6 +104,7 @@ CREATE TABLE evidencias (
     criado_em      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- fontes: [{"titulo": "...", "trecho": "..."}], na ordem das citações [1], [2]...
 CREATE TABLE pareceres (
     id                 BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     alerta_id          BIGINT      NOT NULL REFERENCES alertas (id) ON DELETE CASCADE,
