@@ -113,12 +113,33 @@ e auditoria. Em desenvolvimento, `AUTH_DESLIGADA=true` dispensa o login.
 | `POST /alertas/{id}/comunicacao/aprovar` | aprova a comunicação e encerra o alerta |
 | `GET /monitoramento?semana=` | indicadores e séries da semana |
 | `POST /alertas/{id}/parecer`, `/chat` | ainda respondem 503: dependem do RAG (frente 3) |
-| `/ingestao/*` | ainda responde 501 |
+| `POST /ingestao/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
+| `POST /ingestao/transacoes` | uma transação no mesmo formato, em JSON |
+| `/ingestao/conexoes` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |
 
 A API não roda o modelo: ela lê o que o worker grava, e o replay só libera
 semanas que o worker já processou (`lotes_semana`). Os formatos JSON que o
 worker grava (evidências e métricas da semana) estão comentados em
 `db/init/002_tabelas.sql`.
+
+### Ingestão
+
+O CSV vai em `multipart/form-data`, campo `arquivo`: UTF-8, separado por
+vírgula, com as 10 colunas de transação do SAML-D no cabeçalho, em qualquer
+ordem, e sem `Is_laundering`/`Laundering_type` (rótulo não entra pela API).
+Todas as linhas são validadas (`src/fraudradar/dados/ingestao.py`): uma linha
+com erro recusa o arquivo inteiro, e o 422 lista os 20 primeiros erros com linha
+e coluna. Contas: só dígitos, sem zero à esquerda, até 9223372036854775807
+(`BIGINT`).
+
+**Limite por envio: 20 MiB e 200 mil linhas** (`INGESTAO_MAX_BYTES`,
+`INGESTAO_MAX_LINHAS`); acima disso, 413. O envio roda numa transação só, com
+o `statement_timeout` de 15 s: 200 mil linhas levaram de 1,6 a 2,8 s pela API,
+com o COPY em 1,9 s numa tabela de 11 milhões de linhas. Para o SAML-D inteiro,
+use o worker, não a API.
+
+Cada envio vira um registro em `ingestoes`, cujo id é o do recibo, com status
+`recebido`: o score sai quando o worker processa a semana das transações.
 
 Terraform (alternativa ao Compose, mesmos containers com prefixo
 `fraudradar-tf`; não rode os dois juntos, as portas colidem):

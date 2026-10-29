@@ -59,7 +59,7 @@ simuladas neste produto acadêmico. Validar esse rótulo com o responsável do p
 | Requisição                               | Pedido / resposta                                                                              |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | POST /ingestao/csv                       | multipart/form-data com campo arquivo (File); resposta reciboSchema.                           |
-| POST /ingestao/transacoes                | transacaoSchema com as 11 colunas transacionais; resposta reciboSchema.                        |
+| POST /ingestao/transacoes                | transacaoSchema com as 10 colunas transacionais; resposta reciboSchema.                        |
 | POST /ingestao/conexoes                  | conexaoSchema: {nome, tipo: "postgres", connection_string, ssl}; resposta fonteSchema.         |
 | GET /ingestao/conexoes                   | fontesSchema: {itens: Fonte[]}.                                                                |
 | POST /ingestao/conexoes/{id}/sincronizar | **Endpoint adicional assumido** para a ação de sincronização. Pedido {}; resposta fonteSchema. |
@@ -79,8 +79,8 @@ O formulário aceita URI ou monta a URI a partir de host/porta/banco/usuário/se
 codificando os componentes. Os campos secretos são limpos após a tentativa de
 cadastro, não entram em localStorage e não são usados no chat.
 
-O CSV deve conter exatamente as 11 chaves de transacaoSchema, sem colunas de
-avaliação. A prévia usa PapaParse em blocos de 64 KiB, com preview=20 e limite
+O CSV deve conter exatamente as 10 chaves de transacaoSchema, sem colunas de
+avaliação (o SAML-D tem 12 colunas; Is_laundering e Laundering_type ficam fora). A prévia usa PapaParse em blocos de 64 KiB, com preview=20 e limite
 defensivo de 1 MiB. O arquivo original segue por multipart, sem ser convertido
 integralmente para JSON. A validação local cobre somente a amostra: a API precisa
 validar todas as linhas, rejeitar colunas extras e definir limites de upload.
@@ -89,6 +89,32 @@ Datas: AAAA-MM-DD; horário: HH:MM ou HH:MM:SS; valor numérico positivo.
 Os catálogos de moedas, países e meios são sugestões pesquisáveis. Nomes de
 moedas do arquivo SAML-D são preservados; validar normalização e catálogo oficial
 com o time da API. Não há inferência de taxa de câmbio no cliente.
+
+### O que a API faz na ingestão
+
+Implementado em POST /ingestao/csv e /ingestao/transacoes; as regras ficam em
+`src/fraudradar/dados/ingestao.py`.
+
+- **Contas**: o zod aceita texto de até 64 caracteres, mas as colunas são
+  `BIGINT`. A API aceita só dígitos (0–9), sem zero à esquerda, de 1 até
+  9223372036854775807, e recusa o resto com 422. Na coluna numérica o zero à
+  esquerda se perderia e "0123" viraria a mesma conta que "123".
+- **CSV**: UTF-8 (BOM opcional), separado por vírgula, cabeçalho na linha 1 com as
+  10 colunas em qualquer ordem, como em `validarCabecalhos`. Coluna faltando,
+  repetida, desconhecida ou de avaliação (Is_laundering, Laundering_type) → 422.
+  Linhas em branco são puladas.
+- **Valores**: Amount é arredondado para centavos, como a coluna NUMERIC(14,2), e
+  precisa ficar entre 0.01 e 999999999999.99. Moedas e países são gravados como
+  vieram, sem espaços nas pontas e sem caracteres de controle.
+- **Tudo ou nada**: com qualquer linha inválida nada é gravado. O 422 tem o
+  formato do FastAPI, `{"detail": [{"type", "loc", "msg"}]}`, com até 20 erros. No
+  CSV, `loc` é `["body", "arquivo", linha, coluna]` e `msg` começa por "Linha N,
+  coluna X:"; na transação avulsa, `loc` é `["body", campo]`.
+- **Limite por envio**: 20 MiB e 200 mil linhas; acima disso, 413 com `detail` em
+  texto. A API recusa no meio do envio, e o navegador pode mostrar isso como
+  falha de conexão: confira `arquivo.size` antes de enviar.
+- **Resposta**: 201 com reciboSchema, status `recebido`; o id é o do envio
+  (tabela `ingestoes`). O score sai quando o worker processa a semana.
 
 ## Chat e privacidade
 

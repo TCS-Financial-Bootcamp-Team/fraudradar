@@ -25,6 +25,13 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
   requisição, com commit antes da resposta; `HTTPException` faz rollback;
   `statement_timeout` de 15 s. Não abra outra conexão nem faça commit manual.
   Linha que vai mudar: `linha_do_alerta(..., para_atualizar=True)` (FOR UPDATE).
+- Carga em massa: valide tudo antes de gravar e use COPY pelo psycopg da própria
+  conexão (`conn.connection.driver_connection`), na mesma transação. Modelo:
+  `gravar_csv` em `api/repositorios/ingestao.py`.
+- Upload: o Starlette lê o corpo inteiro antes das dependências (até da
+  autenticação) e não limita tamanho. Rota que recebe arquivo usa
+  `route_class_override=CorpoLimitado` (`api/rotas/ingestao.py`), que conta os
+  bytes enquanto chegam e responde 413 no limite.
 - Autenticação: `main.py` protege todos os routers, menos `/saude`. A API valida
   o access token do Supabase pela JWKS do projeto (só ES256/RS256). Quem age é
   `UsuarioAtual`; o nome vai para `decisoes.analista`,
@@ -32,8 +39,10 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
   grava em `auditoria`.** Em dev e nos testes, `AUTH_DESLIGADA=true`.
 - Erros: `HTTPException` com mensagem em PT-BR que o analista entenda. 404 para
   recurso inexistente, 409 para conflito de estado (comunicação aprovada encerra
-  o alerta), 422 vem do Pydantic, 501 para o que ainda não existe, 503 quando a
-  dependência (IA) está fora.
+  o alerta), 413 para envio acima do limite, 422 vem do Pydantic, 501 para o que
+  ainda não existe, 503 quando a dependência (IA) está fora. Erro de conteúdo
+  (linha de CSV, regra de campo) também é 422, no formato do Pydantic
+  (`[{type, loc, msg}]`), com linha e coluna em `loc` e no começo da `msg`.
 - Listas: ordene antes de paginar e limite `pagina`/`tamanho` na rota.
 - LLM e RAG ficam em `src/fraudradar/ia`; a rota só chama. O LLM nunca recebe
   número de conta: pseudonimize antes do prompt. Chave do LLM só na API.
@@ -43,10 +52,12 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
 - Valores do SAML-D estão em **libras** (`MOEDA_DOS_VALORES = "GBP"` em
   `src/fraudradar/dados/schema.py`), seja qual for `Payment_currency`. Nunca
   converta nem some por moeda. O motivo está comentado no próprio arquivo.
-- Colunas do CSV → tabela: `RENOMEAR` em `schema.py`. Transação tem as 11 de
-  `COLUNAS_TRANSACAO`; `Is_laundering`/`Laundering_type` só existem em
-  `avaliacao`, e a API nunca lê nem grava essa tabela.
-- Contas são `BIGINT` de até 10 dígitos no banco.
+- Colunas do CSV → tabela: `RENOMEAR` em `schema.py`. Transação tem as 10 de
+  `COLUNAS_TRANSACAO` (o SAML-D tem 12; `Is_laundering`/`Laundering_type` só
+  existem em `avaliacao`, e a API nunca lê nem grava essa tabela).
+- Contas são `BIGINT` no banco (no SAML-D, até 10 dígitos). Validação de
+  transação que entra (CSV ou JSON): `src/fraudradar/dados/ingestao.py`, a mesma
+  para API e worker.
 - Formatos JSON que o worker grava (evidências, métricas): comentários em
   `db/init/002_tabelas.sql`.
 - Mudança de esquema: só em `db/init/002_tabelas.sql`, commit com `!` e aviso
