@@ -324,9 +324,10 @@ def test_chat_valida_pedido_e_responde_503(cliente):
     assert cliente.post("/chat", json=vazio).status_code == 422
 
 
-def test_ingestao_lista_vazia_e_envios_501(cliente):
+def test_fontes_postgres_lista_vazia_e_cadastro_501(cliente):
     assert cliente.get("/ingestao/conexoes").json() == {"itens": []}
-    assert cliente.post("/ingestao/transacoes").status_code == 501
+    assert cliente.post("/ingestao/conexoes").status_code == 501
+    assert cliente.post("/ingestao/conexoes/1/sincronizar").status_code == 501
 
 
 # --- a própria semente (os executores dependem dela) --------------------------------------------

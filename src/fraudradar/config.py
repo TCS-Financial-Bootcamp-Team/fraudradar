@@ -38,6 +38,12 @@ class Settings(BaseSettings):
     # Só para desenvolvimento e testes: aceita qualquer requisição como "Analista local".
     auth_desligada: bool = False
 
+    # POST /ingestao/csv: um envio no limite cabe com folga no statement_timeout de 15 s
+    # (200 mil linhas: COPY de ~1,9 s com 11 mi de linhas na tabela). O SAML-D inteiro é do
+    # worker, não da API.
+    ingestao_max_bytes: int = 20 * 1024 * 1024
+    ingestao_max_linhas: int = 200_000
+
     @field_validator("model_dir", "dados_dir")
     @classmethod
     def _relativo_a_raiz(cls, caminho: Path) -> Path:
