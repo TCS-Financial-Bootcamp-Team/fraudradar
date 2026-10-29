@@ -4,6 +4,8 @@
 
 -- Transações do SAML-D (~9,5 mi linhas), carregadas por COPY.
 -- Sem FK para contas: contas é derivada de transacoes e a FK deixaria a carga lenta.
+-- ingestao_id: o envio pela API que trouxe a transação; NULL na carga do SAML-D. Também sem
+-- FK, pelo mesmo motivo (o gatilho rodaria a cada linha do COPY): a API grava os dois juntos.
 CREATE TABLE transacoes (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     data_hora       TIMESTAMP     NOT NULL,
@@ -14,10 +16,25 @@ CREATE TABLE transacoes (
     moeda_recebida  TEXT          NOT NULL,
     pais_remetente  TEXT          NOT NULL,
     pais_recebedor  TEXT          NOT NULL,
-    tipo_pagamento  TEXT          NOT NULL
+    tipo_pagamento  TEXT          NOT NULL,
+    ingestao_id     BIGINT
 );
 CREATE INDEX transacoes_remetente_data_idx ON transacoes (remetente, data_hora);
 CREATE INDEX transacoes_recebedor_data_idx ON transacoes (recebedor, data_hora);
+
+-- Um registro por envio à API (POST /ingestao/csv e /ingestao/transacoes); o id é o do
+-- recibo. status: recebido (gravado, ainda sem score) -> processando -> concluido, avançado
+-- pelo worker quando processar as semanas das transações do envio.
+CREATE TABLE ingestoes (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    origem       TEXT        NOT NULL CHECK (origem IN ('csv', 'manual')),
+    nome_arquivo TEXT,
+    linhas       INTEGER     NOT NULL CHECK (linhas > 0),
+    status       TEXT        NOT NULL DEFAULT 'recebido'
+                 CHECK (status IN ('recebido', 'processando', 'concluido')),
+    quem         TEXT        NOT NULL CHECK (length(btrim(quem)) > 0),
+    criado_em    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 
 -- Gabarito, separado de propósito: o modelo NUNCA lê esta tabela.
 CREATE TABLE avaliacao (
