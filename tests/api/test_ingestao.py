@@ -259,7 +259,7 @@ def test_limite_para_de_ler_o_corpo_no_meio_do_envio(limite):
     }
     asyncio.run(criar_app()(escopo, receber, enviar))
     assert respostas[0]["status"] == 413
-    assert lidos <= 6  # passou dos 4 KiB no 5º pedaço; os outros 95 nem foram pedidos
+    assert lidos == 5  # 73 + 4 x 1024 bytes passam de 4 KiB; os outros 96 nem foram pedidos
 
 
 def test_csv_acima_do_limite_de_linhas_413(cliente, semente, limite):
