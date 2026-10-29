@@ -15,6 +15,8 @@ def ambiente_isolado(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("LLM_PROVIDER", "openai")
+    # O .env de dev costuma ter AUTH_DESLIGADA=true; quem precisa dela liga (fixture `cliente`).
+    monkeypatch.setenv("AUTH_DESLIGADA", "false")
     get_settings.cache_clear()
     get_engine.cache_clear()
     yield
