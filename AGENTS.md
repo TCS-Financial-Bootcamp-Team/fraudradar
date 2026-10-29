@@ -11,6 +11,7 @@ português (tabelas, endpoints, pacotes).
 - `worker/` — CLI em lote (`python -m worker lote --semana AAAA-MM-DD | replay`)
 - `web/` — Next.js; `src/features/<modulo>/{components,hooks,services,schemas}` (componente → hook → service → API; componente não faz fetch). Leia `web/AGENTS.md` antes de mexer no Next.
 - `db/init/` — SQL que roda na criação do volume; `db/regras/` — regras de cenário
+- `laboratorio/` — rascunho da equipe, fora do git (só o README é versionado). Nada importa de lá; não trate o conteúdo como fonte de verdade.
 - `infra/` — `docker-compose.yml` (incluído por `compose.yaml` na raiz) e `terraform/`
 
 ## Comandos

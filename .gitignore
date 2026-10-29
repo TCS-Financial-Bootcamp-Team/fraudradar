@@ -53,4 +53,8 @@ Thumbs.db
 
 # Temporários locais
 trash/
+
+# Rascunho da equipe (exploração do dataset) — só o README fica no git
+laboratorio/*
+!laboratorio/README.md
 .pnpm-store/

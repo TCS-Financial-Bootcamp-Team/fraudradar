@@ -40,6 +40,7 @@ Login pelo Supabase Auth: o nome do analista logado fica gravado em cada decisã
 fraudradar/
 ├── dados/               # SAML-D.csv (fora do git) — ver dados/README.md
 ├── notebooks/           # 01_tratamento, 02_eda, 03_modelo, 04_avaliacao_llm
+├── laboratorio/         # rascunho da equipe: gráficos e testes de modelo (fora do git)
 ├── src/fraudradar/      # pacote compartilhado
 │   ├── config.py        # configurações lidas do .env
 │   ├── banco.py         # conexão com o Postgres

@@ -63,7 +63,7 @@ torch = [{ index = "pytorch-cpu" }]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["web", "notebooks/.ipynb_checkpoints"]
+extend-exclude = ["web", "notebooks/.ipynb_checkpoints", "laboratorio"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "N"]
