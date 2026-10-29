@@ -32,7 +32,7 @@ semana por vez.
 | Infra | Docker Compose + Terraform (provider `kreuzwerker/docker`), sem nuvem |
 | CI | GitHub Actions: lint e testes a cada push |
 
-Sem login: o nome do analista fica gravado em cada decisão.
+Login pelo Supabase Auth: o nome do analista logado fica gravado em cada decisão.
 
 ## Estrutura
 

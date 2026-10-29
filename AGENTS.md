@@ -7,7 +7,7 @@ português (tabelas, endpoints, pacotes).
 ## Layout
 
 - `src/fraudradar/` — pacote compartilhado (`dados`, `features`, `modelo`, `ia`, `config.py`, `banco.py`)
-- `api/` — FastAPI (`main.py`, `rotas/`, `schemas/`)
+- `api/` — FastAPI (`main.py`, `rotas/`, `repositorios/`, `schemas/`). Leia `api/AGENTS.md` antes de mexer na API.
 - `worker/` — CLI em lote (`python -m worker lote --semana AAAA-MM-DD | replay`)
 - `web/` — Next.js; `src/features/<modulo>/{components,hooks,services,schemas}` (componente → hook → service → API; componente não faz fetch). Leia `web/AGENTS.md` antes de mexer no Next.
 - `db/init/` — SQL que roda na criação do volume; `db/regras/` — regras de cenário
