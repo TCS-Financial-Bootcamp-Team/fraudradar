@@ -15,6 +15,7 @@ dependencies = [
 api = [
     "fastapi>=0.115",
     "pyjwt[crypto]>=2.10",
+    "python-multipart>=0.0.18",
     "uvicorn[standard]>=0.30",
 ]
 ml = [
