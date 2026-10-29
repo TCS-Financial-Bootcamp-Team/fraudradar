@@ -67,3 +67,22 @@ Todo trabalho feito com IA precisa estar registrado no VibeLog: o prompt da pess
 os prompts que a IA mandou para outras IAs e o resultado (commit + prints).
 Quem registra são as próprias IAs, veja `vibelog/AGENTS.md`. Cite o nó no rodapé
 `Prompt:` do commit.
+
+Sem a chave do VibeLog (`vibelog/.env.local`)? Registre em Markdown, em
+`docs/vibe-coding/prompts/NNN-<autor>-<assunto>.md`, com o próximo número livre e
+este cabeçalho:
+
+```
+---
+id: NNN
+area: backend
+autor: <pessoa ou IA>
+destino: <IA que recebeu, se for delegação>
+pai: <id do prompt que originou este, ou null>
+data: AAAA-MM-DD
+---
+```
+
+Um arquivo para cada prompt da pessoa, cada delegação e cada resultado. Quem tem a
+chave importa com `pnpm vibelog importar-md ../docs/vibe-coding/prompts` (a partir
+de `vibelog/`).
