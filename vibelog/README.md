@@ -44,7 +44,7 @@ O lockfile fixa as versões. O TypeScript fica na série 5.9, compatível com o 
 
 ## Segurança e arquitetura
 
-`componente → hook → service → /api/registros → Supabase`.
+`componente → hook → service → /api/records → Supabase`.
 Componentes não fazem fetch. Zod valida entradas e linhas retornadas. Erros aparecem via toast,
 com estados de erro e tentativa de recarga. HTML embutido e imagens remotas no Markdown não
 são executados/carregados; imagens devem ser anexadas como evidências.
@@ -66,14 +66,14 @@ Instruções rápidas e exemplos de registro: [AGENTS.md](AGENTS.md).
 
 ```powershell
 pnpm vibelog --help
-pnpm vibelog importar-md ../docs/vibe-coding/prompts
-pnpm vibelog importar-claude C:\caminho\sessao.jsonl --area backend --dry-run
-pnpm vibelog importar-codex C:\caminho\sessao.jsonl --area ml --dry-run
+pnpm vibelog import-md ../docs/vibe-coding/prompts
+pnpm vibelog import-claude C:\caminho\sessao.jsonl --area backend --dry-run
+pnpm vibelog import-codex C:\caminho\sessao.jsonl --area ml --dry-run
 pnpm exec playwright install chromium
 ```
 
-`no` recebe o conteúdo via `--arquivo` ou entrada padrão. `--pai` aceita UUID ou uma chave
-`origem_id`. `--origem-id` faz upsert e preserva a identidade. Markdown usa `md:<id>`, ordena
+`node` recebe o conteúdo via `--file` ou entrada padrão. `--parent` aceita UUID ou uma chave
+`origem_id`. `--source-id` faz upsert e preserva a identidade. Markdown usa `md:<id>`, ordena
 pais antes dos filhos e rejeita IDs duplicados, pais ausentes e ciclos antes de gravar.
 IDs como `001` preservam seus zeros. `area` ausente vira `geral`; o tipo é inferido pelo autor,
 com suporte a `tipo` explícito no frontmatter.
@@ -90,9 +90,9 @@ e atribuições comuns de credenciais. O filtro não substitui revisão humana d
 Use uma cópia revisada quando uma sessão contiver informação sensível fora desses padrões.
 Uma importação interrompida pode ser repetida para terminar os registros pendentes.
 
-`evidencia` envia o arquivo antes de inserir o vínculo e remove o upload se a inserção falhar.
+`evidence` envia o arquivo antes de inserir o vínculo e remove o upload se a inserção falhar.
 `print` abre Chromium em sessão nova, escolhe o tema e captura a página inteira. Uma tela
-protegida pode mostrar o login; para sessões autenticadas, anexe uma captura revisada via `evidencia`.
+protegida pode mostrar o login; para sessões autenticadas, anexe uma captura revisada via `evidence`.
 
 ## Verificação no navegador
 

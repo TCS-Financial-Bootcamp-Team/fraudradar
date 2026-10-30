@@ -4,7 +4,7 @@ variable "docker_host" {
   default     = null
 }
 
-variable "prefixo" {
+variable "prefix" {
   description = "Prefixo dos recursos, para não colidir com os containers do Compose."
   type        = string
   default     = "fraudradar-tf"
@@ -44,6 +44,12 @@ variable "web_port" {
 variable "llm_provider" {
   type    = string
   default = "openai"
+}
+
+# A API valida o login dos analistas com a chave pública deste projeto Supabase.
+variable "supabase_url" {
+  type    = string
+  default = ""
 }
 
 variable "openai_api_key" {

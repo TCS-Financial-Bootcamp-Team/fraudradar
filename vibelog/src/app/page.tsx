@@ -2,15 +2,15 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { supabaseServer } from "@/lib/supabase/server";
-import { Explorador } from "@/features/registros/components/explorador";
-async function Sessao() {
+import { Explorer } from "@/features/records/components/explorer";
+async function SessionGate() {
   await connection();
   const sb = await supabaseServer();
   const {
     data: { user },
   } = await sb.auth.getUser();
   if (!user) redirect("/login");
-  return <Explorador email={user.email ?? "Equipe"} />;
+  return <Explorer email={user.email ?? "Equipe"} />;
 }
 export default function Page() {
   return (
@@ -21,7 +21,7 @@ export default function Page() {
         </p>
       }
     >
-      <Sessao />
+      <SessionGate />
     </Suspense>
   );
 }

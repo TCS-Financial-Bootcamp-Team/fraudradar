@@ -1,20 +1,22 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { servidorSupabase } from "@/lib/supabase/server";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export async function GET(request: NextRequest) {
-  const codigo = request.nextUrl.searchParams.get("code");
-  const supabase = await servidorSupabase();
-  if (codigo && supabase) {
-    const { error } = await supabase.auth.exchangeCodeForSession(codigo);
+  const code = request.nextUrl.searchParams.get("code");
+  const supabase = await createSupabaseServerClient();
+  if (code && supabase) {
+    const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error)
       return NextResponse.redirect(
         new URL(
-          request.nextUrl.searchParams.get("destino") === "recuperar"
-            ? "/recuperar-senha?modo=redefinir"
+          request.nextUrl.searchParams.get("next") === "reset"
+            ? "/reset-password?mode=update"
             : "/dashboard",
           request.url,
         ),
       );
   }
-  return NextResponse.redirect(new URL("/login?erro=confirmacao", request.url));
+  return NextResponse.redirect(
+    new URL("/login?error=confirmation", request.url),
+  );
 }

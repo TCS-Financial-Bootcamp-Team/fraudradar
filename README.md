@@ -32,25 +32,26 @@ semana por vez.
 | Infra | Docker Compose + Terraform (provider `kreuzwerker/docker`), sem nuvem |
 | CI | GitHub Actions: lint e testes a cada push |
 
-Sem login: o nome do analista fica gravado em cada decisão.
+Login pelo Supabase Auth: o nome do analista logado fica gravado em cada decisão.
 
 ## Estrutura
 
 ```
 fraudradar/
-├── dados/               # SAML-D.csv (fora do git) — ver dados/README.md
+├── data/                # SAML-D.csv (fora do git) — ver data/README.md
 ├── notebooks/           # 01_tratamento, 02_eda, 03_modelo, 04_avaliacao_llm
+├── lab/                 # rascunho da equipe: gráficos e testes de modelo (fora do git)
 ├── src/fraudradar/      # pacote compartilhado
 │   ├── config.py        # configurações lidas do .env
-│   ├── banco.py         # conexão com o Postgres
-│   ├── dados/           # carga, dtypes, limpeza das tipologias
+│   ├── db.py            # conexão com o Postgres
+│   ├── data/            # carga, dtypes, limpeza das tipologias
 │   ├── features/        # histórico da conta, sinais semanais, grafo
-│   ├── modelo/          # treino, score, fila, explicação
-│   └── ia/              # RAG, cadeia do parecer, validador, agente
+│   ├── model/           # treino, score, fila, explicação
+│   └── ai/              # RAG, cadeia do parecer, validador, agente
 ├── api/                 # FastAPI: rotas e schemas
 ├── worker/              # lote semanal e replay
 ├── web/                 # Next.js
-├── db/                  # init/ (extensões e tabelas) e regras/ (cenários SQL)
+├── db/                  # init/ (extensões e tabelas) e rules/ (cenários SQL)
 ├── rag/                 # textos da lei, circular e manual interno
 ├── models/              # modelos treinados (fora do git)
 ├── infra/               # docker-compose.yml e terraform/
@@ -72,15 +73,15 @@ docker compose up -d --build    # sobe db, api e web
 
 - Front: http://localhost:3000
 - API (Swagger): http://localhost:8000/docs
-- Saúde: http://localhost:8000/saude
+- Saúde: http://localhost:8000/health
 
 Outros comandos:
 
 ```bash
-uv run pytest                               # testes (não precisam de Docker)
+uv run pytest                               # testes; os da API usam o Postgres do Compose
 uv run ruff check . && uv run ruff format .  # lint e formatação
 docker compose run --rm worker replay       # roda o worker (job em lote)
-docker compose run --rm worker lote --semana 2023-01-02
+docker compose run --rm worker batch --week 2023-01-02
 cd web && pnpm install && pnpm dev          # front em modo dev (com a API rodando)
 docker compose down                         # para tudo (o volume do banco fica)
 docker compose down -v                      # para e APAGA o banco (re-roda db/init)
@@ -88,6 +89,57 @@ docker compose down -v                      # para e APAGA o banco (re-roda db/i
 
 As tabelas são criadas por `db/init/*.sql` só na **primeira** subida do volume.
 Mudou o SQL? `docker compose down -v` e suba de novo.
+
+Os testes da API criam e apagam o banco `fraudradar_test` no Postgres do
+Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
+`TEST_DATABASE_URL` (o nome do banco precisa terminar em `_test`).
+
+## API
+
+Swagger em http://localhost:8000/docs. Toda rota, menos `/health`, exige o access
+token do Supabase Auth (`Authorization: Bearer ...`), validado pela chave
+pública do projeto; o nome do perfil do analista vai para decisões, aprovações
+e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
+
+| Rota | O que faz |
+|---|---|
+| `GET /weeks` | semanas já liberadas pelo replay (`current` é a mais recente) |
+| `POST /replay/next-week` | libera a próxima semana já processada pelo worker |
+| `GET /alerts?week=` | fila paginada da semana (filtros `status` e `country`) |
+| `GET /alerts/{id}` | detalhe: contribuições, regras, movimentações e último parecer |
+| `GET /alerts/{id}/graph` | vizinhança de 2 saltos da conta na semana |
+| `POST /alerts/{id}/decision` | arquivar, aprofundar ou comunicar, com justificativa |
+| `GET /alerts/{id}/report` | rascunho da comunicação ao COAF |
+| `POST /alerts/{id}/report/approve` | aprova a comunicação e encerra o alerta |
+| `GET /monitoring?week=` | indicadores e séries da semana |
+| `POST /alerts/{id}/assessment`, `/chat` | ainda respondem 503: dependem do RAG (frente 3) |
+| `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
+| `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
+| `/ingestion/connections` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |
+
+A API não roda o modelo: ela lê o que o worker grava, e o replay só libera
+semanas que o worker já processou (`weekly_batches`). Os formatos JSON que o
+worker grava (evidências e métricas da semana) estão comentados em
+`db/init/002_tables.sql`.
+
+### Ingestão
+
+O CSV vai em `multipart/form-data`, campo `file`: UTF-8, separado por
+vírgula, com as 10 colunas de transação do SAML-D no cabeçalho, em qualquer
+ordem, e sem `Is_laundering`/`Laundering_type` (rótulo não entra pela API).
+Todas as linhas são validadas (`src/fraudradar/data/ingestion.py`): uma linha
+com erro recusa o arquivo inteiro, e o 422 lista os 20 primeiros erros com linha
+e coluna. Contas: só dígitos, sem zero à esquerda, até 9223372036854775807
+(`BIGINT`).
+
+**Limite por envio: 20 MiB e 200 mil linhas** (`INGESTION_MAX_BYTES`,
+`INGESTION_MAX_ROWS`); acima disso, 413. O envio roda numa transação só, com
+o `statement_timeout` de 15 s: 200 mil linhas levaram de 1,6 a 2,8 s pela API,
+com o COPY em 1,9 s numa tabela de 11 milhões de linhas. Para o SAML-D inteiro,
+use o worker, não a API.
+
+Cada envio vira um registro em `ingestions`, cujo id é o do recibo, com status
+`received`: o score sai quando o worker processa a semana das transações.
 
 Terraform (alternativa ao Compose, mesmos containers com prefixo
 `fraudradar-tf`; não rode os dois juntos, as portas colidem):
@@ -102,9 +154,9 @@ terraform apply -var 'docker_host=npipe:////./pipe/docker_engine'   # Windows
 
 | Frente | Responsável por |
 |---|---|
-| 1 Dados e SQL | `notebooks/01_tratamento`, `notebooks/02_eda`, `db/`, `src/fraudradar/dados` |
-| 2 Modelo | `src/fraudradar/modelo`, `src/fraudradar/features`, `notebooks/03_modelo` |
-| 3 IA generativa | `src/fraudradar/ia`, `rag/`, `notebooks/04_avaliacao_llm` |
+| 1 Dados e SQL | `notebooks/01_tratamento`, `notebooks/02_eda`, `db/`, `src/fraudradar/data` |
+| 2 Modelo | `src/fraudradar/model`, `src/fraudradar/features`, `notebooks/03_modelo` |
+| 3 IA generativa | `src/fraudradar/ai`, `rag/`, `notebooks/04_avaliacao_llm` |
 | 4 API e front | `api/`, `worker/`, `web/` |
 | 5 Processo e entrega | `infra/`, `docs/`, CI |
 
@@ -112,6 +164,6 @@ terraform apply -var 'docker_host=npipe:////./pipe/docker_engine'   # Windows
 
 - Features e score existem **só** em `src/fraudradar`. API, worker e notebooks
   importam; não reimplementam.
-- O modelo nunca lê a tabela `avaliacao` (rótulo e tipologia).
+- O modelo nunca lê a tabela `ground_truth` (rótulo e tipologia).
 - O LLM **nunca** recebe números de conta.
 - Nada de dados, modelos ou `.env` no git.

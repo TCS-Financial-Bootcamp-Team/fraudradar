@@ -1,0 +1,149 @@
+import type {
+  Alert,
+  Report,
+  AlertDetail,
+  AlertFilters,
+  Monitoring,
+} from "../schemas/alerts";
+
+export const alertsMock: Alert[] = Array.from({ length: 36 }, (_, i) => ({
+  id: "ALT-" + String(2401 + i),
+  account: "CTA-" + String(810 + i),
+  week: i < 24 ? "2026-10-19" : "2026-10-12",
+  country: [
+    "Brasil",
+    "Portugal",
+    "Reino Unido",
+    "Estados Unidos",
+    "Emirados Árabes",
+  ][i % 5],
+  typology: [
+    "Fan-out",
+    "Estruturação",
+    "Ciclo financeiro",
+    "Fan-in",
+    "Dispersão internacional",
+  ][i % 5],
+  score: Math.max(22, 98 - i * 2),
+  amount: 845000 - i * 15730,
+  transaction_count: 47 - i,
+  status:
+    i % 9 === 0
+      ? "reported"
+      : i % 7 === 0
+        ? "archived"
+        : i % 4 === 0
+          ? "escalated"
+          : "pending",
+}));
+export const reportsMock = new Map<string, Report>();
+export const assessmentsMock = new Map<string, AlertDetail["assessment"]>();
+export function queueMock(filters: AlertFilters) {
+  const items = alertsMock
+    .filter(
+      (a) =>
+        (!filters.week || a.week === filters.week) &&
+        (!filters.status || a.status === filters.status) &&
+        (!filters.country || a.country === filters.country),
+    )
+    .sort((a, b) => b.score - a.score);
+  const start = ((filters.page ?? 1) - 1) * 10;
+  return {
+    items: items.slice(start, start + 10),
+    total: items.length,
+    countries: [...new Set(alertsMock.map((a) => a.country))],
+  };
+}
+export function alertDetailMock(id: string): AlertDetail {
+  const alert = alertsMock.find((a) => a.id === id);
+  if (!alert) throw new Error("Alerta não encontrado.");
+  return {
+    ...alert,
+    contributions: [
+      { name: "Dispersão de contrapartes", value: 38 },
+      { name: "Velocidade de movimentação", value: 29 },
+      { name: "Desvio do perfil histórico", value: 21 },
+      { name: "Fluxo internacional", value: 12 },
+    ],
+    rules: [
+      {
+        code: "R-014",
+        description: "Múltiplos destinatários em uma janela de 24 horas.",
+      },
+      {
+        code: "R-027",
+        description: "Saídas sequenciais após recebimento de alto valor.",
+      },
+    ],
+    movements: Array.from({ length: 8 }, (_, i) => ({
+      id: "TRX-" + (901 + i),
+      date: "2026-10-20T" + String(10 + i).padStart(2, "0") + ":30:00Z",
+      sender: alert.account,
+      receiver: "CTA-" + (920 + i),
+      amount: 12750 + i * 4100,
+      currency: "BRL",
+      payment_type: ["Transferência", "Cartão", "Dinheiro"][i % 3],
+    })),
+    assessment: assessmentsMock.get(id) ?? null,
+  };
+}
+export function reportMock(id: string): Report {
+  alertDetailMock(id);
+  const existing = reportsMock.get(id);
+  return (
+    existing ?? {
+      alert_id: id,
+      status: "draft",
+      updated_at: "2026-10-21T14:30:00Z",
+      content:
+        "RELATO DE OPERAÇÃO ATÍPICA\n\nO monitoramento identificou dispersão de recursos para múltiplas contrapartes em curto intervalo, com movimentação incompatível com o histórico observado.\n\nEvidências: regra R-014 e transferências vinculadas ao alerta " +
+        id +
+        ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Este documento é uma simulação acadêmica.",
+    }
+  );
+}
+export function monitoringMock(week: string): Monitoring {
+  const items = alertsMock.filter((a) => a.week === week);
+  const groupCount = (field: "typology" | "country") =>
+    [...new Set(items.map((a) => a[field]))]
+      .map((name) => ({
+        name,
+        value: items.filter((a) => a[field] === name).length,
+      }))
+      .sort((a, b) => b.value - a.value);
+  return {
+    week,
+    indicators: {
+      alerts: items.length,
+      reviewed: items.filter((a) => a.status !== "pending").length,
+      reported: items.filter(
+        (a) =>
+          a.status === "reported" &&
+          reportsMock.get(a.id)?.status === "approved",
+      ).length,
+      alert_rate: items.length ? 0.024 : 0,
+      flagged_amount: items.reduce((sum, a) => sum + a.amount, 0),
+      recall: items.length ? 0.924 : 0,
+      typology_accuracy: items.length ? 0.876 : 0,
+    },
+    weeks: [
+      { name: "14 set", value: 12 },
+      { name: "21 set", value: 17 },
+      { name: "28 set", value: 14 },
+      { name: "05 out", value: 21 },
+      { name: "12 out", value: 12 },
+      { name: "19 out", value: 24 },
+    ],
+    typologies: groupCount("typology"),
+    countries: groupCount("country"),
+    country_rates: ["Brasil", "Portugal", "Reino Unido", "Estados Unidos"].map(
+      (name, i) => ({ name, value: [0.024, 0.031, 0.018, 0.012][i] }),
+    ),
+    payment_type_rates: [
+      "Transferência",
+      "Cartão",
+      "Dinheiro",
+      "Pagamento digital",
+    ].map((name, i) => ({ name, value: [0.032, 0.014, 0.048, 0.021][i] })),
+  };
+}

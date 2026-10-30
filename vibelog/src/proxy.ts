@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { manterConectado, opcoesSessao } from "@/lib/supabase/persistencia";
+import { shouldKeepSignedIn, sessionCookieOptions } from "@/lib/supabase/persistence";
 export async function proxy(req: NextRequest) {
   let response = NextResponse.next({ request: req });
   const sb = createServerClient(
@@ -10,14 +10,14 @@ export async function proxy(req: NextRequest) {
       cookieOptions: { name: "vibelog-auth" },
       cookies: {
         getAll: () => req.cookies.getAll(),
-        setAll: (values) => {
-          values.forEach(({ name, value }) => req.cookies.set(name, value));
+        setAll: (entries) => {
+          entries.forEach(({ name, value }) => req.cookies.set(name, value));
           response = NextResponse.next({ request: req });
-          values.forEach(({ name, value, options }) =>
+          entries.forEach(({ name, value, options }) =>
             response.cookies.set(
               name,
               value,
-              opcoesSessao(options, manterConectado(req.cookies.getAll()), value),
+              sessionCookieOptions(options, shouldKeepSignedIn(req.cookies.getAll()), value),
             ),
           );
         },
@@ -25,16 +25,16 @@ export async function proxy(req: NextRequest) {
     },
   );
   const { data, error } = await sb.auth.getClaims();
-  const autenticado = !!data?.claims && !error;
-  const publica = ["/login", "/cadastro"].includes(req.nextUrl.pathname);
-  const destino =
-    autenticado && publica
+  const authenticated = !!data?.claims && !error;
+  const isPublic = ["/login", "/signup"].includes(req.nextUrl.pathname);
+  const redirectPath =
+    authenticated && isPublic
       ? "/"
-      : !autenticado && !publica && !req.nextUrl.pathname.startsWith("/api/")
+      : !authenticated && !isPublic && !req.nextUrl.pathname.startsWith("/api/")
         ? "/login"
         : null;
-  if (destino) {
-    const redirect = NextResponse.redirect(new URL(destino, req.url));
+  if (redirectPath) {
+    const redirect = NextResponse.redirect(new URL(redirectPath, req.url));
     response.cookies.getAll().forEach((cookie) => redirect.cookies.set(cookie));
     response = redirect;
   }

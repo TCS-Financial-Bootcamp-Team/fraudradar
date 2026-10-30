@@ -1,18 +1,18 @@
-import { TelaAutenticacao } from "@/features/autenticacao/components/tela-autenticacao";
+import { AuthScreen } from "@/features/auth/components/auth-screen";
 import { Suspense } from "react";
-async function Formulario({ searchParams }: PageProps<"/login">) {
-  const busca = await searchParams;
+async function LoginFormContent({ searchParams }: PageProps<"/login">) {
+  const query = await searchParams;
   return (
-    <TelaAutenticacao
-      modo="login"
-      erro={typeof busca.erro === "string" ? busca.erro : undefined}
+    <AuthScreen
+      mode="login"
+      error={typeof query.error === "string" ? query.error : undefined}
     />
   );
 }
-export default function Login(props: PageProps<"/login">) {
+export default function LoginPage(props: PageProps<"/login">) {
   return (
     <Suspense fallback={<p role="status">Carregando login…</p>}>
-      <Formulario {...props} />
+      <LoginFormContent {...props} />
     </Suspense>
   );
 }

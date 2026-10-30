@@ -1,42 +1,47 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { configuracaoSupabase } from "@/lib/supabase/config";
-import { manterConectado, opcoesSessao } from "@/lib/supabase/persistencia";
+import { getSupabaseConfig } from "@/lib/supabase/config";
+import {
+  shouldKeepSignedIn,
+  getSessionCookieOptions,
+} from "@/lib/supabase/persistence";
 
 export async function proxy(request: NextRequest) {
-  let resposta = NextResponse.next({ request });
-  const config = configuracaoSupabase();
-  const caminho = request.nextUrl.pathname;
-  const publica = [
+  let response = NextResponse.next({ request });
+  const config = getSupabaseConfig();
+  const pathname = request.nextUrl.pathname;
+  const isPublicRoute = [
     "/login",
-    "/cadastro",
-    "/recuperar-senha",
+    "/signup",
+    "/reset-password",
     "/auth/callback",
-  ].includes(caminho);
-  const redirecionar = (destino: string) => {
-    const redirecionamento = NextResponse.redirect(
-      new URL(destino, request.url),
+  ].includes(pathname);
+  const redirectTo = (targetPath: string) => {
+    const redirectResponse = NextResponse.redirect(
+      new URL(targetPath, request.url),
     );
-    resposta.cookies
+    response.cookies
       .getAll()
-      .forEach((cookie) => redirecionamento.cookies.set(cookie));
-    redirecionamento.headers.set("Cache-Control", "private, no-store");
-    return redirecionamento;
+      .forEach((cookie) => redirectResponse.cookies.set(cookie));
+    redirectResponse.headers.set("Cache-Control", "private, no-store");
+    return redirectResponse;
   };
-  if (!config) return publica ? resposta : redirecionar("/login");
-  const supabase = createServerClient(config.url, config.chave, {
+  if (!config) return isPublicRoute ? response : redirectTo("/login");
+  const supabase = createServerClient(config.url, config.key, {
     cookies: {
       getAll: () => request.cookies.getAll(),
-      setAll: (valores) => {
-        valores.forEach(({ name, value }) => request.cookies.set(name, value));
-        resposta = NextResponse.next({ request });
-        valores.forEach(({ name, value, options }) =>
-          resposta.cookies.set(
+      setAll: (cookiesToSet) => {
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value),
+        );
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(
             name,
             value,
-            opcoesSessao(
+            getSessionCookieOptions(
               options,
-              manterConectado(request.cookies.getAll()),
+              shouldKeepSignedIn(request.cookies.getAll()),
               value,
             ),
           ),
@@ -46,14 +51,14 @@ export async function proxy(request: NextRequest) {
   });
   try {
     const { data, error } = await supabase.auth.getClaims();
-    if ((!data?.claims || error) && !publica) return redirecionar("/login");
-    if (data?.claims && !error && ["/login", "/cadastro"].includes(caminho))
-      return redirecionar("/dashboard");
+    if ((!data?.claims || error) && !isPublicRoute) return redirectTo("/login");
+    if (data?.claims && !error && ["/login", "/signup"].includes(pathname))
+      return redirectTo("/dashboard");
   } catch {
-    if (!publica) return redirecionar("/login?erro=sessao");
+    if (!isPublicRoute) return redirectTo("/login?error=session");
   }
-  resposta.headers.set("Cache-Control", "private, no-store");
-  return resposta;
+  response.headers.set("Cache-Control", "private, no-store");
+  return response;
 }
 
 export const config = {

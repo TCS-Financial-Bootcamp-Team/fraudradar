@@ -2,16 +2,21 @@
 # O worker é job em lote: roda pelo Compose (`docker compose run --rm worker`).
 
 locals {
-  raiz         = abspath("${path.module}/../..")
+  root         = abspath("${path.module}/../..")
   database_url = "postgresql+psycopg://${var.postgres_user}:${var.postgres_password}@db:5432/${var.postgres_db}"
 }
 
-resource "docker_network" "rede" {
-  name = "${var.prefixo}-rede"
+moved {
+  from = docker_network.rede
+  to   = docker_network.network
+}
+
+resource "docker_network" "network" {
+  name = "${var.prefix}-network"
 }
 
 resource "docker_volume" "pgdata" {
-  name = "${var.prefixo}-pgdata"
+  name = "${var.prefix}-pgdata"
 }
 
 resource "docker_image" "db" {
@@ -20,37 +25,37 @@ resource "docker_image" "db" {
 }
 
 resource "docker_image" "api" {
-  name = "${var.prefixo}-api:local"
+  name = "${var.prefix}-api:local"
 
   build {
-    context    = local.raiz
+    context    = local.root
     dockerfile = "api/Dockerfile"
   }
 
   triggers = {
-    codigo = sha1(join("", [for f in fileset(local.raiz, "{api,src,worker}/**/*.py") : filesha1("${local.raiz}/${f}")]))
-    lock   = filesha1("${local.raiz}/uv.lock")
+    code = sha1(join("", [for f in fileset(local.root, "{api,src,worker}/**/*.py") : filesha1("${local.root}/${f}")]))
+    lock = filesha1("${local.root}/uv.lock")
   }
 }
 
 resource "docker_image" "web" {
-  name = "${var.prefixo}-web:local"
+  name = "${var.prefix}-web:local"
 
   build {
-    context = "${local.raiz}/web"
+    context = "${local.root}/web"
     build_args = {
       NEXT_PUBLIC_API_URL = "http://localhost:${var.api_port}"
     }
   }
 
   triggers = {
-    codigo = sha1(join("", [for f in fileset("${local.raiz}/web", "src/**") : filesha1("${local.raiz}/web/${f}")]))
-    lock   = filesha1("${local.raiz}/web/pnpm-lock.yaml")
+    code = sha1(join("", [for f in fileset("${local.root}/web", "src/**") : filesha1("${local.root}/web/${f}")]))
+    lock = filesha1("${local.root}/web/pnpm-lock.yaml")
   }
 }
 
 resource "docker_container" "db" {
-  name    = "${var.prefixo}-db"
+  name    = "${var.prefix}-db"
   image   = docker_image.db.image_id
   restart = "unless-stopped"
 
@@ -61,7 +66,7 @@ resource "docker_container" "db" {
   ]
 
   networks_advanced {
-    name    = docker_network.rede.id
+    name    = docker_network.network.id
     aliases = ["db"]
   }
 
@@ -76,7 +81,7 @@ resource "docker_container" "db" {
   }
 
   volumes {
-    host_path      = "${local.raiz}/db/init"
+    host_path      = "${local.root}/db/init"
     container_path = "/docker-entrypoint-initdb.d"
     read_only      = true
   }
@@ -93,7 +98,7 @@ resource "docker_container" "db" {
 }
 
 resource "docker_container" "api" {
-  name    = "${var.prefixo}-api"
+  name    = "${var.prefix}-api"
   image   = docker_image.api.image_id
   restart = "unless-stopped"
 
@@ -103,10 +108,11 @@ resource "docker_container" "api" {
     "LLM_PROVIDER=${var.llm_provider}",
     "OPENAI_API_KEY=${var.openai_api_key}",
     "ANTHROPIC_API_KEY=${var.anthropic_api_key}",
+    "SUPABASE_URL=${var.supabase_url}",
   ]
 
   networks_advanced {
-    name    = docker_network.rede.id
+    name    = docker_network.network.id
     aliases = ["api"]
   }
 
@@ -116,7 +122,7 @@ resource "docker_container" "api" {
   }
 
   volumes {
-    host_path      = "${local.raiz}/models"
+    host_path      = "${local.root}/models"
     container_path = "/app/models"
     read_only      = true
   }
@@ -125,12 +131,12 @@ resource "docker_container" "api" {
 }
 
 resource "docker_container" "web" {
-  name    = "${var.prefixo}-web"
+  name    = "${var.prefix}-web"
   image   = docker_image.web.image_id
   restart = "unless-stopped"
 
   networks_advanced {
-    name    = docker_network.rede.id
+    name    = docker_network.network.id
     aliases = ["web"]
   }
 

@@ -1,5 +1,5 @@
 "use client";
-import { ErroRecurso } from "@/components/ui/estados";
+import { ResourceError } from "@/components/ui/states";
 export default function Error({
   reset,
 }: {
@@ -7,9 +7,9 @@ export default function Error({
   reset: () => void;
 }) {
   return (
-    <ErroRecurso
-      mensagem="Ocorreu uma falha ao abrir esta área. Tente novamente."
-      tentar={reset}
+    <ResourceError
+      message="Ocorreu uma falha ao abrir esta área. Tente novamente."
+      onRetry={reset}
     />
   );
 }
