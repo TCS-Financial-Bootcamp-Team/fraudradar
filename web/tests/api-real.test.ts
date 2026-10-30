@@ -1,120 +1,120 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
-  LIMITE_TEXTO_HISTORICO,
-  mensagemSchema,
-  pedidoChatSchema,
-} from "../src/features/assistente/schemas/assistente";
+  HISTORY_CONTENT_LIMIT,
+  messageSchema,
+  chatRequestSchema,
+} from "../src/features/assistant/schemas/assistant";
 
 test("modo real usa API e não substitui falhas por mocks; chat sanitiza mensagem e histórico", async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = "false";
-  const chamadas: Array<{ url: string; init?: RequestInit }> = [];
-  const original = globalThis.fetch;
+  const calls: Array<{ url: string; init?: RequestInit }> = [];
+  const originalFetch = globalThis.fetch;
   globalThis.fetch = async (input, init) => {
-    chamadas.push({ url: String(input), init });
+    calls.push({ url: String(input), init });
     if (String(input).endsWith("/chat"))
-      return Response.json({ resposta: "Análise disponível.", fontes: [] });
+      return Response.json({ answer: "Análise disponível.", sources: [] });
     return new Response("Não disponível", { status: 503 });
   };
   try {
-    const { conversar } =
-      await import("../src/features/assistente/services/assistente-service");
-    await conversar({
-      mensagem: "Investigue conta 12345678",
-      contexto: { pagina: "/alertas", semana: "2026-10-19" },
-      historico: [{ papel: "usuario", texto: "Conta AB1234567" }],
+    const { sendChatMessage } =
+      await import("../src/features/assistant/services/assistant-service");
+    await sendChatMessage({
+      message: "Investigue conta 12345678",
+      context: { page: "/alerts", week: "2026-10-19" },
+      history: [{ role: "user", content: "Conta AB1234567" }],
     });
-    const corpo = JSON.parse(String(chamadas[0].init?.body));
-    assert.equal(chamadas[0].init?.method, "POST");
-    assert.equal(chamadas[0].init?.cache, "no-store");
-    assert.doesNotMatch(corpo.mensagem, /12345678/);
-    assert.doesNotMatch(corpo.historico[0].texto, /AB1234567/);
-    const { buscarAlertas } =
-      await import("../src/features/alertas/services/alertas-service");
+    const payload = JSON.parse(String(calls[0].init?.body));
+    assert.equal(calls[0].init?.method, "POST");
+    assert.equal(calls[0].init?.cache, "no-store");
+    assert.doesNotMatch(payload.message, /12345678/);
+    assert.doesNotMatch(payload.history[0].content, /AB1234567/);
+    const { fetchAlerts } =
+      await import("../src/features/alerts/services/alerts-service");
     await assert.rejects(
       () =>
-        buscarAlertas({
-          semana: "2026-10-19",
-          pais: "Brasil",
-          status: "pendente",
-          pagina: 2,
+        fetchAlerts({
+          week: "2026-10-19",
+          country: "Brasil",
+          status: "pending",
+          page: 2,
         }),
       /503/,
     );
-    assert.ok(chamadas[1].url.includes("pagina=2"));
-    assert.ok(chamadas[1].url.includes("pais=Brasil"));
+    assert.ok(calls[1].url.includes("page=2"));
+    assert.ok(calls[1].url.includes("country=Brasil"));
   } finally {
-    globalThis.fetch = original;
+    globalThis.fetch = originalFetch;
   }
 });
 
 test("resposta de 8.001 caracteres com fontes longas não impede a pergunta seguinte", async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = "false";
-  const corpos: Array<Record<string, unknown>> = [];
-  const original = globalThis.fetch;
+  const payloads: Array<Record<string, unknown>> = [];
+  const originalFetch = globalThis.fetch;
   globalThis.fetch = async (_input, init) => {
-    corpos.push(JSON.parse(String(init?.body)));
+    payloads.push(JSON.parse(String(init?.body)));
     return Response.json({
-      resposta: "a".repeat(8001),
-      fontes: [{ titulo: "Fonte " + "b".repeat(9000), trecho: "Evidência" }],
+      answer: "a".repeat(8001),
+      sources: [{ title: "Fonte " + "b".repeat(9000), excerpt: "Evidência" }],
     });
   };
   try {
-    const { conversar } =
-      await import("../src/features/assistente/services/assistente-service");
-    const contexto = { pagina: "/alertas", semana: "2026-10-19" };
-    const resposta = await conversar({
-      mensagem: "Analise R-014",
-      contexto,
-      historico: [],
+    const { sendChatMessage } =
+      await import("../src/features/assistant/services/assistant-service");
+    const context = { page: "/alerts", week: "2026-10-19" };
+    const response = await sendChatMessage({
+      message: "Analise R-014",
+      context,
+      history: [],
     });
-    const exibida = mensagemSchema.parse({
-      papel: "assistente",
-      texto:
-        resposta.resposta +
+    const displayed = messageSchema.parse({
+      role: "assistant",
+      content:
+        response.answer +
         "\n\nFontes: " +
-        resposta.fontes.map((f) => f.titulo).join("; "),
+        response.sources.map((s) => s.title).join("; "),
     });
-    assert.equal(resposta.resposta.length, 8001);
-    assert.ok(exibida.texto.length > LIMITE_TEXTO_HISTORICO);
-    await conversar({
-      mensagem: "E nas últimas 24 horas?",
-      contexto,
-      historico: [exibida],
+    assert.equal(response.answer.length, 8001);
+    assert.ok(displayed.content.length > HISTORY_CONTENT_LIMIT);
+    await sendChatMessage({
+      message: "E nas últimas 24 horas?",
+      context,
+      history: [displayed],
     });
-    const segundoPedido = pedidoChatSchema.parse(corpos[1]);
+    const secondRequest = chatRequestSchema.parse(payloads[1]);
     assert.equal(
-      segundoPedido.historico[0].texto.length,
-      LIMITE_TEXTO_HISTORICO,
+      secondRequest.history[0].content.length,
+      HISTORY_CONTENT_LIMIT,
     );
     assert.equal(
-      segundoPedido.historico[0].texto,
-      exibida.texto.slice(0, LIMITE_TEXTO_HISTORICO),
+      secondRequest.history[0].content,
+      displayed.content.slice(0, HISTORY_CONTENT_LIMIT),
     );
-    assert.equal(segundoPedido.mensagem, "E nas últimas 24 horas?");
+    assert.equal(secondRequest.message, "E nas últimas 24 horas?");
 
     // O corte nunca pode enviar o começo de uma conta identificada no limite.
-    await conversar({
-      mensagem:
+    await sendChatMessage({
+      message:
         "Compare conta 12345678 e conta 87654321 com R-014 em 2026-10-19",
-      contexto,
-      historico: [
-        { papel: "usuario", texto: "x".repeat(7990) + " conta 12345678" },
-        { papel: "assistente", texto: "Conta 87654321" },
+      context,
+      history: [
+        { role: "user", content: "x".repeat(7990) + " conta 12345678" },
+        { role: "assistant", content: "Conta 87654321" },
       ],
     });
-    const terceiroPedido = pedidoChatSchema.parse(corpos[2]);
-    assert.doesNotMatch(JSON.stringify(terceiroPedido), /12345678|87654321/);
+    const thirdRequest = chatRequestSchema.parse(payloads[2]);
+    assert.doesNotMatch(JSON.stringify(thirdRequest), /12345678|87654321/);
     assert.match(
-      terceiroPedido.mensagem,
+      thirdRequest.message,
       /\[conta 1\].*\[conta 2\].*R-014.*2026-10-19/,
     );
     assert.ok(
-      terceiroPedido.historico.every(
-        (m) => m.texto.length <= LIMITE_TEXTO_HISTORICO,
+      thirdRequest.history.every(
+        (m) => m.content.length <= HISTORY_CONTENT_LIMIT,
       ),
     );
   } finally {
-    globalThis.fetch = original;
+    globalThis.fetch = originalFetch;
   }
 });

@@ -1,0 +1,267 @@
+# Glossário de nomes: português → inglês
+
+Desde 30/10/2026 o **código é em inglês**: identificadores, arquivos, pastas,
+tabelas e colunas, valores gravados no banco, rotas da API e do front, campos
+JSON, variáveis de ambiente e comandos de CLI. Ficam em **português** os textos
+que uma pessoa lê: telas do front (inclusive o `detail` de erro da API, que
+aparece na tela), documentação em Markdown, comentários e docstrings, mensagens
+de log e de CLI e descrições de teste.
+
+Este arquivo é o mapa entre o vocabulário do time (português) e os nomes do
+código. Nome novo segue estas tabelas; termo que não está aqui, traduza pelo
+sentido e acrescente a linha.
+
+## O que não muda
+
+- Colunas e valores do SAML-D (`Sender_account`, `Is_laundering`, `"UK pounds"`...).
+- Esquema do Supabase do VibeLog (`vibelog_nos`, `vibelog_evidencias`, `pai_id`,
+  `origem_id`, bucket `vibelog-evidencias`) e os valores gravados nele
+  (`prompt_humano`, `prompt_ia`, `resposta`, `marco`; áreas `ia`, `dados`,
+  `geral`...). O `vibelog/AGENTS.md` proíbe mexer nesse esquema.
+- Chaves do frontmatter dos registros de prompt (`id`, `area`, `autor`,
+  `destino`, `pai`, `data`, `tipo`, `modelo`, `filhos`) e os nomes dos registros
+  antigos em `docs/vibe-coding/prompts/`.
+- Metadado do Supabase Auth: cadastro novo grava `name`; quem leu `nome` lê
+  `name` e, se faltar, a chave antiga `nome`, porque usuários já cadastrados só
+  têm essa.
+- Mensagens de commit seguem em português (`CONTRIBUTING.md`).
+
+## Vocabulário do domínio
+
+| Português | Inglês | Observação |
+| --- | --- | --- |
+| alerta | alert | |
+| fila (de alertas) | queue | `posicao_fila` → `queue_position` |
+| conta | account | número da conta do SAML-D |
+| transação | transaction | |
+| movimentação (lista do detalhe) | movement | não confundir com `transaction_count` |
+| remetente / recebedor | sender / receiver | |
+| semana | week | sempre a segunda-feira |
+| segunda-feira (da semana) | week start | |
+| lote (semanal) | batch | `lotes_semana` → `weekly_batches` |
+| liberar (semana no replay) | release | |
+| parecer (texto da IA) | assessment | |
+| decisão | decision | |
+| arquivar / aprofundar / comunicar | archive / escalate / report | verbo da decisão |
+| arquivado / aprofundado / comunicado | archived / escalated / reported | status |
+| comunicação (ao COAF) | report | tabela `reports` |
+| rascunho / aprovada | draft / approved | |
+| justificativa | justification | |
+| evidência | evidence | incontável: tabela `evidence` |
+| contribuição (SHAP) | contribution | |
+| regra (de cenário) | rule | |
+| tipologia | typology | |
+| país | country | |
+| valor (dinheiro) | amount | |
+| valor (genérico, série, contribuição) | value | |
+| moeda | currency | |
+| meio / tipo de pagamento | payment type | |
+| gabarito (`avaliacao`) | ground truth | tabela `ground_truth` |
+| rótulo | label | |
+| limiar | threshold | |
+| métricas | metrics | |
+| acerto de tipologia | typology accuracy | |
+| taxa | rate | |
+| sinalizado | flagged | |
+| indicadores | indicators | |
+| monitoramento | monitoring | |
+| saúde (healthcheck) | health | |
+| grafo / nó / aresta / salto | graph / node / edge / hop | |
+| origem / destino (aresta do grafo) | source / target | como no Cytoscape |
+| fonte (citação do parecer) | source | `titulo`/`trecho` → `title`/`excerpt` |
+| fonte de dados (conexão externa) | data source | |
+| conexão | connection | |
+| ingestão / envio | ingestion / upload | |
+| recibo | receipt | |
+| recebido / processando / concluído | received / processing / completed | |
+| auditoria | audit log | tabela `audit_log` |
+| analista | analyst | |
+| usuário atual | current user | |
+| banco (de dados) | database (`db` em nomes curtos) | |
+| semente (fixture de teste) | seed | |
+| pseudonimizar | pseudonymize | |
+| assistente | assistant | |
+| autenticação / cadastro | auth / signup | |
+| recuperar / redefinir senha | reset password | |
+| manter conectado | keep signed in | |
+| configurações | settings | |
+
+## Banco (`db/init/002_tables.sql`)
+
+| Tabela antiga | Tabela nova | Colunas (antiga → nova) |
+| --- | --- | --- |
+| `transacoes` | `transactions` | `data_hora` → `occurred_at`, `remetente` → `sender`, `recebedor` → `receiver`, `valor` → `amount`, `moeda_pagamento` → `payment_currency`, `moeda_recebida` → `received_currency`, `pais_remetente` → `sender_country`, `pais_recebedor` → `receiver_country`, `tipo_pagamento` → `payment_type`, `ingestao_id` → `ingestion_id` |
+| `ingestoes` | `ingestions` | `origem` → `source`, `nome_arquivo` → `file_name`, `linhas` → `row_count`, `quem` → `created_by`, `criado_em` → `created_at` |
+| `avaliacao` | `ground_truth` | `transacao_id` → `transaction_id`, `rotulo` → `label`, `tipologia_original` → `original_typology`, `tipologia` → `typology` |
+| `contas` | `accounts` | `conta` → `account`, `primeira_data` → `first_seen_at`, `ultima_data` → `last_seen_at`, `segmento` → `segment`, `atualizado_em` → `updated_at` |
+| `modelo_versoes` | `model_versions` | `versao` → `version`, `criado_em` → `created_at`, `limiar` → `threshold`, `metricas` → `metrics`, `ativa` → `active` |
+| `scores_transacao` | `transaction_scores` | `transacao_id` → `transaction_id`, `modelo_versao` → `model_version`, `criado_em` → `created_at` |
+| `lotes_semana` | `weekly_batches` | `semana` → `week`, `modelo_versao` → `model_version`, `contas_ativas` → `active_accounts`, `metricas` → `metrics`, `processado_em` → `processed_at`, `liberada_em` → `released_at` |
+| `alertas` | `alerts` | `conta` → `account`, `semana` → `week`, `posicao_fila` → `queue_position`, `paises` → `countries`, `tipologia` → `typology`, `valor_total` → `total_amount`, `qtd_transacoes` → `transaction_count`, `modelo_versao` → `model_version`, `criado_em` → `created_at`, `atualizado_em` → `updated_at` |
+| `evidencias` | `evidence` | `alerta_id` → `alert_id`, `contribuicoes` → `contributions`, `regras` → `rules`, `sinais_semanais` → `weekly_signals`, `grafo` → `graph`, `criado_em` → `created_at` |
+| `pareceres` | `assessments` | `alerta_id` → `alert_id`, `texto` → `content`, `tipologia_sugerida` → `suggested_typology`, `fontes` → `sources`, `validacao` → `validation`, `valido` → `is_valid`, `modelo_llm` → `llm_model`, `criado_em` → `created_at` |
+| `decisoes` | `decisions` | `alerta_id` → `alert_id`, `parecer_id` → `assessment_id`, `analista` → `analyst`, `decisao` → `decision`, `justificativa` → `justification`, `decidido_em` → `decided_at` |
+| `comunicacoes` | `reports` | `alerta_id` → `alert_id`, `decisao_id` → `decision_id`, `rascunho` → `draft`, `aprovado_por` → `approved_by`, `aprovado_em` → `approved_at`, `criado_em` → `created_at` |
+| `documentos_rag` | `rag_documents` | `fonte` → `source`, `trecho_ordem` → `chunk_index`, `texto` → `content`, `metadados` → `metadata`, `criado_em` → `created_at` |
+| `auditoria` | `audit_log` | `quem` → `actor`, `acao` → `action`, `entidade` → `entity`, `entidade_id` → `entity_id`, `detalhes` → `details`, `quando` → `occurred_at` |
+
+Colunas que já eram inglês (`id`, `score`, `status`, `features`, `embedding`)
+continuam. Índices e restrições nomeados acompanham a tabela
+(`alertas_fila_idx` → `alerts_queue_idx`, `modelo_versoes_uma_ativa_idx` →
+`model_versions_single_active_idx`).
+
+Valores gravados:
+
+| Onde | Antes | Depois |
+| --- | --- | --- |
+| `alerts.status` | `novo`, `em_analise`, `arquivado`, `aprofundado`, `comunicado` | `new`, `in_review`, `archived`, `escalated`, `reported` |
+| `decisions.decision` | `arquivar`, `aprofundar`, `comunicar` | `archive`, `escalate`, `report` |
+| `reports.status` | `rascunho`, `aprovada` | `draft`, `approved` |
+| `ingestions.status` | `recebido`, `processando`, `concluido` | `received`, `processing`, `completed` |
+| `ingestions.source` | `csv`, `manual` | (iguais) |
+| `audit_log.entity` | `alerta`, `ingestao`, `semana` | `alert`, `ingestion`, `week` |
+| `audit_log.action` | `decisao`, `comunicacao_aprovada`, `ingestao`, `replay` | `decision`, `report_approved`, `ingestion`, `replay` |
+
+JSON gravado pelo worker (contrato worker → API):
+
+- `evidence.contributions`: `{"<feature>": contribuição SHAP em log-odds}`.
+- `evidence.rules`: `[{"code", "description", "detail"}]`.
+- `assessments.sources`: `[{"title", "excerpt"}]`.
+- `weekly_batches.metrics`: `{"recall", "typology_accuracy", "country_rates": {país: taxa}, "payment_type_rates": {meio: taxa}}`.
+
+## API
+
+| Antes | Depois |
+| --- | --- |
+| `GET /saude` | `GET /health` |
+| `GET /semanas` | `GET /weeks` |
+| `GET /alertas?semana=&status=&pais=&pagina=&tamanho=&ordenar=` | `GET /alerts?week=&status=&country=&page=&size=&sort=` (`sort`: `score_desc` ou `queue`) |
+| `GET /alertas/{id}` | `GET /alerts/{id}` |
+| `GET /alertas/{id}/grafo` | `GET /alerts/{id}/graph` |
+| `POST /alertas/{id}/decisao` | `POST /alerts/{id}/decision` |
+| `GET /alertas/{id}/comunicacao` | `GET /alerts/{id}/report` |
+| `POST /alertas/{id}/comunicacao/aprovar` | `POST /alerts/{id}/report/approve` |
+| `POST /alertas/{id}/parecer` | `POST /alerts/{id}/assessment` |
+| `POST /alertas/{id}/chat` | `POST /alerts/{id}/chat` |
+| `POST /chat` | `POST /chat` |
+| `POST /replay/proxima-semana` | `POST /replay/next-week` |
+| `GET /monitoramento?semana=` | `GET /monitoring?week=` |
+| `POST /ingestao/csv` (campo multipart `arquivo`) | `POST /ingestion/csv` (campo `file`) |
+| `POST /ingestao/transacoes` | `POST /ingestion/transactions` |
+| `GET`/`POST /ingestao/conexoes` | `GET`/`POST /ingestion/connections` |
+| `POST /ingestao/conexoes/{id}/sincronizar` | `POST /ingestion/connections/{id}/sync` |
+
+Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
+`ingestion`, `monitoring`, `replay`, `health`, `weeks`).
+
+### JSON (snake_case, igual nos dois lados: Pydantic em `api/schemas/` e zod em `web/src/features/*/schemas/`)
+
+| Modelo (Pydantic / zod) | Antes | Campos depois |
+| --- | --- | --- |
+| `Alert` / `alertSchema` | `Alerta` | `id`, `account`, `week`, `country`, `typology`, `score`, `amount`, `transaction_count`, `status` |
+| `AlertStatus` / `statusSchema` | `pendente`, `aprofundar`, `arquivado`, `comunicar` | `pending`, `escalated`, `archived`, `reported` |
+| `AlertQueue` / `queueSchema` | `Fila {itens, total, paises}` | `items`, `total`, `countries` |
+| `AlertDetail` / `alertDetailSchema` | `Detalhe` | campos do `Alert` + `contributions`, `rules`, `movements`, `assessment` (anulável) |
+| `Contribution` | `{nome, valor}` | `name`, `value` |
+| `Rule` | `{codigo, descricao}` | `code`, `description` |
+| `Movement` | `Movimentacao {id, data, origem, destino, valor, moeda, meio, moeda_pagamento}` | `id`, `date`, `sender`, `receiver`, `amount`, `currency`, `payment_type`, `payment_currency` |
+| `Assessment` / `assessmentSchema` | `Parecer {texto, fontes}` | `content`, `sources` |
+| `Source` | `Fonte {titulo, trecho}` | `title`, `excerpt` |
+| `Graph` / `graphSchema` | `Grafo {nos, arestas}` | `nodes`, `edges` |
+| `Node` | `No {id, rotulo, central}` | `id`, `label`, `central` |
+| `Edge` | `Aresta {id, origem, destino, valor}` | `id`, `source`, `target`, `amount` |
+| `DecisionRequest` / `decisionSchema` | `PedidoDecisao {decisao, justificativa}` | `decision` (`archive`, `escalate`, `report`), `justification` |
+| `Report` / `reportSchema` | `Comunicacao {alerta_id, texto, status, atualizado_em}` | `alert_id`, `content`, `status` (`draft`, `approved`), `updated_at` |
+| `ApprovalRequest` / `approvalSchema` | `PedidoAprovacao {texto}` | `content` |
+| `Replay` / `replaySchema` | `{semana, alertas_gerados}` | `week`, `alerts_generated` |
+| `Weeks` | `Semanas {atual, itens}` | `current`, `items` |
+| `ProcessedWeek` | `SemanaProcessada {semana, alertas, pendentes}` | `week`, `alerts`, `pending` |
+| `Monitoring` / `monitoringSchema` | `Monitoramento {semana, indicadores, semanas, tipologias, paises, taxa_paises, taxa_meios}` | `week`, `indicators`, `weeks`, `typologies`, `countries`, `country_rates`, `payment_type_rates` |
+| `Indicators` | `{alertas, revisados, comunicados, taxa_alerta, valor_sinalizado, recall, acerto_tipologia}` | `alerts`, `reviewed`, `reported`, `alert_rate`, `flagged_amount`, `recall`, `typology_accuracy` |
+| `Series` / `seriesSchema` | `Serie {nome, valor}` | `name`, `value` |
+| `Health` / `healthSchema` | `Saude {status, banco, modelo, llm}` | `status` (`ok`, `degraded`), `database {ok, detail}`, `model {ok, file}`, `llm {ok, provider}` |
+| `ChatRequest` / `chatRequestSchema` | `PedidoChat {mensagem, contexto, historico}` | `message`, `context`, `history` |
+| `ChatContext` | `ContextoChat {pagina, semana, alerta_id}` | `page`, `week`, `alert_id` |
+| `Message` / `messageSchema` | `Mensagem {papel, texto}` | `role` (`user`, `assistant`), `content` |
+| `ChatResponse` / `chatResponseSchema` | `RespostaChat {resposta, fontes}` | `answer`, `sources` |
+| `TransactionRequest` / `transactionSchema` | `PedidoTransacao` | colunas do SAML-D, sem mudança |
+| `Receipt` / `receiptSchema` | `Recibo {id, status, mensagem}` | `id`, `status` (`received`, `processing`, `completed`), `message` |
+| `DataSource` / `dataSourceSchema` | `FonteDados {id, nome, tipo, host_mascarado, banco_mascarado, status, ultima_sincronizacao}` | `id`, `name`, `type` (`postgres`), `masked_host`, `masked_database`, `status` (`connected`, `syncing`, `error`), `last_synced_at` |
+| `DataSources` / `dataSourcesSchema` | `FontesDados {itens}` | `items` |
+| `connectionSchema` (pedido) | `conexaoSchema {nome, tipo, connection_string, ssl}` | `name`, `type`, `connection_string`, `ssl` |
+
+Valores exibidos na tela continuam em português (ex.: `"Indefinida"` quando o
+alerta não tem tipologia).
+
+## Front (`web/`)
+
+| Antes | Depois |
+| --- | --- |
+| `/alertas`, `/alertas/[id]` | `/alerts`, `/alerts/[id]` |
+| `/comunicacoes` | `/reports` |
+| `/configuracoes` | `/settings` |
+| `/ingestao` | `/ingestion` |
+| `/monitoramento` | `/monitoring` |
+| `/dashboard`, `/login` | (iguais) |
+| `/cadastro` | `/signup` |
+| `/recuperar-senha?modo=redefinir` | `/reset-password?mode=update` |
+| `/auth/callback?destino=recuperar` | `/auth/callback?next=reset` |
+| `/login?erro=sessao`, `?erro=confirmacao` | `/login?error=session`, `?error=confirmation` |
+| `src/features/alertas`, `assistente`, `autenticacao`, `configuracoes`, `ingestao`, `saude` | `src/features/alerts`, `assistant`, `auth`, `settings`, `ingestion`, `health` |
+| cookie `fr_manter_conectado` | `fr_keep_signed_in` |
+| `CONTRATOS_API.md` | `API_CONTRACTS.md` |
+
+## Variáveis de ambiente
+
+| Antes | Depois |
+| --- | --- |
+| `AUTH_DESLIGADA` | `AUTH_DISABLED` |
+| `DADOS_DIR` | `DATA_DIR` |
+| `INGESTAO_MAX_BYTES` | `INGESTION_MAX_BYTES` |
+| `INGESTAO_MAX_LINHAS` | `INGESTION_MAX_ROWS` |
+| `EXIGIR_BANCO_TESTE` | `REQUIRE_TEST_DB` |
+| `MODEL_FILE` padrão `modelo_lightgbm.txt` | padrão `lightgbm_model.txt` |
+
+O banco de teste (`TEST_DATABASE_URL`) agora precisa terminar em `_test`
+(antes `_teste`); o padrão é `fraudradar_test`.
+
+O grupo de dependências `ia` do `pyproject.toml` virou `ai`
+(`uv sync --group ai`).
+
+## Pastas e arquivos
+
+| Antes | Depois |
+| --- | --- |
+| `dados/` (SAML-D.csv) | `data/` |
+| `laboratorio/` | `lab/` |
+| `db/init/001_extensoes.sql`, `002_tabelas.sql` | `db/init/001_extensions.sql`, `002_tables.sql` |
+| `db/regras/` | `db/rules/` |
+| `docs/requisitos_projeto.MD` | `docs/project-requirements.md` |
+| `src/fraudradar/banco.py` | `src/fraudradar/db.py` |
+| `src/fraudradar/dados/` (`ingestao.py`) | `src/fraudradar/data/` (`ingestion.py`) |
+| `src/fraudradar/modelo/`, `ia/` | `src/fraudradar/model/`, `ai/` |
+| `api/rotas/`, `api/repositorios/` | `api/routes/`, `api/repositories/` |
+| `api/dependencias.py`, `api/dominio.py` | `api/dependencies.py`, `api/domain.py` |
+| `api/repositorios/fila.py` | `api/repositories/alert_queue.py` |
+| `vibelog/ENTREGA.md` | `vibelog/DELIVERY.md` |
+| `vibelog/src/features/registros`, `autenticacao` | `vibelog/src/features/records`, `auth` |
+
+Constantes citadas na documentação: `MOEDA_DOS_VALORES` → `AMOUNT_CURRENCY`,
+`RENOMEAR` → `COLUMN_RENAMES`, `COLUNAS_TRANSACAO` → `TRANSACTION_COLUMNS`,
+`ROTULOS` → `FEATURE_LABELS`, `COLUNAS_ALERTA` → `ALERT_COLUMNS`,
+`Conexao` → `DbConnection`, `UsuarioAtual` → `CurrentUser`,
+`CorpoLimitado` → `LimitedBodyRoute`, `criar_app` → `create_app`.
+
+## CLIs
+
+| Antes | Depois |
+| --- | --- |
+| `python -m worker lote --semana AAAA-MM-DD` | `python -m worker batch --week AAAA-MM-DD` |
+| `python -m worker replay` | (igual) |
+| `pnpm vibelog no` | `pnpm vibelog node` |
+| `pnpm vibelog evidencia` | `pnpm vibelog evidence` |
+| `pnpm vibelog importar-md`, `importar-claude`, `importar-codex` | `pnpm vibelog import-md`, `import-claude`, `import-codex` |
+| `--tipo`, `--autor`, `--titulo`, `--pai`, `--destino`, `--modelo`, `--origem-id`, `--arquivo`, `--no`, `--legenda`, `--tema escuro\|claro` | `--type`, `--author`, `--title`, `--parent`, `--target`, `--model`, `--source-id`, `--file`, `--node`, `--caption`, `--theme dark\|light` |
+
+Os valores aceitos por `--type` e `--area` são os gravados no Supabase e não
+mudam (`prompt_humano`, `resposta`, `ia`, `dados`...).

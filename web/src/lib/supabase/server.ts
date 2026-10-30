@@ -2,25 +2,25 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { configuracaoSupabase } from "./config";
-import { manterConectado, opcoesSessao } from "./persistencia";
+import { getSupabaseConfig } from "./config";
+import { shouldKeepSignedIn, getSessionCookieOptions } from "./persistence";
 
-export async function servidorSupabase() {
-  const config = configuracaoSupabase();
+export async function createSupabaseServerClient() {
+  const config = getSupabaseConfig();
   if (!config) return null;
-  const armazenamento = await cookies();
-  return createServerClient(config.url, config.chave, {
+  const cookieStore = await cookies();
+  return createServerClient(config.url, config.key, {
     cookies: {
-      getAll: () => armazenamento.getAll(),
-      setAll: (valores) => {
+      getAll: () => cookieStore.getAll(),
+      setAll: (cookiesToSet) => {
         try {
-          valores.forEach(({ name, value, options }) =>
-            armazenamento.set(
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(
               name,
               value,
-              opcoesSessao(
+              getSessionCookieOptions(
                 options,
-                manterConectado(armazenamento.getAll()),
+                shouldKeepSignedIn(cookieStore.getAll()),
                 value,
               ),
             ),

@@ -4,7 +4,7 @@ variable "docker_host" {
   default     = null
 }
 
-variable "prefixo" {
+variable "prefix" {
   description = "Prefixo dos recursos, para não colidir com os containers do Compose."
   type        = string
   default     = "fraudradar-tf"

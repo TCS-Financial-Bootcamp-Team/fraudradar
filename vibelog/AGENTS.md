@@ -10,7 +10,7 @@ Use as credenciais de `.env.local`; nunca as imprima ou versione.
 - Cada entrega: `resposta`, pai da delegação ou prompt atendido.
 - Decisões relevantes: `marco`, ligado ao contexto que as originou.
 - Na entrega, anexe commit e prints do resultado quando aplicáveis.
-- Use `--origem-id` estável: repetir o comando atualiza o nó sem duplicar.
+- Use `--source-id` estável: repetir o comando atualiza o nó sem duplicar.
 - Não registre senhas, chaves, dados pessoais ou números de conta.
 
 ## Áreas
@@ -19,17 +19,17 @@ Não classifique todo o projeto como frontend. Em trabalhos mistos, crie filhos.
 
 ## Exemplos
 ```powershell
-pnpm vibelog no --tipo prompt_humano --area ml --autor pedro --titulo "Treinar baseline" --origem-id "tarefa-42:humano" --arquivo ../trash/prompt.md
-pnpm vibelog no --tipo prompt_ia --area ml --autor claude-conta-2 --destino codex-conta1 --pai "tarefa-42:humano" --titulo "Implementar treino" --origem-id "tarefa-42:delegacao" --arquivo ../trash/delegacao.md
-pnpm vibelog no --tipo resposta --area ml --autor codex-conta1 --pai "tarefa-42:delegacao" --titulo "Baseline validado" --branch feat/modelo --commit abc1234 --origem-id "tarefa-42:resultado" --arquivo ../trash/resultado.md
-pnpm vibelog evidencia --no UUID_RETORNADO --tipo commit --url https://github.com/TCS-Financial-Bootcamp-Team/fraudradar/commit/abc1234 --legenda "Treino e validação"
-pnpm vibelog print --no UUID_RETORNADO --url http://localhost:3000 --tema escuro --legenda "Resultado visual"
-pnpm vibelog evidencia --no UUID_RETORNADO --tipo log --arquivo ../trash/validacao.log --legenda "Métricas do teste"
+pnpm vibelog node --type prompt_humano --area ml --author pedro --title "Treinar baseline" --source-id "tarefa-42:humano" --file ../trash/prompt.md
+pnpm vibelog node --type prompt_ia --area ml --author claude-conta-2 --target codex-conta1 --parent "tarefa-42:humano" --title "Implementar treino" --source-id "tarefa-42:delegacao" --file ../trash/delegacao.md
+pnpm vibelog node --type resposta --area ml --author codex-conta1 --parent "tarefa-42:delegacao" --title "Baseline validado" --branch feat/modelo --commit abc1234 --source-id "tarefa-42:resultado" --file ../trash/resultado.md
+pnpm vibelog evidence --node UUID_RETORNADO --type commit --url https://github.com/TCS-Financial-Bootcamp-Team/fraudradar/commit/abc1234 --caption "Treino e validação"
+pnpm vibelog print --node UUID_RETORNADO --url http://localhost:3000 --theme dark --caption "Resultado visual"
+pnpm vibelog evidence --node UUID_RETORNADO --type log --file ../trash/validacao.log --caption "Métricas do teste"
 ```
 
 Instale o navegador antes dos prints: `pnpm exec playwright install chromium`.
 Prints abrem uma sessão nova; uma tela protegida pode mostrar o login.
-Para capturar uma tela autenticada, use uma captura revisada e `evidencia`.
+Para capturar uma tela autenticada, use uma captura revisada e `evidence`.
 Conteúdo textual passa por redação automática; revise imagens antes do envio.
 Transcritos: teste primeiro com `--dry-run`; não importe sessões de terceiros.
 Não altere o esquema Supabase nem use a chave secreta no código do viewer.

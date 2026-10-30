@@ -20,48 +20,48 @@ import {
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/campo";
-import { PainelLateral } from "@/components/ui/painel-lateral";
+import { Input } from "@/components/ui/field";
+import { SidePanel } from "@/components/ui/side-panel";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { ContextoApp, useContextoApp } from "@/components/app-context";
-import { AssistenteFlutuante } from "@/features/assistente/components/assistente";
-import { useAutenticacao } from "@/features/autenticacao/hooks/use-autenticacao";
-import { usePerfil } from "@/features/autenticacao/hooks/use-perfil";
-import { useFila } from "@/features/alertas/hooks/use-alertas";
-import { USA_MOCKS } from "@/lib/api";
-import { dataCurta } from "@/lib/formatacao";
+import { AppContextProvider, useAppContext } from "@/components/app-context";
+import { FloatingAssistant } from "@/features/assistant/components/assistant";
+import { useAuth } from "@/features/auth/hooks/use-auth";
+import { useProfile } from "@/features/auth/hooks/use-profile";
+import { useAlertQueue } from "@/features/alerts/hooks/use-alerts";
+import { USE_MOCKS } from "@/lib/api";
+import { formatShortDate } from "@/lib/format";
 
-const navegacao = [
-  { href: "/dashboard", nome: "Visão geral", icone: LayoutDashboard },
-  { href: "/alertas", nome: "Fila de alertas", icone: Radar },
-  { href: "/comunicacoes", nome: "Comunicações", icone: FileCheck2 },
-  { href: "/monitoramento", nome: "Monitoramento", icone: Activity },
-  { href: "/ingestao", nome: "Fontes de dados", icone: Database },
+const navigationItems = [
+  { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
+  { href: "/alerts", label: "Fila de alertas", icon: Radar },
+  { href: "/reports", label: "Comunicações", icon: FileCheck2 },
+  { href: "/monitoring", label: "Monitoramento", icon: Activity },
+  { href: "/ingestion", label: "Fontes de dados", icon: Database },
 ];
-function Estrutura({ children }: { children: React.ReactNode }) {
-  const [recolhida, setRecolhida] = useState(false);
-  const [mobile, setMobile] = useState(false);
-  const [notificacoes, setNotificacoes] = useState(false);
-  const caminho = usePathname();
-  const { semana, setSemana } = useContextoApp();
-  const perfil = usePerfil();
-  const auth = useAutenticacao();
-  const fila = useFila("pendente");
+function ShellContent({ children }: { children: React.ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const pathname = usePathname();
+  const { week, setWeek } = useAppContext();
+  const profile = useProfile();
+  const auth = useAuth();
+  const queue = useAlertQueue("pending");
   return (
     <div
-      className={`${recolhida ? "sidebar-small" : ""} ${mobile ? "sidebar-mobile" : ""}`}
+      className={`${collapsed ? "sidebar-small" : ""} ${mobileOpen ? "sidebar-mobile" : ""}`}
     >
       <a
-        href="#conteudo"
+        href="#main-content"
         className="sr-only fixed z-50 focus:not-sr-only focus:bg-card focus:p-4"
       >
         Pular para o conteúdo
       </a>
-      {mobile && (
+      {mobileOpen && (
         <button
           aria-label="Fechar navegação"
           className="fixed inset-0 z-40 bg-foreground/30 md:hidden"
-          onClick={() => setMobile(false)}
+          onClick={() => setMobileOpen(false)}
         />
       )}
       <aside className="app-sidebar">
@@ -77,7 +77,7 @@ function Estrutura({ children }: { children: React.ReactNode }) {
           <button
             className="ml-auto md:hidden"
             aria-label="Fechar menu"
-            onClick={() => setMobile(false)}
+            onClick={() => setMobileOpen(false)}
           >
             <X className="size-4" />
           </button>
@@ -88,17 +88,17 @@ function Estrutura({ children }: { children: React.ReactNode }) {
           </p>
         </div>
         <nav aria-label="Navegação principal" className="space-y-1 p-3">
-          {navegacao.map(({ href, nome, icone: Icone }) => (
+          {navigationItems.map(({ href, label, icon: IconComponent }) => (
             <Link
-              title={nome}
+              title={label}
               key={href}
               href={href}
-              onClick={() => setMobile(false)}
+              onClick={() => setMobileOpen(false)}
               className="nav-item"
-              aria-current={caminho.startsWith(href) ? "page" : undefined}
+              aria-current={pathname.startsWith(href) ? "page" : undefined}
             >
-              <Icone className="size-[18px] shrink-0" />
-              <span className="sidebar-label">{nome}</span>
+              <IconComponent className="size-[18px] shrink-0" />
+              <span className="sidebar-label">{label}</span>
             </Link>
           ))}
         </nav>
@@ -113,21 +113,21 @@ function Estrutura({ children }: { children: React.ReactNode }) {
             </p>
           </div>
           <Link
-            href="/configuracoes"
+            href="/settings"
             className="nav-item"
             title="Configurações"
-            aria-current={caminho === "/configuracoes" ? "page" : undefined}
+            aria-current={pathname === "/settings" ? "page" : undefined}
           >
             <Settings2 className="size-[18px]" />
             <span className="sidebar-label">Configurações</span>
           </Link>
           <button
             className="nav-item hidden w-full md:flex"
-            onClick={() => setRecolhida(!recolhida)}
-            aria-label={recolhida ? "Expandir navegação" : "Recolher navegação"}
+            onClick={() => setCollapsed(!collapsed)}
+            aria-label={collapsed ? "Expandir navegação" : "Recolher navegação"}
           >
             <ChevronsLeft
-              className={`size-[18px] ${recolhida ? "rotate-180" : ""}`}
+              className={`size-[18px] ${collapsed ? "rotate-180" : ""}`}
             />
             <span className="sidebar-label">Recolher menu</span>
           </button>
@@ -141,7 +141,7 @@ function Estrutura({ children }: { children: React.ReactNode }) {
               size="icon"
               className="md:hidden"
               aria-label="Abrir menu"
-              onClick={() => setMobile(true)}
+              onClick={() => setMobileOpen(true)}
             >
               <Menu />
             </Button>
@@ -153,9 +153,9 @@ function Estrutura({ children }: { children: React.ReactNode }) {
                 className="w-[145px] border-0 bg-muted text-xs"
                 type="date"
                 aria-label="Semana de referência"
-                value={semana}
+                value={week}
                 onChange={(e) => {
-                  if (e.target.value) setSemana(e.target.value);
+                  if (e.target.value) setWeek(e.target.value);
                 }}
               />
             </label>
@@ -170,7 +170,7 @@ function Estrutura({ children }: { children: React.ReactNode }) {
               variant="ghost"
               size="icon"
               aria-label="Abrir notificações"
-              onClick={() => setNotificacoes(true)}
+              onClick={() => setNotificationsOpen(true)}
             >
               <Bell />
             </Button>
@@ -180,25 +180,25 @@ function Estrutura({ children }: { children: React.ReactNode }) {
                 className="flex cursor-pointer list-none items-center gap-2 rounded-lg p-2"
               >
                 <span className="grid size-8 place-items-center rounded-full bg-accent text-xs font-semibold text-accent-foreground">
-                  {(perfil.dados?.nome || "A").slice(0, 2).toUpperCase()}
+                  {(profile.data?.name || "A").slice(0, 2).toUpperCase()}
                 </span>
                 <span className="hidden max-w-28 truncate text-xs lg:block">
-                  {perfil.dados?.nome || "Minha conta"}
+                  {profile.data?.name || "Minha conta"}
                 </span>
                 <ChevronDown className="hidden size-3 sm:block" />
               </summary>
               <div className="absolute right-0 top-12 w-56 rounded-xl border bg-popover p-2 shadow-md">
                 <Link
                   className="block rounded-lg px-3 py-2 text-sm hover:bg-muted"
-                  href="/configuracoes"
+                  href="/settings"
                 >
                   Meu perfil
                 </Link>
                 <Button
                   className="w-full justify-start"
                   variant="ghost"
-                  disabled={auth.ocupado}
-                  onClick={() => void auth.sair()}
+                  disabled={auth.busy}
+                  onClick={() => void auth.signOut()}
                 >
                   <LogOut />
                   Sair da conta
@@ -207,47 +207,47 @@ function Estrutura({ children }: { children: React.ReactNode }) {
             </details>
           </div>
         </header>
-        {USA_MOCKS && (
+        {USE_MOCKS && (
           <div className="border-b bg-accent px-4 py-2 text-center text-[11px] text-accent-foreground">
             Ambiente demonstrativo · dados simulados · nenhuma comunicação é
             enviada
           </div>
         )}
         <main
-          id="conteudo"
+          id="main-content"
           className="mx-auto grid max-w-[1600px] gap-7 p-4 pb-28 sm:p-8 sm:pb-28"
         >
           {children}
         </main>
         <footer className="px-8 pb-6 text-[10px] text-muted-foreground">
-          FraudRadar PLD · SAML-D · Semana de {dataCurta(semana)}
+          FraudRadar PLD · SAML-D · Semana de {formatShortDate(week)}
         </footer>
       </div>
-      <AssistenteFlutuante />
-      {notificacoes && (
-        <PainelLateral
-          titulo="Notificações"
-          fechar={() => setNotificacoes(false)}
+      <FloatingAssistant />
+      {notificationsOpen && (
+        <SidePanel
+          title="Notificações"
+          onClose={() => setNotificationsOpen(false)}
         >
           <div className="space-y-4 p-5">
             <p className="text-sm text-muted-foreground">
               Alertas pendentes na semana selecionada.
             </p>
-            {fila.carregando ? (
+            {queue.loading ? (
               <p role="status">Carregando…</p>
-            ) : fila.erro ? (
-              <p role="alert">{fila.erro}</p>
-            ) : fila.dados?.itens.length ? (
-              fila.dados.itens.slice(0, 5).map((a) => (
+            ) : queue.error ? (
+              <p role="alert">{queue.error}</p>
+            ) : queue.data?.items.length ? (
+              queue.data.items.slice(0, 5).map((alert) => (
                 <Link
-                  onClick={() => setNotificacoes(false)}
+                  onClick={() => setNotificationsOpen(false)}
                   className="block rounded-lg border p-4 text-sm hover:bg-muted"
-                  key={a.id}
-                  href={"/alertas/" + a.id}
+                  key={alert.id}
+                  href={"/alerts/" + alert.id}
                 >
-                  <strong>{a.id}</strong>
+                  <strong>{alert.id}</strong>
                   <p className="mt-1 text-muted-foreground">
-                    {a.tipologia} · Score {a.score}
+                    {alert.typology} · Score {alert.score}
                   </p>
                 </Link>
               ))
@@ -255,15 +255,15 @@ function Estrutura({ children }: { children: React.ReactNode }) {
               <p>Nenhum alerta pendente.</p>
             )}
           </div>
-        </PainelLateral>
+        </SidePanel>
       )}
     </div>
   );
 }
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <ContextoApp>
-      <Estrutura>{children}</Estrutura>
-    </ContextoApp>
+    <AppContextProvider>
+      <ShellContent>{children}</ShellContent>
+    </AppContextProvider>
   );
 }

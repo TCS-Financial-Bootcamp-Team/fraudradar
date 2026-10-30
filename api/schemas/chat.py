@@ -1,31 +1,29 @@
-"""Contrato do assistente: espelha web/src/features/assistente/schemas/assistente.ts."""
+"""Contrato do assistente: espelha web/src/features/assistant/schemas/assistant.ts."""
 
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from api.schemas.alertas import Fonte
+from api.schemas.alerts import Source
 
 
-class Mensagem(BaseModel):
-    papel: Literal["usuario", "assistente"]
-    texto: Annotated[str, StringConstraints(min_length=1, max_length=8000)]
+class Message(BaseModel):
+    role: Literal["user", "assistant"]
+    content: Annotated[str, StringConstraints(min_length=1, max_length=8000)]
 
 
-class ContextoChat(BaseModel):
-    pagina: str
-    semana: str
-    alerta_id: str | None = None
+class ChatContext(BaseModel):
+    page: str
+    week: str
+    alert_id: str | None = None
 
 
-class PedidoChat(BaseModel):
-    mensagem: Annotated[
-        str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)
-    ]
-    contexto: ContextoChat
-    historico: list[Mensagem] = Field(max_length=20)
+class ChatRequest(BaseModel):
+    message: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
+    context: ChatContext
+    history: list[Message] = Field(max_length=20)
 
 
-class RespostaChat(BaseModel):
-    resposta: str
-    fontes: list[Fonte] = []
+class ChatResponse(BaseModel):
+    answer: str
+    sources: list[Source] = []

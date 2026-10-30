@@ -10,6 +10,6 @@ output "api_docs_url" {
   value = "http://localhost:${var.api_port}/docs"
 }
 
-output "rede" {
-  value = docker_network.rede.name
+output "network" {
+  value = docker_network.network.name
 }

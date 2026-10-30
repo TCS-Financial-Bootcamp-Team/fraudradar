@@ -1,6 +1,6 @@
 # rag/
 
-Textos que alimentam o RAG (`documentos_rag`, embeddings de 384 dimensões).
+Textos que alimentam o RAG (`rag_documents`, embeddings de 384 dimensões).
 Guarde aqui em texto/markdown, com a fonte e a data de consulta no topo.
 
 Fontes a coletar:

@@ -17,12 +17,12 @@ pnpm build
 
 Organização: `src/features/<modulo>/{components,hooks,services,schemas}`.
 Fluxo: componente → hook → service → API. Componentes nunca chamam `fetch`.
-Exemplo pronto: `src/features/saude`.
+Exemplo pronto: `src/features/health`.
 
 No Supabase, habilite e-mail/senha e cadastre as URLs permitidas:
 
 - `http://localhost:3000/auth/callback`
-- `http://localhost:3000/auth/callback?destino=recuperar`
+- `http://localhost:3000/auth/callback?next=reset`
 - As URLs equivalentes no domínio de implantação.
 
 Configure a Site URL e a entrega de e-mail do projeto para cadastro e recuperação.
@@ -35,7 +35,7 @@ Variáveis `NEXT_PUBLIC_*` são incorporadas no build: refaça o build após alt
 No modo real, a API recebe o JWT do Supabase e deve validar identidade e acesso.
 Nunca há chamadas diretas do navegador ao banco ou ao LLM.
 
-Consulte [CONTRATOS_API.md](./CONTRATOS_API.md) e os schemas Zod para implementar
+Consulte [API_CONTRACTS.md](./API_CONTRACTS.md) e os schemas Zod para implementar
 as respostas, paginação, ingestão, chat e sincronização. A semana inicial da demo
 é 2026-10-19. Em modo real, o seletor inicia na segunda-feira da semana atual (UTC).
 

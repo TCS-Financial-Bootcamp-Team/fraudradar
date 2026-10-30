@@ -1,7 +1,7 @@
 """Testes da API contra um Postgres de verdade, com o esquema de db/init/.
 
-Sem Postgres acessível os testes que usam `banco` são pulados; no CI
-(EXIGIR_BANCO_TESTE=1) falham. Local: `docker compose up -d db`.
+Sem Postgres acessível os testes que usam `db` são pulados; no CI
+(REQUIRE_TEST_DB=1) falham. Local: `docker compose up -d db`.
 """
 
 import json
@@ -15,19 +15,19 @@ from sqlalchemy import Engine, create_engine, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
-from fraudradar.banco import get_engine
-from fraudradar.config import RAIZ, get_settings
+from fraudradar.config import ROOT_DIR, get_settings
+from fraudradar.db import get_engine
 
-URL_PADRAO = "postgresql+psycopg://fraudradar:fraudradar@localhost:5432/fraudradar_teste"
+DEFAULT_TEST_DB_URL = "postgresql+psycopg://fraudradar:fraudradar@localhost:5432/fraudradar_test"
 
 
 @pytest.fixture(scope="session")
-def url_banco_teste() -> str:
+def test_db_url() -> str:
     """Recria o banco de teste uma vez por sessão e aplica db/init/*.sql."""
-    url = make_url(os.environ.get("TEST_DATABASE_URL", URL_PADRAO))
+    url = make_url(os.environ.get("TEST_DATABASE_URL", DEFAULT_TEST_DB_URL))
     # O fixture apaga o banco: nunca aponte para o banco de desenvolvimento.
-    if not (url.database or "").endswith("_teste"):
-        pytest.fail(f"TEST_DATABASE_URL precisa de um banco terminado em _teste: {url.database}")
+    if not (url.database or "").endswith("_test"):
+        pytest.fail(f"TEST_DATABASE_URL precisa de um banco terminado em _test: {url.database}")
     admin = create_engine(
         url.set(database="postgres"),
         isolation_level="AUTOCOMMIT",
@@ -38,259 +38,262 @@ def url_banco_teste() -> str:
             conn.exec_driver_sql(f'DROP DATABASE IF EXISTS "{url.database}" WITH (FORCE)')
             conn.exec_driver_sql(f'CREATE DATABASE "{url.database}"')
     except OperationalError as exc:
-        if os.environ.get("EXIGIR_BANCO_TESTE") == "1":
+        if os.environ.get("REQUIRE_TEST_DB") == "1":
             raise
-        motivo = f"Postgres de teste indisponível ({type(exc).__name__})"
-        pytest.skip(f"{motivo}: docker compose up -d db")
+        reason = f"Postgres de teste indisponível ({type(exc).__name__})"
+        pytest.skip(f"{reason}: docker compose up -d db")
     finally:
         admin.dispose()
     engine = create_engine(url)
     with engine.begin() as conn:
-        for arquivo in sorted((RAIZ / "db" / "init").glob("*.sql")):
-            conn.exec_driver_sql(arquivo.read_text(encoding="utf-8"))
+        for sql_file in sorted((ROOT_DIR / "db" / "init").glob("*.sql")):
+            conn.exec_driver_sql(sql_file.read_text(encoding="utf-8"))
     engine.dispose()
     return url.render_as_string(hide_password=False)
 
 
 @pytest.fixture
-def banco(url_banco_teste, monkeypatch) -> Iterator[Engine]:
+def db(test_db_url, monkeypatch) -> Iterator[Engine]:
     """Banco vazio a cada teste; get_engine() (e portanto a API) aponta para ele."""
-    monkeypatch.setenv("DATABASE_URL", url_banco_teste)
+    monkeypatch.setenv("DATABASE_URL", test_db_url)
     get_settings.cache_clear()
     get_engine.cache_clear()
     engine = get_engine()
     with engine.begin() as conn:
-        tabelas = conn.execute(
+        tables = conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         ).scalars()
-        conn.exec_driver_sql(f"TRUNCATE {', '.join(tabelas)} RESTART IDENTITY CASCADE")
+        conn.exec_driver_sql(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE")
     yield engine
     engine.dispose()
 
 
 @pytest.fixture
-def cliente(banco, monkeypatch) -> Iterator[TestClient]:
-    """Cliente da API com autenticação desligada: o usuário é USUARIO_LOCAL."""
-    monkeypatch.setenv("AUTH_DESLIGADA", "true")
+def client(db, monkeypatch) -> Iterator[TestClient]:
+    """Cliente da API com autenticação desligada: o usuário é LOCAL_USER."""
+    monkeypatch.setenv("AUTH_DISABLED", "true")
     get_settings.cache_clear()
-    from api.main import criar_app
+    from api.main import create_app
 
-    with TestClient(criar_app()) as c:
+    with TestClient(create_app()) as c:
         yield c
 
 
 @pytest.fixture
-def semente(banco) -> "Semente":
-    return Semente(banco)
+def seed(db) -> "Seed":
+    return Seed(db)
 
 
-class Semente:
+class Seed:
     """Insere linhas mínimas e coerentes com o esquema. Cada método devolve o id criado.
 
     Os formatos JSON (evidências, fontes, métricas) são o contrato com o worker:
-    veja os comentários de db/init/002_tabelas.sql.
+    veja os comentários de db/init/002_tables.sql.
     """
 
-    VERSAO = "teste-v1"
+    VERSION = "test-v1"
 
     def __init__(self, engine: Engine):
         self.engine = engine
 
     def _exec(self, sql: str, **params):
         with self.engine.begin() as conn:
-            resultado = conn.execute(text(sql), params)
-            return resultado.scalar() if resultado.returns_rows else None
+            result = conn.execute(text(sql), params)
+            return result.scalar() if result.returns_rows else None
 
-    def modelo(self, versao: str = VERSAO, *, ativa: bool = True) -> str:
+    def model(self, version: str = VERSION, *, active: bool = True) -> str:
         self._exec(
-            "INSERT INTO modelo_versoes (versao, features, limiar, ativa)"
-            " VALUES (:v, '[]'::jsonb, 0.5, :a) ON CONFLICT (versao) DO NOTHING",
-            v=versao,
-            a=ativa,
+            "INSERT INTO model_versions (version, features, threshold, active)"
+            " VALUES (:v, '[]'::jsonb, 0.5, :a) ON CONFLICT (version) DO NOTHING",
+            v=version,
+            a=active,
         )
-        return versao
+        return version
 
-    def conta(self, conta: int) -> int:
+    def account(self, account: int) -> int:
         self._exec(
-            "INSERT INTO contas (conta, primeira_data, ultima_data)"
-            " VALUES (:c, '2022-10-07', '2023-08-23') ON CONFLICT (conta) DO NOTHING",
-            c=conta,
+            "INSERT INTO accounts (account, first_seen_at, last_seen_at)"
+            " VALUES (:c, '2022-10-07', '2023-08-23') ON CONFLICT (account) DO NOTHING",
+            c=account,
         )
-        return conta
+        return account
 
-    def transacao(
+    def transaction(
         self,
-        remetente: int,
-        recebedor: int,
-        data_hora: datetime,
-        valor: float = 100.0,
+        sender: int,
+        receiver: int,
+        occurred_at: datetime,
+        amount: float = 100.0,
         *,
-        moeda: str = "UK pounds",
-        moeda_recebida: str | None = None,
-        pais_remetente: str = "UK",
-        pais_recebedor: str = "UK",
-        tipo: str = "Cross-border",
-        rotulo: int | None = None,
-        tipologia: str = "Normal_Small_Fan_Out",
+        currency: str = "UK pounds",
+        received_currency: str | None = None,
+        sender_country: str = "UK",
+        receiver_country: str = "UK",
+        payment_type: str = "Cross-border",
+        label: int | None = None,
+        typology: str = "Normal_Small_Fan_Out",
     ) -> int:
-        """Transação; com `rotulo` grava também o gabarito em `avaliacao`."""
+        """Transação; com `label` grava também o gabarito em `ground_truth`."""
         tid = self._exec(
-            "INSERT INTO transacoes (data_hora, remetente, recebedor, valor, moeda_pagamento,"
-            " moeda_recebida, pais_remetente, pais_recebedor, tipo_pagamento)"
-            " VALUES (:dh, :r, :d, :v, :mp, :mr, :pr, :pd, :t) RETURNING id",
-            dh=data_hora,
-            r=remetente,
-            d=recebedor,
-            v=valor,
-            mp=moeda,
-            mr=moeda_recebida or moeda,
-            pr=pais_remetente,
-            pd=pais_recebedor,
-            t=tipo,
+            "INSERT INTO transactions (occurred_at, sender, receiver, amount, payment_currency,"
+            " received_currency, sender_country, receiver_country, payment_type)"
+            " VALUES (:dt, :s, :r, :a, :pc, :rc, :sc, :rco, :pt) RETURNING id",
+            dt=occurred_at,
+            s=sender,
+            r=receiver,
+            a=amount,
+            pc=currency,
+            rc=received_currency or currency,
+            sc=sender_country,
+            rco=receiver_country,
+            pt=payment_type,
         )
-        if rotulo is not None:
+        if label is not None:
             self._exec(
-                "INSERT INTO avaliacao (transacao_id, rotulo, tipologia_original, tipologia)"
-                " VALUES (:id, :r, :t, :t)",
+                "INSERT INTO ground_truth (transaction_id, label, original_typology, typology)"
+                " VALUES (:id, :l, :t, :t)",
                 id=tid,
-                r=rotulo,
-                t=tipologia,
+                l=label,
+                t=typology,
             )
         return tid
 
-    def alerta(
+    def alert(
         self,
-        conta: int,
-        semana: date,
+        account: int,
+        week: date,
         *,
         score: float = 0.9,
-        posicao: int = 1,
-        status: str = "novo",
-        paises: tuple[str, ...] = ("UK",),
-        tipologia: str | None = "Fan-out",
-        valor_total: float = 1000.0,
-        qtd_transacoes: int = 3,
-        versao: str = VERSAO,
+        position: int = 1,
+        status: str = "new",
+        countries: tuple[str, ...] = ("UK",),
+        typology: str | None = "Fan-out",
+        total_amount: float = 1000.0,
+        transaction_count: int = 3,
+        version: str = VERSION,
     ) -> int:
-        self.modelo(versao)
-        self.conta(conta)
+        self.model(version)
+        self.account(account)
         return self._exec(
-            "INSERT INTO alertas (conta, semana, score, posicao_fila, status, paises, tipologia,"
-            " valor_total, qtd_transacoes, modelo_versao)"
-            " VALUES (:c, :s, :sc, :p, :st, :pa, :t, :v, :q, :m) RETURNING id",
-            c=conta,
-            s=semana,
+            "INSERT INTO alerts (account, week, score, queue_position, status, countries, typology,"
+            " total_amount, transaction_count, model_version)"
+            " VALUES (:c, :w, :sc, :p, :st, :co, :t, :a, :tc, :m) RETURNING id",
+            c=account,
+            w=week,
             sc=score,
-            p=posicao,
+            p=position,
             st=status,
-            pa=list(paises),
-            t=tipologia,
-            v=valor_total,
-            q=qtd_transacoes,
-            m=versao,
+            co=list(countries),
+            t=typology,
+            a=total_amount,
+            tc=transaction_count,
+            m=version,
         )
 
-    def evidencias(
+    def evidence(
         self,
-        alerta_id: int,
+        alert_id: int,
         *,
-        contribuicoes: dict[str, float] | None = None,
-        regras: list[dict] | None = None,
-        sinais: dict | None = None,
+        contributions: dict[str, float] | None = None,
+        rules: list[dict] | None = None,
+        signals: dict | None = None,
     ) -> int:
         self._exec(
-            "INSERT INTO evidencias (alerta_id, contribuicoes, regras, sinais_semanais)"
+            "INSERT INTO evidence (alert_id, contributions, rules, weekly_signals)"
             " VALUES (:a, CAST(:c AS jsonb), CAST(:r AS jsonb), CAST(:s AS jsonb))",
-            a=alerta_id,
-            c=json.dumps(contribuicoes or {}),
-            r=json.dumps(regras or []),
-            s=json.dumps(sinais or {}),
+            a=alert_id,
+            c=json.dumps(contributions or {}),
+            r=json.dumps(rules or []),
+            s=json.dumps(signals or {}),
         )
-        return alerta_id
+        return alert_id
 
-    def parecer(
+    def assessment(
         self,
-        alerta_id: int,
-        texto: str = "Parecer de teste [1].",
+        alert_id: int,
+        content: str = "Parecer de teste [1].",
         *,
-        fontes: list[dict] | None = None,
-        criado_em: datetime | None = None,
+        sources: list[dict] | None = None,
+        created_at: datetime | None = None,
     ) -> int:
         return self._exec(
-            "INSERT INTO pareceres (alerta_id, texto, fontes, criado_em)"
+            "INSERT INTO assessments (alert_id, content, sources, created_at)"
             " VALUES (:a, :t, CAST(:f AS jsonb), COALESCE(:c, now())) RETURNING id",
-            a=alerta_id,
-            t=texto,
-            f=json.dumps(fontes if fontes is not None else [{"titulo": "[1] Lei", "trecho": "x"}]),
-            c=criado_em,
+            a=alert_id,
+            t=content,
+            f=json.dumps(
+                sources if sources is not None else [{"title": "[1] Lei", "excerpt": "x"}]
+            ),
+            c=created_at,
         )
 
-    def decisao(
+    def decision(
         self,
-        alerta_id: int,
-        decisao: str = "comunicar",
+        alert_id: int,
+        decision: str = "report",
         *,
-        analista: str = "Ana Analista",
-        justificativa: str = "Justificativa de teste suficiente.",
-        parecer_id: int | None = None,
+        analyst: str = "Ana Analista",
+        justification: str = "Justificativa de teste suficiente.",
+        assessment_id: int | None = None,
     ) -> int:
         return self._exec(
-            "INSERT INTO decisoes (alerta_id, parecer_id, analista, decisao, justificativa)"
+            "INSERT INTO decisions (alert_id, assessment_id, analyst, decision, justification)"
             " VALUES (:a, :p, :an, :d, :j) RETURNING id",
-            a=alerta_id,
-            p=parecer_id,
-            an=analista,
-            d=decisao,
-            j=justificativa,
+            a=alert_id,
+            p=assessment_id,
+            an=analyst,
+            d=decision,
+            j=justification,
         )
 
-    def comunicacao(
+    def report(
         self,
-        alerta_id: int,
-        decisao_id: int,
-        rascunho: str = "Rascunho de comunicação ao COAF para teste.",
+        alert_id: int,
+        decision_id: int,
+        draft: str = "Rascunho de comunicação ao COAF para teste.",
         *,
-        aprovada_por: str | None = None,
+        approved_by: str | None = None,
     ) -> int:
-        """Rascunho; com `aprovada_por` já nasce aprovado."""
+        """Rascunho; com `approved_by` já nasce aprovado."""
         return self._exec(
-            "INSERT INTO comunicacoes (alerta_id, decisao_id, rascunho, status, aprovado_por,"
-            " aprovado_em) VALUES (:a, :d, :r, :s, :ap,"
+            "INSERT INTO reports (alert_id, decision_id, draft, status, approved_by,"
+            " approved_at) VALUES (:a, :d, :r, :s, :ap,"
             " CASE WHEN CAST(:ap AS text) IS NULL THEN NULL ELSE now() END) RETURNING id",
-            a=alerta_id,
-            d=decisao_id,
-            r=rascunho,
-            s="aprovada" if aprovada_por else "rascunho",
-            ap=aprovada_por,
+            a=alert_id,
+            d=decision_id,
+            r=draft,
+            s="approved" if approved_by else "draft",
+            ap=approved_by,
         )
 
-    def lote(
+    def batch(
         self,
-        semana: date,
+        week: date,
         *,
-        contas_ativas: int = 1000,
-        metricas: dict | None = None,
-        liberada: bool = False,
-        versao: str = VERSAO,
+        active_accounts: int = 1000,
+        metrics: dict | None = None,
+        released: bool = False,
+        version: str = VERSION,
     ) -> date:
-        """Semana processada pelo worker; `liberada` simula o replay já tê-la mostrado."""
-        self.modelo(versao)
+        """Semana processada pelo worker; `released` simula o replay já tê-la mostrado."""
+        self.model(version)
         self._exec(
-            "INSERT INTO lotes_semana (semana, modelo_versao, contas_ativas, metricas, liberada_em)"
-            " VALUES (:s, :m, :c, CAST(:me AS jsonb), CASE WHEN :l THEN now() END)",
-            s=semana,
-            m=versao,
-            c=contas_ativas,
-            me=json.dumps(metricas or {}),
-            l=liberada,
+            "INSERT INTO weekly_batches"
+            " (week, model_version, active_accounts, metrics, released_at)"
+            " VALUES (:w, :m, :c, CAST(:me AS jsonb), CASE WHEN :l THEN now() END)",
+            w=week,
+            m=version,
+            c=active_accounts,
+            me=json.dumps(metrics or {}),
+            l=released,
         )
-        return semana
+        return week
 
-    def contar(self, tabela: str, where: str = "true", **params) -> int:
+    def count(self, table: str, where: str = "true", **params) -> int:
         """SELECT count(*) para conferir efeitos colaterais nos testes."""
-        return self._exec(f"SELECT count(*) FROM {tabela} WHERE {where}", **params)
+        return self._exec(f"SELECT count(*) FROM {table} WHERE {where}", **params)
 
-    def linha(self, sql: str, **params) -> dict | None:
+    def row(self, sql: str, **params) -> dict | None:
         with self.engine.connect() as conn:
             r = conn.execute(text(sql), params).mappings().first()
             return dict(r) if r else None

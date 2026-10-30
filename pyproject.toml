@@ -27,7 +27,7 @@ ml = [
     "jupyter>=1.1",
     "ipykernel>=6.29",
 ]
-ia = [
+ai = [
     "langchain>=0.3",
     "langchain-openai>=0.2",
     "langchain-anthropic>=0.2",
@@ -64,7 +64,7 @@ torch = [{ index = "pytorch-cpu" }]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-extend-exclude = ["web", "notebooks/.ipynb_checkpoints", "laboratorio"]
+extend-exclude = ["web", "notebooks/.ipynb_checkpoints", "lab", "laboratorio"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "N"]

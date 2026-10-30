@@ -1,13 +1,13 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
-import { configuracaoSupabase, mensagemConfiguracao } from "./config";
-import { cookiesNavegador } from "./persistencia";
+import { getSupabaseConfig, supabaseConfigMessage } from "./config";
+import { browserCookies } from "./persistence";
 
-export function clienteSupabase() {
-  const config = configuracaoSupabase();
-  if (!config) throw new Error(mensagemConfiguracao);
-  return createBrowserClient(config.url, config.chave, {
-    cookies: cookiesNavegador,
+export function createSupabaseBrowserClient() {
+  const config = getSupabaseConfig();
+  if (!config) throw new Error(supabaseConfigMessage);
+  return createBrowserClient(config.url, config.key, {
+    cookies: browserCookies,
   });
 }
