@@ -5,131 +5,137 @@ import { readFile, readdir } from "node:fs/promises";
 import { parseArgs } from "node:util";
 import { randomUUID } from "node:crypto";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
-import { lerMarkdownSeguro } from "./markdown";
-import { prepararEvidencia } from "./evidencias";
+import { parseSafeMarkdown } from "./markdown";
+import { prepareEvidence } from "./evidence";
 import { z } from "zod";
-import { areas, tipos } from "../src/features/registros/schemas/index";
-import { lerTranscrito, redigir, sanitizar, type Registro } from "./importadores";
+import { AREAS, NODE_TYPES } from "../src/features/records/schemas/index";
+import { readTranscript, redact, sanitize, type RecordInput } from "./importers";
 config({ path: fileURLToPath(new URL("../.env.local", import.meta.url)), quiet: true });
-const opcoes = [
-  "tipo",
+const CLI_OPTIONS = [
+  "type",
   "area",
-  "autor",
-  "titulo",
-  "pai",
-  "destino",
-  "modelo",
+  "author",
+  "title",
+  "parent",
+  "target",
+  "model",
   "branch",
   "commit",
-  "origem-id",
-  "arquivo",
-  "no",
+  "source-id",
+  "file",
+  "node",
   "url",
-  "legenda",
-  "tema",
+  "caption",
+  "theme",
 ];
 const { values, positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    ...Object.fromEntries(opcoes.map((k) => [k, { type: "string" as const }])),
+    ...Object.fromEntries(CLI_OPTIONS.map((k) => [k, { type: "string" as const }])),
     "dry-run": { type: "boolean" },
     help: { type: "boolean" },
   },
 });
 const v: Record<string, string | boolean | undefined> = values;
-const [cmd, alvo] = positionals;
-const seco = !!v["dry-run"];
-let cliente: SupabaseClient | undefined;
+const [cmd, targetArg] = positionals;
+const dryRun = !!v["dry-run"];
+let supabaseClient: SupabaseClient | undefined;
 function sb() {
-  if (!cliente) {
+  if (!supabaseClient) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL,
       key = process.env.SUPABASE_SECRET_KEY;
     if (!url || !key)
       throw new Error(
         "Configure NEXT_PUBLIC_SUPABASE_URL e SUPABASE_SECRET_KEY em vibelog/.env.local.",
       );
-    cliente = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+    supabaseClient = createClient(url, key, {
+      auth: { persistSession: false, autoRefreshToken: false },
+    });
   }
-  return cliente;
+  return supabaseClient;
 }
-function requerido(nome: string) {
-  const valor = v[nome];
-  if (typeof valor !== "string" || !valor.trim()) throw new Error(`Informe --${nome}.`);
-  return valor;
+function requiredOption(flag: string) {
+  const optVal = v[flag];
+  if (typeof optVal !== "string" || !optVal.trim()) throw new Error(`Informe --${flag}.`);
+  return optVal;
 }
-async function paiId(pai?: string) {
-  if (!pai) return null;
-  if (z.uuid().safeParse(pai).success) return pai;
-  const { data, error } = await sb().from("vibelog_nos").select("id").eq("origem_id", pai).single();
-  if (error) throw new Error(`Pai não encontrado: ${pai}`);
+async function resolveParentId(parent?: string) {
+  if (!parent) return null;
+  if (z.uuid().safeParse(parent).success) return parent;
+  const { data, error } = await sb()
+    .from("vibelog_nos")
+    .select("id")
+    .eq("origem_id", parent)
+    .single();
+  if (error) throw new Error(`Pai não encontrado: ${parent}`);
   return String(data.id);
 }
-async function gravar(registro: Registro) {
-  const { pai, ...dados } = sanitizar(registro);
-  if (seco) {
-    console.log(JSON.stringify({ acao: "registrar", ...dados, pai }));
-    return dados.origem_id ?? "dry-run";
+async function saveRecord(record: RecordInput) {
+  const { parent, ...row } = sanitize(record);
+  if (dryRun) {
+    console.log(JSON.stringify({ action: "record", ...row, parent }));
+    return row.origem_id ?? "dry-run";
   }
-  const pai_id = await paiId(pai);
-  if (pai_id && dados.origem_id) {
-    const existente = await sb()
+  const pai_id = await resolveParentId(parent);
+  if (pai_id && row.origem_id) {
+    const existing = await sb()
       .from("vibelog_nos")
       .select("id")
-      .eq("origem_id", dados.origem_id)
+      .eq("origem_id", row.origem_id)
       .maybeSingle();
-    if (existente.error) throw existente.error;
-    const visitados = new Set<string>();
-    let atual: string | null = pai_id;
-    while (atual) {
-      if (atual === existente.data?.id || visitados.has(atual))
+    if (existing.error) throw existing.error;
+    const visited = new Set<string>();
+    let current: string | null = pai_id;
+    while (current) {
+      if (current === existing.data?.id || visited.has(current))
         throw new Error("O pai informado criaria um ciclo na árvore.");
-      visitados.add(atual);
-      const ancestral: {
+      visited.add(current);
+      const ancestor: {
         data: { pai_id: string | null } | null;
         error: { message: string } | null;
-      } = await sb().from("vibelog_nos").select("pai_id").eq("id", atual).single();
-      if (ancestral.error) throw ancestral.error;
-      if (!ancestral.data) throw new Error("Ancestral não encontrado.");
-      atual = ancestral.data.pai_id;
+      } = await sb().from("vibelog_nos").select("pai_id").eq("id", current).single();
+      if (ancestor.error) throw ancestor.error;
+      if (!ancestor.data) throw new Error("Ancestral não encontrado.");
+      current = ancestor.data.pai_id;
     }
   }
-  const payload = { ...dados, pai_id };
-  const q = dados.origem_id
+  const payload = { ...row, pai_id };
+  const q = row.origem_id
     ? sb().from("vibelog_nos").upsert(payload, { onConflict: "origem_id" })
     : sb().from("vibelog_nos").insert(payload);
   const { data, error } = await q.select("id").single();
   if (error) throw error;
   return String(data.id);
 }
-async function lerEntrada() {
-  if (v.arquivo) return readFile(String(v.arquivo), "utf8");
+async function readInput() {
+  if (v.file) return readFile(String(v.file), "utf8");
   if (process.stdin.isTTY)
-    throw new Error("Informe --arquivo ou envie o conteúdo pela entrada padrão.");
-  const partes: Buffer[] = [];
-  for await (const chunk of process.stdin) partes.push(Buffer.from(chunk));
-  return Buffer.concat(partes).toString("utf8");
+    throw new Error("Informe --file ou envie o conteúdo pela entrada padrão.");
+  const chunks: Buffer[] = [];
+  for await (const chunk of process.stdin) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks).toString("utf8");
 }
-async function evidencia(
-  no: string,
-  tipo: string,
-  arquivo?: string,
+async function attachEvidence(
+  nodeId: string,
+  evidenceType: string,
+  filePath?: string,
   url?: string,
-  legenda?: string,
+  caption?: string,
   buffer?: Buffer,
 ) {
-  z.uuid().parse(no);
-  z.enum(["print", "commit", "log", "link", "arquivo"]).parse(tipo);
-  if (!arquivo && !url && !buffer) throw new Error("Informe --arquivo ou --url.");
+  z.uuid().parse(nodeId);
+  z.enum(["print", "commit", "log", "link", "arquivo"]).parse(evidenceType);
+  if (!filePath && !url && !buffer) throw new Error("Informe --file ou --url.");
   if (url && !/^https?:\/\//i.test(url)) throw new Error("A URL deve usar http ou https.");
-  const identificacao = await sb().from("vibelog_nos").select("id").eq("id", no).single();
-  if (identificacao.error) throw new Error("Registro de destino não encontrado.");
+  const lookup = await sb().from("vibelog_nos").select("id").eq("id", nodeId).single();
+  if (lookup.error) throw new Error("Registro de destino não encontrado.");
   let storage_path: string | null = null;
-  if (arquivo || buffer) {
-    const nome = path.basename(arquivo ?? "captura.png").replace(/[^\w.\-]/g, "_");
-    storage_path = `${no}/${Date.now()}-${randomUUID().slice(0, 8)}-${nome}`;
-    const { bytes, mime } = prepararEvidencia(
-      arquivo ?? "captura.png",
-      buffer ?? (await readFile(arquivo!)),
+  if (filePath || buffer) {
+    const safeName = path.basename(filePath ?? "captura.png").replace(/[^\w.\-]/g, "_");
+    storage_path = `${nodeId}/${Date.now()}-${randomUUID().slice(0, 8)}-${safeName}`;
+    const { bytes, mime } = prepareEvidence(
+      filePath ?? "captura.png",
+      buffer ?? (await readFile(filePath!)),
     );
     const { error } = await sb()
       .storage.from("vibelog-evidencias")
@@ -139,7 +145,13 @@ async function evidencia(
   const { data, error } = await sb()
     .from("vibelog_evidencias")
     .insert(
-      sanitizar({ no_id: no, tipo, storage_path, url: url ?? null, legenda: legenda ?? null }),
+      sanitize({
+        no_id: nodeId,
+        tipo: evidenceType,
+        storage_path,
+        url: url ?? null,
+        legenda: caption ?? null,
+      }),
     )
     .select("id")
     .single();
@@ -149,31 +161,32 @@ async function evidencia(
   }
   console.log(data.id);
 }
-function campoRaw(cabecalho: string, nome: string) {
-  return new RegExp(`^${nome}:\\s*([^\\r\\n]+)`, "m")
-    .exec(cabecalho)?.[1]
+function rawField(header: string, fieldKey: string) {
+  return new RegExp(`^${fieldKey}:\\s*([^\\r\\n]+)`, "m")
+    .exec(header)?.[1]
     .trim()
     .replace(/^['"]|['"]$/g, "");
 }
-async function importarMd(dir: string) {
-  const arquivos = (await readdir(dir)).filter((f) => f.endsWith(".md")).sort();
-  const registros = new Map<string, Registro>();
-  for (const arquivo of arquivos) {
-    const origem = path.join(dir, arquivo);
-    const raw = await readFile(origem, "utf8");
-    const { data, content, header } = lerMarkdownSeguro(raw);
-    const id = campoRaw(header, "id");
-    if (!id) throw new Error(`Frontmatter sem id: ${arquivo}`);
-    const pai = campoRaw(header, "pai");
-    const autor = String(data.autor ?? "desconhecido");
-    const tipo =
-      data.tipo ?? (/claude|codex|cursor|antigravity/i.test(autor) ? "prompt_ia" : "prompt_humano");
-    const dataIso = data.data ? new Date(data.data).toISOString() : undefined;
-    if (registros.has(`md:${id}`)) throw new Error(`ID Markdown duplicado: ${id}`);
-    registros.set(`md:${id}`, {
-      tipo: z.enum(tipos).parse(tipo),
-      area: z.enum(areas).parse(data.area ?? "geral"),
-      autor,
+async function importMarkdown(dir: string) {
+  const files = (await readdir(dir)).filter((f) => f.endsWith(".md")).sort();
+  const records = new Map<string, RecordInput>();
+  for (const file of files) {
+    const sourcePath = path.join(dir, file);
+    const raw = await readFile(sourcePath, "utf8");
+    const { data, content, header } = parseSafeMarkdown(raw);
+    const id = rawField(header, "id");
+    if (!id) throw new Error(`Frontmatter sem id: ${file}`);
+    const parentKey = rawField(header, "pai");
+    const author = String(data.autor ?? "desconhecido");
+    const recordType =
+      data.tipo ??
+      (/claude|codex|cursor|antigravity/i.test(author) ? "prompt_ia" : "prompt_humano");
+    const isoDate = data.data ? new Date(data.data).toISOString() : undefined;
+    if (records.has(`md:${id}`)) throw new Error(`ID Markdown duplicado: ${id}`);
+    records.set(`md:${id}`, {
+      tipo: z.enum(NODE_TYPES).parse(recordType),
+      area: z.enum(AREAS).parse(data.area ?? "geral"),
+      autor: author,
       destino: data.destino ? String(data.destino) : undefined,
       modelo: data.modelo ? String(data.modelo) : undefined,
       titulo:
@@ -182,106 +195,103 @@ async function importarMd(dir: string) {
           .split("\n")
           .find(Boolean)
           ?.replace(/^#+\s*/, "")
-          .slice(0, 140) ?? arquivo,
+          .slice(0, 140) ?? file,
       conteudo: content.trim(),
       origem_id: `md:${id}`,
-      origem,
-      pai: pai && pai !== "null" ? `md:${pai}` : undefined,
-      criado_em: dataIso,
+      origem: sourcePath,
+      parent: parentKey && parentKey !== "null" ? `md:${parentKey}` : undefined,
+      criado_em: isoDate,
       meta: {
         repo: "TCS-Financial-Bootcamp-Team/fraudradar",
         ...(data.resultado ? { resultado: String(data.resultado) } : {}),
       },
     });
   }
-  const ordenados: Registro[] = [];
-  const vistos = new Set<string>();
-  const pilha = new Set<string>();
-  function visitar(id: string) {
-    if (vistos.has(id)) return;
-    if (pilha.has(id)) throw new Error(`Ciclo nos pais: ${id}`);
-    const no = registros.get(id);
-    if (!no) throw new Error(`Pai ausente nos Markdown: ${id}`);
-    pilha.add(id);
-    if (no.pai) visitar(no.pai);
-    pilha.delete(id);
-    vistos.add(id);
-    ordenados.push(no);
+  const sorted: RecordInput[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  function visit(id: string) {
+    if (visited.has(id)) return;
+    if (visiting.has(id)) throw new Error(`Ciclo nos pais: ${id}`);
+    const item = records.get(id);
+    if (!item) throw new Error(`Pai ausente nos Markdown: ${id}`);
+    visiting.add(id);
+    if (item.parent) visit(item.parent);
+    visiting.delete(id);
+    visited.add(id);
+    sorted.push(item);
   }
-  registros.forEach((_, id) => visitar(id));
-  let quantidade = 0;
-  for (const n of ordenados) {
-    await gravar(n);
-    quantidade++;
+  records.forEach((_, id) => visit(id));
+  let count = 0;
+  for (const n of sorted) {
+    await saveRecord(n);
+    count++;
   }
-  console.log(`${quantidade} nós ${seco ? "previstos (dry-run)" : "importados/atualizados"}.`);
+  console.log(`${count} nós ${dryRun ? "previstos (dry-run)" : "importados/atualizados"}.`);
 }
 async function main() {
   if (v.help || !cmd) {
     console.log(
-      `VibeLog — registro de construção\n\nno --tipo --area --autor --titulo [--pai id|origem_id] [--destino] [--modelo] [--branch] [--commit] [--origem-id] (--arquivo caminho | stdin)\nevidencia --no id --tipo print|commit|log|link|arquivo (--arquivo caminho | --url URL) [--legenda]\nprint --no id --url http://localhost:3000/... [--tema claro|escuro] [--legenda]\nimportar-md diretório [--dry-run]\nimportar-claude sessão.jsonl [--area geral] [--autor pedro] [--dry-run]\nimportar-codex sessão.jsonl [--area geral] [--autor pedro] [--dry-run]`,
+      `VibeLog — registro de construção\n\nnode --type --area --author --title [--parent id|origem_id] [--target] [--model] [--branch] [--commit] [--source-id] (--file caminho | stdin)\nevidence --node id --type print|commit|log|link|arquivo (--file caminho | --url URL) [--caption]\nprint --node id --url http://localhost:3000/... [--theme light|dark] [--caption]\nimport-md diretório [--dry-run]\nimport-claude sessão.jsonl [--area geral] [--author pedro] [--dry-run]\nimport-codex sessão.jsonl [--area geral] [--author pedro] [--dry-run]`,
     );
     return;
   }
-  if (cmd === "no") {
-    const conteudo = await lerEntrada();
-    if (!conteudo.trim()) throw new Error("Conteúdo vazio.");
+  if (cmd === "node") {
+    const bodyText = await readInput();
+    if (!bodyText.trim()) throw new Error("Conteúdo vazio.");
     console.log(
-      await gravar({
-        tipo: z.enum(tipos).parse(requerido("tipo")),
-        area: z.enum(areas).parse(requerido("area")),
-        autor: requerido("autor"),
-        titulo: requerido("titulo"),
-        conteudo,
-        origem: v.arquivo as string | undefined,
-        pai: v.pai as string | undefined,
-        destino: v.destino as string | undefined,
-        modelo: v.modelo as string | undefined,
+      await saveRecord({
+        tipo: z.enum(NODE_TYPES).parse(requiredOption("type")),
+        area: z.enum(AREAS).parse(requiredOption("area")),
+        autor: requiredOption("author"),
+        titulo: requiredOption("title"),
+        conteudo: bodyText,
+        origem: v.file as string | undefined,
+        parent: v.parent as string | undefined,
+        destino: v.target as string | undefined,
+        modelo: v.model as string | undefined,
         branch: v.branch as string | undefined,
         commit_sha: v.commit as string | undefined,
-        origem_id: v["origem-id"] as string | undefined,
+        origem_id: v["source-id"] as string | undefined,
       }),
     );
     return;
   }
-  if (cmd === "evidencia") {
-    if (seco) throw new Error("Use --dry-run apenas em nós e importadores.");
-    if (v.arquivo && v.url) throw new Error("Escolha --arquivo ou --url.");
-    await evidencia(
-      requerido("no"),
-      requerido("tipo"),
-      v.arquivo as string | undefined,
+  if (cmd === "evidence") {
+    if (dryRun) throw new Error("Use --dry-run apenas em nós e importadores.");
+    if (v.file && v.url) throw new Error("Escolha --file ou --url.");
+    await attachEvidence(
+      requiredOption("node"),
+      requiredOption("type"),
+      v.file as string | undefined,
       v.url as string | undefined,
-      v.legenda as string | undefined,
+      v.caption as string | undefined,
     );
     return;
   }
   if (cmd === "print") {
-    if (seco) throw new Error("Use --dry-run apenas em nós e importadores.");
-    const url = new URL(requerido("url"));
+    if (dryRun) throw new Error("Use --dry-run apenas em nós e importadores.");
+    const url = new URL(requiredOption("url"));
     if (!["http:", "https:"].includes(url.protocol)) throw new Error("URL inválida.");
-    const tema = z.enum(["claro", "escuro"]).parse(v.tema ?? "claro");
+    const colorTheme = z.enum(["light", "dark"]).parse(v.theme ?? "light");
     const { chromium } = await import("playwright");
     const browser = await chromium.launch();
     try {
       const page = await browser.newPage({
         viewport: { width: 1440, height: 1000 },
-        colorScheme: tema === "escuro" ? "dark" : "light",
+        colorScheme: colorTheme,
       });
-      await page.addInitScript(
-        (t) => {
-          localStorage.setItem("theme", t);
-        },
-        tema === "escuro" ? "dark" : "light",
-      );
+      await page.addInitScript((t) => {
+        localStorage.setItem("theme", t);
+      }, colorTheme);
       await page.goto(url.href, { waitUntil: "networkidle", timeout: 45000 });
       await page.evaluate(() => document.fonts.ready);
-      await evidencia(
-        requerido("no"),
+      await attachEvidence(
+        requiredOption("node"),
         "print",
         "captura.png",
         undefined,
-        v.legenda as string | undefined,
+        v.caption as string | undefined,
         await page.screenshot({ fullPage: true }),
       );
     } finally {
@@ -289,30 +299,30 @@ async function main() {
     }
     return;
   }
-  if (cmd === "importar-md") {
-    if (!alvo) throw new Error("Informe o diretório Markdown.");
-    await importarMd(alvo);
+  if (cmd === "import-md") {
+    if (!targetArg) throw new Error("Informe o diretório Markdown.");
+    await importMarkdown(targetArg);
     return;
   }
-  if (cmd === "importar-claude" || cmd === "importar-codex") {
-    if (!alvo) throw new Error("Informe a sessão JSONL.");
-    let quantidade = 0;
-    for await (const n of lerTranscrito(
-      alvo,
-      cmd === "importar-claude" ? "claude" : "codex",
-      z.enum(areas).parse(v.area ?? "geral"),
-      v.autor as string | undefined,
+  if (cmd === "import-claude" || cmd === "import-codex") {
+    if (!targetArg) throw new Error("Informe a sessão JSONL.");
+    let count = 0;
+    for await (const n of readTranscript(
+      targetArg,
+      cmd === "import-claude" ? "claude" : "codex",
+      z.enum(AREAS).parse(v.area ?? "geral"),
+      v.author as string | undefined,
     )) {
-      await gravar(n);
-      quantidade++;
+      await saveRecord(n);
+      count++;
     }
-    console.log(`${quantidade} nós ${seco ? "previstos (dry-run)" : "importados/atualizados"}.`);
+    console.log(`${count} nós ${dryRun ? "previstos (dry-run)" : "importados/atualizados"}.`);
     return;
   }
   throw new Error(`Comando desconhecido: ${cmd}. Use --help.`);
 }
 main().catch((e) => {
-  const detalhe =
+  const message =
     e instanceof z.ZodError
       ? "Parâmetros inválidos. Consulte --help."
       : e instanceof Error
@@ -320,6 +330,6 @@ main().catch((e) => {
         : typeof e?.message === "string"
           ? e.message
           : "Falha na operação.";
-  console.error(redigir(detalhe));
+  console.error(redact(message));
   process.exitCode = 1;
 });

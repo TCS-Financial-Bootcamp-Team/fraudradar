@@ -9,7 +9,7 @@
     "lint": "eslint . --max-warnings=0",
     "test": "tsx --test tests/*.test.ts",
     "vibelog": "tsx scripts/vibelog.ts",
-    "test:e2e": "node tests/navegador.mjs",
+    "test:e2e": "node tests/browser.mjs",
     "format": "prettier --write ."
   },
   "dependencies": {

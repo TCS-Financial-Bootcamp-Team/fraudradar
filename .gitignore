@@ -1,6 +1,7 @@
 # Dados (SAML-D tem ~1 GB) — só o README fica no git
-dados/*
-!dados/README.md
+data/*
+!data/README.md
+dados/
 
 # Modelos treinados
 models/*
@@ -54,7 +55,10 @@ Thumbs.db
 # Temporários locais
 trash/
 
-# Rascunho da equipe (exploração do dataset) — só o README fica no git
-laboratorio/*
-!laboratorio/README.md
+# Rascunho da equipe (exploração do dataset)
+# Manter README e notebook oficial no Git
+lab/*
+!lab/README.md
+!lab/FraudRadar_LSTM.ipynb
+laboratorio/
 .pnpm-store/

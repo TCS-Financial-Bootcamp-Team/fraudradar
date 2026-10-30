@@ -6,8 +6,8 @@ países, moedas) e features de grafo. Única fonte de features do projeto.
 
 # Nome legível de cada feature, exibido no detalhe do alerta (contribuições).
 # Preencha junto com as features; sem entrada, a API mostra o nome técnico.
-ROTULOS: dict[str, str] = {}
+FEATURE_LABELS: dict[str, str] = {}
 
 
-def rotulo_feature(nome: str) -> str:
-    return ROTULOS.get(nome, nome)
+def feature_label(name: str) -> str:
+    return FEATURE_LABELS.get(name, name)

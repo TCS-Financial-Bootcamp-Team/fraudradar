@@ -11,7 +11,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
     </ThemeProvider>
   );
 }
-export function Tema() {
+export function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
   return (
     <Button

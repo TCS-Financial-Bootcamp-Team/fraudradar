@@ -1,41 +1,45 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { USA_MOCKS } from "@/lib/api";
+import { USE_MOCKS } from "@/lib/api";
 
-function semanaInicial() {
-  if (USA_MOCKS) return "2026-10-19";
-  const hoje = new Date();
-  const dia = hoje.getUTCDay() || 7;
-  hoje.setUTCDate(hoje.getUTCDate() - dia + 1);
-  return hoje.toISOString().slice(0, 10);
+function getInitialWeek() {
+  if (USE_MOCKS) return "2026-10-19";
+  const today = new Date();
+  const day = today.getUTCDay() || 7;
+  today.setUTCDate(today.getUTCDate() - day + 1);
+  return today.toISOString().slice(0, 10);
 }
 
-const Contexto = createContext<{
-  semana: string;
-  setSemana: (valor: string) => void;
-  revisao: number;
-  atualizar: () => void;
+const AppContext = createContext<{
+  week: string;
+  setWeek: (value: string) => void;
+  revision: number;
+  refresh: () => void;
 }>({
-  semana: "2026-10-19",
-  setSemana: () => {},
-  revisao: 0,
-  atualizar: () => {},
+  week: "2026-10-19",
+  setWeek: () => {},
+  revision: 0,
+  refresh: () => {},
 });
-export function ContextoApp({ children }: { children: React.ReactNode }) {
-  const [semana, setSemana] = useState(semanaInicial);
-  const [revisao, setRevisao] = useState(0);
+export function AppContextProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [week, setWeek] = useState(getInitialWeek);
+  const [revision, setRevision] = useState(0);
   return (
-    <Contexto.Provider
+    <AppContext.Provider
       value={{
-        semana,
-        setSemana,
-        revisao,
-        atualizar: () => setRevisao((v) => v + 1),
+        week,
+        setWeek,
+        revision,
+        refresh: () => setRevision((v) => v + 1),
       }}
     >
       {children}
-    </Contexto.Provider>
+    </AppContext.Provider>
   );
 }
-export const useContextoApp = () => useContext(Contexto);
+export const useAppContext = () => useContext(AppContext);

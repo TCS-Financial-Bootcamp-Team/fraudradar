@@ -1,0 +1,74 @@
+"use client";
+import { LoadingState, ResourceError } from "@/components/ui/states";
+import { formatPercent } from "@/lib/format";
+import { useMonitoring } from "../hooks/use-alerts";
+import { ChartCard } from "./charts";
+export function MonitoringView() {
+  const resource = useMonitoring();
+  if (resource.loading) return <LoadingState />;
+  if (resource.error || !resource.data)
+    return (
+      <ResourceError
+        message={resource.error ?? "Dados indisponíveis."}
+        onRetry={resource.reload}
+      />
+    );
+  const data = resource.data;
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <p className="eyebrow !mt-0 mb-2">Qualidade do monitoramento</p>
+          <h1>Performance sob observação</h1>
+          <p>Acompanhe a cobertura da fila e a qualidade das sugestões.</p>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          {
+            label: "Recall da fila",
+            value: data.indicators.recall,
+            description: "Cobertura dos casos conhecidos na avaliação.",
+          },
+          {
+            label: "Acerto de tipologia do LLM",
+            value: data.indicators.typology_accuracy,
+            description: "Concordância com as tipologias da avaliação.",
+          },
+          {
+            label: "Taxa de alerta",
+            value: data.indicators.alert_rate,
+            description: "Proporção de transações que geraram alertas.",
+          },
+        ].map((metric) => (
+          <article className="panel p-6" key={metric.label}>
+            <h2 className="text-sm text-muted-foreground">{metric.label}</h2>
+            <p className="my-5 text-4xl font-semibold tracking-tight">
+              {formatPercent(metric.value)}
+            </p>
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {metric.description}
+            </p>
+          </article>
+        ))}
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ChartCard
+          title="Taxa de alerta por país"
+          data={data.country_rates}
+          isRate
+        />
+        <ChartCard
+          title="Taxa de alerta por meio de pagamento"
+          data={data.payment_type_rates}
+          isRate
+        />
+      </div>
+      <p className="notice">
+        Métricas de avaliação são calculadas pela API sobre a base de
+        referência. Elas não alteram o score nem constituem uma confirmação de
+        ilícito.
+      </p>
+    </>
+  );
+}
