@@ -26,17 +26,17 @@ Co-Authored-By: <IA que escreveu, quando houver>
 | `chore`    | dependências, configuração, scripts                 |
 | `ci`       | GitHub Actions                                      |
 | `perf`     | desempenho                                          |
-| `modelo`   | treino, features ou avaliação do modelo (com métricas no corpo) |
+| `model`    | treino, features ou avaliação do modelo (com métricas no corpo) |
 
-**Escopos**: `web`, `api`, `worker`, `dados`, `features`, `modelo`, `ia` (LLM/RAG),
+**Escopos**: `web`, `api`, `worker`, `data`, `features`, `model`, `ai` (LLM/RAG),
 `db`, `infra`, `vibelog`, `docs`. Mais de um escopo? Separe o commit.
 
 **Exemplos**
 
 ```
 feat(web): adiciona tela de detalhe do alerta com grafo de 2 saltos
-fix(api): corrige filtro por país em GET /alertas
-modelo(modelo): treina LightGBM v3 com janela de 4 semanas
+fix(api): corrige filtro por país em GET /alerts
+model(model): treina LightGBM v3 com janela de 4 semanas
 
 PR-AUC 0,41 -> 0,47 no teste após 18/05/2023.
 Prompt: 012
@@ -46,12 +46,12 @@ Prompt: 012
 
 - Um commit = uma mudança que faz sentido sozinha. Não misture front, API e modelo.
 - Nunca commite `.env`, chaves, `SAML-D.csv` nem arquivos de `models/`.
-- Mudança de esquema (`db/init/002_tabelas.sql`) leva `!` e aviso no corpo:
-  `feat(db)!: adiciona coluna canal em alertas` + "exige docker compose down -v".
+- Mudança de esquema (`db/init/002_tables.sql`) leva `!` e aviso no corpo:
+  `feat(db)!: adiciona coluna channel em alerts` + "exige docker compose down -v".
 
 ## Branches
 
-`<tipo>/<escopo>-<descricao-curta>`, ex.: `feat/web-ingestao-csv`, `fix/api-filtro-pais`.
+`<tipo>/<escopo>-<descricao-curta>`, ex.: `feat/web-csv-ingestion`, `fix/api-country-filter`.
 Nada direto na `main`: abra PR, CI verde e um colega revisa.
 
 ## Antes do PR
@@ -84,5 +84,5 @@ data: AAAA-MM-DD
 ```
 
 Um arquivo para cada prompt da pessoa, cada delegação e cada resultado. Quem tem a
-chave importa com `pnpm vibelog importar-md ../docs/vibe-coding/prompts` (a partir
+chave importa com `pnpm vibelog import-md ../docs/vibe-coding/prompts` (a partir
 de `vibelog/`).
