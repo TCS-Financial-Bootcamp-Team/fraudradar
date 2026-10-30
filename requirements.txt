@@ -1,0 +1,16 @@
+
+# Dependências do projeto FraudRadar
+
+# Manipulação e análise de dados
+numpy==2.5.4
+pandas==3.1.0
+matplotlib==3.11.2
+
+# Machine Learning
+scikit-learn==1.9.1
+
+# Deep Learning
+torch==2.15.0
+
+# Ambiente Jupyter
+ipykernel==7.4.0

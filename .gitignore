@@ -54,7 +54,8 @@ Thumbs.db
 # Temporários locais
 trash/
 
-# Rascunho da equipe (exploração do dataset) — só o README fica no git
+# Rascunho da equipe (exploração do dataset)
+# Manter README e notebook oficial no Git
 laboratorio/*
 !laboratorio/README.md
-.pnpm-store/
+!laboratorio/FraudRadar_LSTM.ipynb
