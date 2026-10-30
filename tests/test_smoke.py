@@ -4,64 +4,64 @@ import pytest
 from fastapi.testclient import TestClient
 
 from fraudradar.config import get_settings
-from fraudradar.dados import schema
+from fraudradar.data import schema
 
 
 @pytest.mark.parametrize(
-    "modulo",
+    "module",
     [
         "fraudradar",
-        "fraudradar.dados",
+        "fraudradar.data",
         "fraudradar.features",
-        "fraudradar.modelo",
-        "fraudradar.ia",
+        "fraudradar.model",
+        "fraudradar.ai",
         "api.main",
         "worker.cli",
     ],
 )
-def test_importa(modulo):
-    importlib.import_module(modulo)
+def test_imports_module(module):
+    importlib.import_module(module)
 
 
-def test_config_carrega():
+def test_loads_config():
     s = get_settings()
     assert s.database_url.startswith("postgresql+psycopg://")
     assert s.embedding_dim == 384
-    assert s.chave_llm_configurada is False
+    assert s.llm_key_configured is False
 
 
-def test_schema_separa_rotulo_das_features():
-    assert len(schema.COLUNAS_CSV) == 12
-    assert set(schema.DTYPES_CSV) == set(schema.COLUNAS_CSV)
-    assert "Is_laundering" not in schema.COLUNAS_TRANSACAO
-    assert "Laundering_type" not in schema.COLUNAS_TRANSACAO
+def test_schema_separates_labels_from_features():
+    assert len(schema.CSV_COLUMNS) == 12
+    assert set(schema.CSV_DTYPES) == set(schema.CSV_COLUMNS)
+    assert "Is_laundering" not in schema.TRANSACTION_COLUMNS
+    assert "Laundering_type" not in schema.TRANSACTION_COLUMNS
 
 
-def test_saude_com_banco_fora():
-    from api.main import criar_app
+def test_health_when_database_is_down():
+    from api.main import create_app
 
-    resp = TestClient(criar_app()).get("/saude")
+    resp = TestClient(create_app()).get("/health")
     assert resp.status_code == 200
-    corpo = resp.json()
-    assert corpo["status"] == "degradado"
-    assert corpo["banco"]["ok"] is False
-    assert corpo["modelo"]["ok"] is False
-    assert corpo["llm"]["ok"] is False
+    body = resp.json()
+    assert body["status"] == "degraded"
+    assert body["database"]["ok"] is False
+    assert body["model"]["ok"] is False
+    assert body["llm"]["ok"] is False
 
 
-def test_saude_detecta_modelo_e_chave(monkeypatch, tmp_path):
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-teste")
+def test_health_detects_model_and_key(monkeypatch, tmp_path):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     get_settings.cache_clear()
-    (tmp_path / get_settings().model_file).write_text("modelo")
+    (tmp_path / get_settings().model_file).write_text("model")
 
-    from api.main import criar_app
+    from api.main import create_app
 
-    corpo = TestClient(criar_app()).get("/saude").json()
-    assert corpo["modelo"]["ok"] is True
-    assert corpo["llm"]["ok"] is True
+    body = TestClient(create_app()).get("/health").json()
+    assert body["model"]["ok"] is True
+    assert body["llm"]["ok"] is True
 
 
-def test_worker_falha_limpo_sem_banco():
+def test_worker_fails_cleanly_without_database():
     from worker.cli import main
 
     assert main(["replay"]) == 1
