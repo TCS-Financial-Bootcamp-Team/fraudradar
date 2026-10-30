@@ -32,6 +32,6 @@ docker compose run --rm worker replay
 - Features e score vivem **só** em `src/fraudradar`. Nunca em `api/`, `worker/` ou notebooks.
 - O modelo nunca lê `ground_truth` nem as colunas `Is_laundering`/`Laundering_type`.
 - O LLM nunca recebe números de conta (pseudonimize antes do prompt). Chave do LLM só na API.
-- Dependências pesadas (torch, lightgbm) ficam nos grupos `ml`/`ia`; a imagem da API usa só `api`.
+- Dependências pesadas (torch, lightgbm) ficam nos grupos `ml`/`ai`; a imagem da API usa só `api`.
 - Nunca leia o `SAML-D.csv` inteiro para inspecionar (1 GB): use `head` ou `nrows`.
 - Mudança de esquema: edite `db/init/002_tables.sql` e avise o time (exige `docker compose down -v`).

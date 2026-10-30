@@ -27,7 +27,7 @@ ml = [
     "jupyter>=1.1",
     "ipykernel>=6.29",
 ]
-ia = [
+ai = [
     "langchain>=0.3",
     "langchain-openai>=0.2",
     "langchain-anthropic>=0.2",

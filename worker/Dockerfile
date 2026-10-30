@@ -17,13 +17,13 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock .python-version ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-default-groups --group ml --group ia
+    uv sync --locked --no-install-project --no-default-groups --group ml --group ai
 
 COPY src ./src
 COPY api ./api
 COPY worker ./worker
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-default-groups --group ml --group ia
+    uv sync --locked --no-default-groups --group ml --group ai
 
 ENTRYPOINT ["python", "-m", "worker"]
 CMD ["replay"]
