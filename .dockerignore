@@ -4,9 +4,11 @@
 **/.pytest_cache
 **/.ruff_cache
 .env
+data
 dados
 models
 notebooks
+lab
 laboratorio
 docs
 rag

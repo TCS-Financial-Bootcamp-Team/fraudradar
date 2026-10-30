@@ -1,10 +1,10 @@
-# laboratorio/
+# lab/
 
 Pasta de rascunho da equipe: explorar o SAML-D, fazer gráficos e testar
 modelos antes de levar algo para o projeto. **Tudo aqui fica fora do git**,
 menos este README: pode bagunçar, ninguém revisa e nada quebra o CI.
 
-Crie uma subpasta com o seu nome (`laboratorio/pedro/`) para não pisar no
+Crie uma subpasta com o seu nome (`lab/pedro/`) para não pisar no
 rascunho dos outros.
 
 ## Regras
@@ -30,24 +30,24 @@ uv run jupyter lab            # ou abra um .ipynb no VS Code com o kernel do .ve
 ```python
 import pandas as pd
 
-from fraudradar.config import RAIZ
-from fraudradar.dados.schema import DTYPES_CSV, MOEDA_DOS_VALORES
+from fraudradar.config import ROOT_DIR
+from fraudradar.data.schema import AMOUNT_CURRENCY, CSV_DTYPES
 
-csv = RAIZ / "dados" / "SAML-D.csv"
+csv = ROOT_DIR / "data" / "SAML-D.csv"
 
 # Olhada rápida: as primeiras 200 mil linhas (só as primeiras semanas).
-df = pd.read_csv(csv, dtype=DTYPES_CSV, nrows=200_000)
+df = pd.read_csv(csv, dtype=CSV_DTYPES, nrows=200_000)
 
 # Amostra espalhada pelo ano (~5%): lê o arquivo todo, mas guarda pouco na memória.
 # Rode uma vez e reaproveite o parquet.
 # import random
 # random.seed(42)
-# df = pd.read_csv(csv, dtype=DTYPES_CSV, skiprows=lambda i: i > 0 and random.random() > 0.05)
-# df.to_parquet(RAIZ / "laboratorio" / "amostra_5pct.parquet")
+# df = pd.read_csv(csv, dtype=CSV_DTYPES, skiprows=lambda i: i > 0 and random.random() > 0.05)
+# df.to_parquet(ROOT_DIR / "lab" / "sample_5pct.parquet")
 
-df["data_hora"] = pd.to_datetime(df["Date"] + " " + df["Time"])
+df["occurred_at"] = pd.to_datetime(df["Date"] + " " + df["Time"])
 print(df["Is_laundering"].mean(), df["Laundering_type"].value_counts().head())
 ```
 
-`Amount` está em libras (`MOEDA_DOS_VALORES`), seja qual for
+`Amount` está em libras (`AMOUNT_CURRENCY`), seja qual for
 `Payment_currency`. Não converta pela moeda.
