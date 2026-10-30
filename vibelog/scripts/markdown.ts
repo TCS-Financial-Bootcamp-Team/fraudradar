@@ -1,17 +1,17 @@
 import matter from "gray-matter";
 
-export function lerMarkdownSeguro(raw: string) {
-  const texto = raw.replace(/^\uFEFF/, "");
-  const abertura = /^---[\t ]*(?:ya?ml[\t ]*)?\r?\n/.exec(texto);
-  if (!abertura) throw new Error("Frontmatter deve usar somente YAML seguro.");
-  const restante = texto.slice(abertura[0].length);
-  const fechamento = /^---[\t ]*\r?$/m.exec(restante);
-  if (!fechamento) throw new Error("Frontmatter YAML sem delimitador de fechamento.");
-  const header = restante.slice(0, fechamento.index);
+export function parseSafeMarkdown(raw: string) {
+  const text = raw.replace(/^\uFEFF/, "");
+  const opening = /^---[\t ]*(?:ya?ml[\t ]*)?\r?\n/.exec(text);
+  if (!opening) throw new Error("Frontmatter deve usar somente YAML seguro.");
+  const rest = text.slice(opening[0].length);
+  const closing = /^---[\t ]*\r?$/m.exec(rest);
+  if (!closing) throw new Error("Frontmatter YAML sem delimitador de fechamento.");
+  const header = rest.slice(0, closing.index);
   // A abertura é reconstruída: nenhum seletor de engine da entrada chega ao gray-matter.
   // O engine YAML padrão do gray-matter usa js-yaml.safeLoad (sem tags executáveis).
   const { data, content } = matter(
-    `---\n${header}---\n${restante.slice(fechamento.index + fechamento[0].length).replace(/^\r?\n/, "")}`,
+    `---\n${header}---\n${rest.slice(closing.index + closing[0].length).replace(/^\r?\n/, "")}`,
     { language: "yaml" },
   );
   return { data, content, header };
