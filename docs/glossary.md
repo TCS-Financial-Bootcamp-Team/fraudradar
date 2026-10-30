@@ -120,7 +120,7 @@ Valores gravados:
 | `ingestions.status` | `recebido`, `processando`, `concluido` | `received`, `processing`, `completed` |
 | `ingestions.source` | `csv`, `manual` | (iguais) |
 | `audit_log.entity` | `alerta`, `ingestao`, `semana` | `alert`, `ingestion`, `week` |
-| `audit_log.action` | termos em português | o mesmo termo em inglês, em snake_case |
+| `audit_log.action` | `decisao`, `comunicacao_aprovada`, `ingestao`, `replay` | `decision`, `report_approved`, `ingestion`, `replay` |
 
 JSON gravado pelo worker (contrato worker → API):
 
@@ -224,6 +224,9 @@ alerta não tem tipologia).
 
 O banco de teste (`TEST_DATABASE_URL`) agora precisa terminar em `_test`
 (antes `_teste`); o padrão é `fraudradar_test`.
+
+O grupo de dependências `ia` do `pyproject.toml` virou `ai`
+(`uv sync --group ai`).
 
 ## Pastas e arquivos
 
