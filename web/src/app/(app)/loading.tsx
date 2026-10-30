@@ -1,4 +1,4 @@
-import { Carregando } from "@/components/ui/estados";
+import { LoadingState } from "@/components/ui/states";
 export default function Loading() {
-  return <Carregando />;
+  return <LoadingState />;
 }

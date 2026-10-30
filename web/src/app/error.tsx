@@ -1,5 +1,5 @@
 "use client";
-import { ErroRecurso } from "@/components/ui/estados";
+import { ResourceError } from "@/components/ui/states";
 export default function Error({
   reset,
 }: {
@@ -8,9 +8,9 @@ export default function Error({
 }) {
   return (
     <main className="mx-auto max-w-xl p-6">
-      <ErroRecurso
-        mensagem="Ocorreu uma falha inesperada. Tente carregar a página novamente."
-        tentar={reset}
+      <ResourceError
+        message="Ocorreu uma falha inesperada. Tente carregar a página novamente."
+        onRetry={reset}
       />
     </main>
   );
