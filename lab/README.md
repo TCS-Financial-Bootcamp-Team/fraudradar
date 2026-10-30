@@ -2,7 +2,8 @@
 
 Pasta de rascunho da equipe: explorar o SAML-D, fazer gráficos e testar
 modelos antes de levar algo para o projeto. **Tudo aqui fica fora do git**,
-menos este README: pode bagunçar, ninguém revisa e nada quebra o CI.
+menos este README e o notebook `FraudRadar_LSTM.ipynb` (experimentos LSTM e
+GRU): pode bagunçar, ninguém revisa e nada quebra o CI.
 
 Crie uma subpasta com o seu nome (`lab/pedro/`) para não pisar no
 rascunho dos outros.

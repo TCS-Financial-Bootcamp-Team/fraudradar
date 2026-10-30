@@ -14,7 +14,7 @@ docs/glossary.md; nome novo segue o glossário.
 - `worker/` — CLI em lote (`python -m worker batch --week AAAA-MM-DD | replay`)
 - `web/` — Next.js; `src/features/<modulo>/{components,hooks,services,schemas}` (componente → hook → service → API; componente não faz fetch). Leia `web/AGENTS.md` antes de mexer no Next.
 - `db/init/` — SQL que roda na criação do volume; `db/rules/` — regras de cenário
-- `lab/` — rascunho da equipe, fora do git (só o README é versionado). Nada importa de lá; não trate o conteúdo como fonte de verdade.
+- `lab/` — rascunho da equipe, fora do git (só o README e o notebook `FraudRadar_LSTM.ipynb` são versionados). Nada importa de lá; não trate o conteúdo como fonte de verdade.
 - `infra/` — `docker-compose.yml` (incluído por `compose.yaml` na raiz) e `terraform/`
 
 ## Comandos
