@@ -14,6 +14,7 @@ from fraudradar.features.history import (
     week_start,
     with_cash_account,
 )
+from fraudradar.model import TRAIN_END, VALIDATION_START
 
 
 def _transactions(*rows):
@@ -150,6 +151,13 @@ def test_week_starts_on_monday():
     dates = pd.Series(pd.to_datetime(["2022-10-07 00:00", "2022-10-09 23:59", "2022-10-10 00:00"]))
     starts = week_start(dates).dt.strftime("%Y-%m-%d").tolist()
     assert starts == ["2022-10-03", "2022-10-03", "2022-10-10"]
+
+
+def test_model_split_is_in_whole_weeks():
+    """Validação e teste começam numa segunda; a validação tem 4 semanas inteiras."""
+    starts = pd.Series(pd.to_datetime([VALIDATION_START, TRAIN_END]) + pd.to_timedelta([0, 1], "D"))
+    assert (week_start(starts) == starts).all()
+    assert pd.Timestamp(TRAIN_END) - pd.Timestamp(VALIDATION_START) == pd.Timedelta(days=27)
 
 
 def test_every_feature_has_a_label():
