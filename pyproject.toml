@@ -20,7 +20,7 @@ api = [
 ]
 ml = [
     "scikit-learn>=1.5",
-    "lightgbm>=4.5",
+    "lightgbm>=4.7",  # eval_X / eval_y no fit (o treino em src/fraudradar/model usa)
     "matplotlib>=3.9",
     "seaborn>=0.13",
     "networkx>=3.3",

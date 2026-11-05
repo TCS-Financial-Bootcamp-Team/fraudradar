@@ -266,3 +266,52 @@ Constantes citadas na documentação: `MOEDA_DOS_VALORES` → `AMOUNT_CURRENCY`,
 
 Os valores aceitos por `--type` e `--area` são os gravados no Supabase e não
 mudam (`prompt_humano`, `resposta`, `ia`, `dados`...).
+
+## Modelo (`src/fraudradar/features` e `src/fraudradar/model`)
+
+O modelo LightGBM veio de `lab/modelo-lightgbm/`, onde os nomes eram em português
+(ver `docs/model.md`).
+
+| Português | Inglês | Observação |
+| --- | --- | --- |
+| CAIXA | cash account | `CASH_ACCOUNT = -1`: o outro lado de todo saque e depósito em espécie |
+| contraparte nova | new counterparty | primeira transação entre as duas contas |
+| atalho (do gerador) | shortcut | regra simples que, no treino, só pega lavagem |
+| base (do modelo) | training data | `TrainingData` |
+| gabarito (da avaliação) | truth | tabela que só a avaliação lê |
+| treino / validação / teste | train / validation / test | divisão no tempo, nunca embaralhada |
+| conta-semana | account week | uma linha por conta e semana, com o maior score |
+| corte da fila | queue cut | `queue_cut` na ficha |
+| limiar da transação | transaction threshold | `transaction_threshold` na ficha |
+| ficha (do modelo) | model card | `models/lightgbm_vN.json` |
+| segmento (K-Means) | segment | coluna `accounts.segment` |
+| perfil da conta | account profile | entrada dos segmentos |
+| lavadora / inocente (conta) | launderer / innocent | |
+| conferência (do modelo) | check | `python -m fraudradar.model check` |
+
+Variáveis (`features/history.py`). Os valores de `payment_type` são os do SAML-D
+(`Cash Deposit`...), não os nomes que o lab usava (`deposito_especie`...). O nome
+que a tela mostra para cada variável está em `FEATURE_LABELS`.
+
+| No lab | No código |
+| --- | --- |
+| `valor`, `hora`, `meio_pagamento` | `amount`, `hour`, `payment_type` |
+| `pais_remetente`, `pais_recebedor` | `sender_country`, `receiver_country` |
+| `transfronteirica`, `moeda_diferente` | `cross_border`, `currency_mismatch` |
+| `rem_n_antes`, `rem_valor_medio_antes`, `rem_razao_valor` | `sender_sent_count`, `sender_mean_amount`, `sender_amount_ratio` |
+| `rem_dias_desde_ultima`, `rem_n_7d`, `rem_soma_7d` | `sender_days_since_last`, `sender_sent_count_7d`, `sender_sent_amount_7d` |
+| `rem_n_destinos_antes`, `novo_recebedor`, `rem_frac_novos_7d` | `sender_distinct_receivers`, `new_counterparty`, `sender_new_counterparty_share_7d` |
+| `rem_recebido_7d`, `rem_n_recebidas_7d`, `rem_razao_saida_entrada_7d` | `sender_received_amount_7d`, `sender_received_count_7d`, `sender_out_in_ratio_7d` |
+| `rec_n_antes`, `rec_n_origens_antes`, `rec_novas_origens_7d` | `receiver_received_count`, `receiver_distinct_senders`, `receiver_new_senders_7d` |
+| `rec_dias_desde_ultima`, `rec_n_7d`, `rec_soma_7d`, `rec_enviado_7d` | `receiver_days_since_last`, `receiver_received_count_7d`, `receiver_received_amount_7d`, `receiver_sent_amount_7d` |
+
+Métricas da ficha (vão para `model_versions.metrics`):
+
+| No lab | No código |
+| --- | --- |
+| `pr_auc_validacao`, `pr_auc` | `pr_auc_validation`, `pr_auc` |
+| `recall_013fp`, `recall_013fp_sem_atalho`, `recall_013fp_contas_novas` | `recall_at_fpr`, `recall_at_fpr_no_shortcut`, `recall_at_fpr_new_accounts` |
+| `f1`, `f1_precisao`, `f1_recall` | `f1`, `f1_precision`, `f1_recall` |
+| `fila_recall`, `fila_precisao`, `fila_recall_sem_atalho` | `queue_recall`, `queue_precision`, `queue_recall_no_shortcut` |
+| `falso_positivo_no_limiar`, `recall_no_limiar` | `test_fpr_at_threshold`, `test_recall_at_threshold` |
+| `fila_com_corte` (`contas_por_semana`, `inocentes_por_semana`) | `queue_with_cut` (`accounts_per_week`, `innocents_per_week`) |

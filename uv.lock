@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = "==3.12.*"
 resolution-markers = [
     "sys_platform == 'win32'",
@@ -571,7 +571,7 @@ dev = [
 ml = [
     { name = "ipykernel", specifier = ">=6.29" },
     { name = "jupyter", specifier = ">=1.1" },
-    { name = "lightgbm", specifier = ">=4.5" },
+    { name = "lightgbm", specifier = ">=4.7" },
     { name = "matplotlib", specifier = ">=3.9" },
     { name = "networkx", specifier = ">=3.3" },
     { name = "scikit-learn", specifier = ">=1.5" },

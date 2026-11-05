@@ -317,12 +317,12 @@ Confira com `git log` antes de confiar; isto muda rápido.
   esquema do banco; Compose, Terraform e CI; VibeLog.
 - **Responde de propósito que não existe**: parecer e chat da IA (503, esperando a
   frente 3); cadastro de fontes Postgres (501, pede um desenho de segurança próprio).
-- **Modelo, na branch `feat/model-lightgbm` (Vinicius, frente 2, ainda sem PR)**:
-  carga do SAML-D para o treino (`src/fraudradar/data/saml_d.py`), 21 variáveis de
-  histórico (`features/history.py`), LightGBM oficial com fila semanal por conta,
-  explicação por contribuição e segmentos K-Means (`model/`), `python -m
-  fraudradar.model train | check`. Números e limites em `docs/model.md`. Não prevê
-  a tipologia.
+- **Modelo (Vinicius, frente 2; PR da branch `feat/model-lightgbm`)**: carga do
+  SAML-D para o treino (`src/fraudradar/data/saml_d.py`), 26 variáveis por transação
+  (19 das 21 do modelo vêm do histórico das contas; `features/history.py`), LightGBM
+  oficial com fila semanal por conta, explicação por contribuição e segmentos K-Means
+  (`model/`), `python -m fraudradar.model train | check`. Números e limites em
+  `docs/model.md`. Não prevê a tipologia: ela vem do parecer da IA (frente 3).
 - **Vazio**: carga do SAML-D no Postgres, `db/rules/`, `src/fraudradar/ai`, `rag/`,
   os notebooks oficiais, e o worker (só o esqueleto da CLI): nada grava
   `transaction_scores`, `alerts`, `evidence` nem `weekly_batches`. Sem o worker, o
