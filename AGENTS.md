@@ -10,7 +10,8 @@ docs/glossary.md; nome novo segue o glossário.
 **Antes de qualquer tarefa, leia a skill `.agents/skills/fraudradar/SKILL.md`**
 (cópia em `.claude/skills/`): projeto, experimentos com o dataset só em `lab/`,
 padrão de commits e o registro obrigatório de todo prompt em
-`docs/vibe-coding/prompts/`.
+`docs/vibe-coding/prompts/`. Para entender o projeto inteiro (fluxo, tabelas,
+rotas, telas, pastas, estado atual), leia `.agents/skills/fraudradar-overview/SKILL.md`.
 
 ## Layout
 
