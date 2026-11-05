@@ -82,10 +82,14 @@ uv run pytest                               # testes; os da API usam o Postgres 
 uv run ruff check . && uv run ruff format .  # lint e formatação
 docker compose run --rm worker replay       # roda o worker (job em lote)
 docker compose run --rm worker batch --week 2023-01-02
+uv run --group ml python -m fraudradar.model train  # treina o LightGBM (SAML-D.csv em data/)
 cd web && pnpm install && pnpm dev          # front em modo dev (com a API rodando)
 docker compose down                         # para tudo (o volume do banco fica)
 docker compose down -v                      # para e APAGA o banco (re-roda db/init)
 ```
+
+O modelo (LightGBM) está explicado em `docs/model.md`: o que ele faz, como treinar, a
+configuração oficial e os números.
 
 As tabelas são criadas por `db/init/*.sql` só na **primeira** subida do volume.
 Mudou o SQL? `docker compose down -v` e suba de novo.

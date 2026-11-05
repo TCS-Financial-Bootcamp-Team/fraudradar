@@ -4,6 +4,8 @@ Como o score é calculado, como treinar e os números do modelo oficial. A escol
 (contra regras de cenário, regressão logística, GRU e Isolation Forest) foi feita em
 `lab/modelo-lightgbm/`, rascunho fora do Git. Só o modelo escolhido veio para `src/fraudradar`.
 
+Revisando a branch `feat/model-lightgbm`? Veja a seção "Para revisar esta branch", no fim.
+
 ## O que o modelo faz
 
 1. **Score por transação.** O LightGBM dá a cada transação um número de 0 a 1, com 21
@@ -97,3 +99,56 @@ O código veio de `lab/modelo-lightgbm/` (fora do Git), com os nomes traduzidos 
 O GRU fica perto, mas, com o corte, deixa 15,6 inocentes por semana para o analista, contra
 2,2 do LightGBM. O Isolation Forest como variável a mais do LightGBM sobe o recall da fila em
 só 0,03 ponto e ficou fora.
+
+## Para revisar esta branch
+
+A branch `feat/model-lightgbm`, do Vinicius, traz o modelo de `lab/modelo-lightgbm/` para o
+pacote oficial. Aquela pasta é um rascunho fora do Git: quem revisa não a vê, então o que
+importa está aqui ou nos registros. O que a branch muda:
+
+| Parte | Arquivos | O que faz |
+|---|---|---|
+| Dependência | `pyproject.toml`, `uv.lock` | exige `lightgbm>=4.7` no grupo `ml` (o treino usa `eval_X`) |
+| Dados | `src/fraudradar/data/saml_d.py` | lê o CSV com os nomes do banco e separa o gabarito |
+| Variáveis | `src/fraudradar/features/` | as 26 variáveis, o CAIXA, a semana, o perfil das contas e os nomes em português (`FEATURE_LABELS`) |
+| Modelo | `src/fraudradar/model/` | treino, régua, fila com corte, explicação, segmentos e os comandos `train` e `check` |
+| Testes | `tests/test_data_saml_d.py`, `test_features.py`, `test_model.py` e `fake_saml_d.py` | dado sintético que cobre treino, validação e teste |
+| Documentação | `docs/model.md`, `docs/glossary.md` e `README.md` | este arquivo, a seção "Modelo" do glossário e o comando de treino |
+| Registro | `docs/vibe-coding/prompts/`: 038 a 044 e 051 a 054 | os prompts do Vinicius e os resultados |
+
+Como conferir:
+
+```bash
+uv sync --group ml
+uv run --group ml pytest tests/test_data_saml_d.py tests/test_features.py tests/test_model.py
+uv run --group ml python -m fraudradar.model train   # com o SAML-D.csv em data/; ~3 min
+uv run --group ml python -m fraudradar.model check   # 10 alertas explicados e os segmentos
+```
+
+Os números do `train` precisam bater com a tabela "Números do modelo oficial (v1)".
+
+Decisões, com o registro de cada uma em `docs/vibe-coding/prompts/`:
+
+- **Semana de segunda a domingo** (040): como o glossário e o `--week` do worker. Com a sexta,
+  os números ficam praticamente iguais.
+- **8 segmentos no K-Means** (041): a regra da maior silhueta, combinada antes de ver o
+  resultado.
+- **Isolation Forest fora** (051): como variável a mais do LightGBM, ele sobe o recall da fila
+  em só 0,03 ponto.
+- **Conferência de 10 alertas explicados**, revisada pelo Vinicius (042).
+- **Sem país, moeda e hora, e o CAIXA**: ver "Configuração oficial, e por quê".
+
+Pontos de atenção:
+
+- O `fraudradar.model` importa sem o grupo `ml`, porque o CI e a imagem da API não o instalam.
+  No CI, `tests/test_model.py` é pulado; os testes das variáveis rodam.
+- O rótulo só entra como alvo do treino e na avaliação: `training.build_training_data` devolve
+  o gabarito numa tabela à parte (`truth`), e o score usa só as variáveis.
+- O CAIXA é aplicado no cálculo (`features.history.with_cash_account`), não na carga: o banco
+  guarda as contas como vieram.
+- Os três pontos sobre a nota na tela que o registro 044 levantou foram resolvidos na `main`
+  pelo PR #6 (registros 049 e 050). Segue aberto: as faixas 90 e 70 continuam fixas.
+
+O que ainda não está aqui: o worker, que é o próximo passo (052), o notebook
+`notebooks/03_modelo.ipynb` e o PR. O que ficou em aberto para o time está no fim dos
+registros 044 e 054.
