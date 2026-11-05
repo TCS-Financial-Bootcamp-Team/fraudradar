@@ -103,9 +103,10 @@ function WeeklyAlertQueue({
       ) : (
         <section className="panel overflow-hidden">
           <div className="panel-title">
-            <h2>Prioridade por score</h2>
+            <h2>Prioridade na fila</h2>
             <span className="text-xs font-normal text-muted-foreground">
-              Maior → menor
+              Nota de risco de 0 a 100: ordena a fila, não é a chance de ser
+              lavagem
             </span>
           </div>
           <AlertsTable items={queue.data.items} />

@@ -16,11 +16,13 @@ def build_report_draft(alert: RowMapping, justification: str, assessment: str | 
     start = week_start(alert["week"])
     end = start + timedelta(days=6)
     amount = f"{alert['total_amount']:,.2f}".translate(str.maketrans({",": ".", ".": ","}))
+    # A nota ordena a fila; o modelo não é calibrado, então ela não é chance de ser lavagem.
+    score = f"{float(alert['score']) * 100:.1f}".replace(".", ",")
     body = (
         "COMUNICAÇÃO DE OPERAÇÃO SUSPEITA — SIMULAÇÃO ACADÊMICA\n\n"
         f"Conta: {alert['account']}\n"
         f"Semana: {start:%d/%m/%Y} a {end:%d/%m/%Y}\n"
-        f"Score: {float(alert['score']) * 100:.1f}%\n"
+        f"Nota de risco do modelo: {score} de 100 (ordena a fila; não é probabilidade)\n"
         f"Tipologia prevista: {alert['typology'] or 'Indefinida'}\n"
         f"Valor total: £ {amount}\n"
         f"Quantidade de transações: {alert['transaction_count']}\n"

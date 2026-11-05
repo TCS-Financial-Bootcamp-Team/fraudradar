@@ -24,7 +24,8 @@ export const alertsMock: Alert[] = Array.from({ length: 36 }, (_, i) => ({
     "Fan-in",
     "Dispersão internacional",
   ][i % 5],
-  score: Math.max(22, 98 - i * 2),
+  score: Math.max(43, 98 - i * 2),
+  queue_position: i + 1,
   amount: 845000 - i * 15730,
   transaction_count: 47 - i,
   status:

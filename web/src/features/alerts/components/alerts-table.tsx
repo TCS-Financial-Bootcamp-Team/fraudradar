@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { formatCurrency } from "@/lib/format";
+import {
+  RISK_LABELS,
+  SCORE_HINT,
+  formatQueuePosition,
+  formatScore,
+  riskLevel,
+} from "@/lib/risk";
 import { EmptyState } from "@/components/ui/states";
 import type { Alert, AlertStatus } from "../schemas/alerts";
 
@@ -11,33 +18,26 @@ export const statusLabels: Record<AlertStatus, string> = {
   reported: "Para comunicação",
 };
 export function RiskScore({ value }: { value: number }) {
-  const riskLevel =
-    value >= 90
-      ? "critical"
-      : value >= 70
-        ? "high"
-        : value >= 45
-          ? "medium"
-          : "low";
-  const riskLabel = {
-    critical: "Crítico",
-    high: "Alto",
-    medium: "Médio",
-    low: "Baixo",
-  }[riskLevel];
+  const level = riskLevel(value);
+  const riskLabel = RISK_LABELS[level];
   return (
     <div
-      className="flex min-w-28 items-center gap-3"
-      style={{ color: `var(--risk-${riskLevel})` }}
+      className="flex min-w-32 items-center gap-3"
+      style={{ color: `var(--risk-${level})` }}
+      title={`Nota ${formatScore(value)} de 100 · ${riskLabel}. ${SCORE_HINT}`}
     >
-      <span className="w-7 font-mono text-sm font-semibold">{value}</span>
+      <span className="w-10 font-mono text-sm font-semibold">
+        {formatScore(value)}
+      </span>
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full bg-current"
           style={{ width: value + "%" }}
         />
       </div>
-      <span className="sr-only">{riskLabel}</span>
+      <span className="sr-only">
+        de 100, risco {riskLabel.toLowerCase()}
+      </span>
     </div>
   );
 }
@@ -47,12 +47,12 @@ export function AlertsTable({ items }: { items: Alert[] }) {
     <div className="overflow-x-auto">
       <table className="data-table">
         <caption className="sr-only">
-          Alertas ordenados por score de risco
+          Alertas ordenados pela posição na fila
         </caption>
         <thead>
           <tr>
             <th>Alerta / conta</th>
-            <th>Score de risco</th>
+            <th title={SCORE_HINT}>Nota de risco</th>
             <th>Tipologia sugerida</th>
             <th>País</th>
             <th>Valor sinalizado</th>
@@ -73,7 +73,7 @@ export function AlertsTable({ items }: { items: Alert[] }) {
                   {alert.id}
                 </Link>
                 <p className="mt-1 font-mono text-[10px] text-muted-foreground">
-                  {alert.account}
+                  {alert.account} · {formatQueuePosition(alert.queue_position)}
                 </p>
               </td>
               <td>

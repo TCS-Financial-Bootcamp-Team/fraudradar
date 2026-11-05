@@ -52,6 +52,7 @@ def test_item_matches_front_contract(client, seed):
         "amount": 12.5,
         "transaction_count": 4,
         "status": "pending",
+        "queue_position": 1,
     }
 
 

@@ -38,7 +38,7 @@ AlertId = Annotated[int, Path(ge=1, le=2**63 - 1, description="id numérico do a
 # Colunas que alert_from_row espera, com a tabela alerts apelidada de `a`.
 ALERT_COLUMNS = (
     "a.id, a.account, a.week, a.score, a.status, a.countries, a.typology,"
-    " a.total_amount, a.transaction_count"
+    " a.total_amount, a.transaction_count, a.queue_position"
 )
 
 
@@ -59,6 +59,7 @@ def alert_from_row(row: RowMapping) -> Alert:
         amount=float(row["total_amount"]),
         transaction_count=row["transaction_count"],
         status=STATUS_TO_FRONT[row["status"]],
+        queue_position=row["queue_position"],
     )
 
 
