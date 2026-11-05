@@ -1,5 +1,9 @@
 # Como contribuir
 
+Usa IA? Ela deve seguir a skill `.agents/skills/fraudradar/SKILL.md` (cópia em
+`.claude/skills/`), que resume este arquivo, o `lab/` e o registro de prompts.
+Mudou uma regra aqui? Atualize a skill no mesmo PR.
+
 ## Commits
 
 Formato (Conventional Commits, em português):

@@ -7,6 +7,11 @@ Em PT-BR: textos de tela, documentação, comentários e mensagens de log e de
 erro. O mapa entre os termos do time e os nomes do código está em
 docs/glossary.md; nome novo segue o glossário.
 
+**Antes de qualquer tarefa, leia a skill `.agents/skills/fraudradar/SKILL.md`**
+(cópia em `.claude/skills/`): projeto, experimentos com o dataset só em `lab/`,
+padrão de commits e o registro obrigatório de todo prompt em
+`docs/vibe-coding/prompts/`.
+
 ## Layout
 
 - `src/fraudradar/` — pacote compartilhado (`data`, `features`, `model`, `ai`, `config.py`, `db.py`)
