@@ -54,6 +54,7 @@ Thumbs.db
 
 # Temporários locais
 trash/
+.playwright-mcp/
 
 # Rascunho da equipe (exploração do dataset)
 # Manter README e notebook oficial no Git
