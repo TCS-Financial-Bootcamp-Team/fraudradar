@@ -33,7 +33,8 @@ por vez.
 | `lab/` | rascunho da equipe, fora do git | `lab/README.md` |
 | `docs/glossary.md` | mapa entre os termos do time e os nomes do código | sempre que criar um nome |
 
-Visão geral, rotas e comandos: `README.md`. Frentes: 1 Dados e SQL, 2 Modelo,
+Explicação completa (fluxo, tabelas, rotas, telas, estado atual): skill
+`fraudradar-overview`. Visão geral, rotas e comandos: `README.md`. Frentes: 1 Dados e SQL, 2 Modelo,
 3 IA generativa, 4 API e front, 5 Processo e entrega (tabela "Quem cuida de
 quê" no README).
 
