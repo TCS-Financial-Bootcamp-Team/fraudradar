@@ -11,6 +11,7 @@ import { formatCurrency, formatShortDate } from "@/lib/format";
 import { useAlertDetail } from "../hooks/use-alerts";
 import { decisionSchema, type DecisionRequest } from "../schemas/alerts";
 import { RiskScore, statusLabels } from "./alerts-table";
+import { SCORE_HINT, formatQueuePosition } from "@/lib/risk";
 import { AccountGraph } from "./account-graph";
 
 export function AlertDetailView({ id }: { id: string }) {
@@ -63,10 +64,13 @@ export function AlertDetailView({ id }: { id: string }) {
         <div className="grid min-w-0 gap-6">
           <section className="panel grid gap-6 p-6 sm:grid-cols-3">
             <div>
-              <p className="eyebrow mb-3">Score de risco</p>
+              <p className="eyebrow mb-3">Nota de risco</p>
               <RiskScore value={alert.score} />
               <p className="mt-2 text-xs text-muted-foreground">
-                {alert.typology}
+                {formatQueuePosition(alert.queue_position)} · {alert.typology}
+              </p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {SCORE_HINT}
               </p>
             </div>
             <div>
@@ -81,7 +85,7 @@ export function AlertDetailView({ id }: { id: string }) {
             </div>
           </section>
           <section className="panel">
-            <h2 className="panel-title">O que contribuiu para o score</h2>
+            <h2 className="panel-title">O que contribuiu para a nota</h2>
             <div className="grid gap-5 p-6">
               {alert.contributions.map((c) => (
                 <div key={c.name}>

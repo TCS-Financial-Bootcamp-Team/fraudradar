@@ -16,6 +16,7 @@ export const alertSchema = z.object({
   amount: z.number().nonnegative(),
   transaction_count: z.number().int().nonnegative(),
   status: statusSchema,
+  queue_position: z.number().int().positive(),
 });
 export const queueSchema = z.object({
   items: z.array(alertSchema),
