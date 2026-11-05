@@ -56,6 +56,7 @@ def test_decision_status_author_audit_and_without_assessment(
         "amount": 1000.0,
         "transaction_count": 3,
         "status": response_status,
+        "queue_position": 1,
     }
     current = seed.row("SELECT * FROM alerts WHERE id = :id", id=alert_id)
     assert current["status"] == db_status

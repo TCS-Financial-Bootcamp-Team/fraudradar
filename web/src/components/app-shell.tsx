@@ -9,6 +9,7 @@ import { FloatingAssistant } from "@/features/assistant/components/assistant";
 import { useAlertQueue } from "@/features/alerts/hooks/use-alerts";
 import { USE_MOCKS } from "@/lib/api";
 import { formatShortDate } from "@/lib/format";
+import { formatQueuePosition, formatScore } from "@/lib/risk";
 import { persistSidebarState } from "@/lib/sidebar";
 import { Header } from "./layout/header";
 import { SIDEBAR_ID, Sidebar } from "./layout/sidebar";
@@ -130,7 +131,8 @@ function ShellContent({
                 >
                   <strong>{alert.id}</strong>
                   <p className="mt-1 text-muted-foreground">
-                    {alert.typology} · Score {alert.score}
+                    {alert.typology} · Nota {formatScore(alert.score)} ·{" "}
+                    {formatQueuePosition(alert.queue_position)}
                   </p>
                 </Link>
               ))
