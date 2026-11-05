@@ -221,7 +221,10 @@ def save_model(transactions: pd.DataFrame, ground_truth: pd.DataFrame, folder=No
             "conta: segments.assign_segments",
         ],
     }
-    (folder / f"{name}.json").write_text(json.dumps(card, indent=2, ensure_ascii=False))
+    # UTF-8 explícito: no Windows o padrão é cp1252, e o worker no Docker (Linux) lê em UTF-8.
+    (folder / f"{name}.json").write_text(
+        json.dumps(card, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
     shutil.copyfile(folder / f"{name}.txt", folder / get_settings().model_file)
     return card
 
@@ -234,7 +237,8 @@ def load_model(folder=None, version: int | None = None) -> tuple[lgb.Booster, di
         raise FileNotFoundError(
             f"nenhum modelo em {folder}: rode  python -m fraudradar.model train"
         )
-    card = json.loads((folder / f"lightgbm_v{version or max(versions)}.json").read_text())
+    card_path = folder / f"lightgbm_v{version or max(versions)}.json"
+    card = json.loads(card_path.read_text(encoding="utf-8"))
     return lgb.Booster(model_file=folder / card["file"]), card
 
 

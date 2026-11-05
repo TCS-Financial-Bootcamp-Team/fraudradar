@@ -3,6 +3,8 @@
 Usam o dado sintético e precisam do grupo `ml` (LightGBM e scikit-learn); sem ele, são pulados.
 """
 
+import json
+
 import numpy as np
 import pandas as pd
 import pytest
@@ -103,6 +105,16 @@ def test_saved_model_reproduces_the_metrics(tmp_path):
     metrics, _ = evaluate(booster.predict(data.x[read["features"]]), data, truth)
     assert metrics["pr_auc"] == pytest.approx(read["metrics"]["pr_auc"])
     assert save_model(transactions, ground_truth, folder=tmp_path)["version"] == 2
+
+
+def test_model_card_is_utf8(tmp_path):
+    """A ficha tem acentos (notas, tipologias): precisa sair em UTF-8 em qualquer sistema, para
+    um modelo treinado no Windows ser lido pelo worker no Docker (Linux)."""
+    transactions, ground_truth = synthetic()
+    save_model(transactions, ground_truth, folder=tmp_path)
+    raw = (tmp_path / "lightgbm_v1.json").read_bytes()
+    card = json.loads(raw.decode("utf-8"))
+    assert any(ord(ch) > 127 for ch in json.dumps(card, ensure_ascii=False))
 
 
 def test_explanation_sums_to_the_raw_score(tmp_path):
