@@ -114,7 +114,7 @@ importa está aqui ou nos registros. O que a branch muda:
 | Modelo | `src/fraudradar/model/` | treino, régua, fila com corte, explicação, segmentos e os comandos `train` e `check` |
 | Testes | `tests/test_data_saml_d.py`, `test_features.py`, `test_model.py` e `fake_saml_d.py` | dado sintético que cobre treino, validação e teste |
 | Documentação | `docs/model.md`, `docs/glossary.md` e `README.md` | este arquivo, a seção "Modelo" do glossário e o comando de treino |
-| Registro | `docs/vibe-coding/prompts/`: 038 a 044 e 051 a 054 | os prompts do Vinicius e os resultados |
+| Registro | `docs/vibe-coding/prompts/`: 038 a 044 e 051 a 056 | os prompts do Vinicius e os resultados |
 
 Como conferir:
 
@@ -150,5 +150,5 @@ Pontos de atenção:
   pelo PR #6 (registros 049 e 050). Segue aberto: as faixas 90 e 70 continuam fixas.
 
 O que ainda não está aqui: o worker, que é o próximo passo (052), o notebook
-`notebooks/03_modelo.ipynb` e o PR. O que ficou em aberto para o time está no fim dos
-registros 044 e 054.
+`notebooks/03_modelo.ipynb`. O que ficou em aberto para o time está no fim dos registros 044
+e 054.
