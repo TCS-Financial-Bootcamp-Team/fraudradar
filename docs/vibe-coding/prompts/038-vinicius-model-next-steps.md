@@ -5,7 +5,7 @@ autor: Vinicius
 destino: Claude Code (PC do Vinicius)
 pai: null
 data: 2026-11-04
-filhos: [039, 040, 041, 042, 043, 044]
+filhos: [039, 040, 041, 042, 043, 044, 051, 052, 053, 054]
 ---
 
 Quero que você siga o CLAUDE.md da pasta modelo-lightgbm.

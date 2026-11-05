@@ -28,7 +28,7 @@ Branch `feat/model-lightgbm`, a partir da `main` em `b49acf0`. Antes ela se cham
   de 10 alertas foi refeita; o Vinicius revisou e concordou com a leitura (042).
 - Três conclusões mudaram com a segunda: o K-Means passou a escolher 8 segmentos, e não 3
   (041: ficam 8); o Isolation Forest passou a subir o recall da fila em 0,03 ponto (segue
-  fora, a confirmar); e o segmento das contas que usam espécie tem falso positivo de 0,092%,
+  fora; o Vinicius confirmou no 051); e o segmento das contas que usam espécie tem falso positivo de 0,092%,
   16 vezes o maior dos outros segmentos.
 
 **No repositório:**
@@ -79,12 +79,16 @@ O `fraudradar.model` importa sem o grupo `ml`, porque o CI e a imagem da API nã
 - O worker ainda não usa o modelo. Falta gravar `transaction_scores`, `alerts` (com a nota da
   conta e a posição na fila), `evidence.contributions` e `accounts.segment`. E falta decidir
   qual corte vai em `model_versions.threshold`: o da transação ou o da fila.
-- O modelo não prevê a tipologia: `alerts.typology` fica vazio ("Indefinida" na tela) até o
-  time decidir de onde ela vem.
+- A tipologia do alerta não é do modelo: a tela de monitoramento chama a medida de "Acerto de
+  tipologia do LLM", então ela vem do parecer da IA (frente 3). Até lá, `alerts.typology` fica
+  vazio ("Indefinida" na tela).
 - O score na tela: ele não é uma probabilidade calibrada; com uma casa decimal, o topo empata
-  em 100; e o corte da fila (42,3 na tela) cai na faixa "Baixo", que vai até 45.
-- O Isolation Forest fora ainda precisa da confirmação do Vinicius.
+  em 100; e o corte da fila (42,3 na tela) cai na faixa "Baixo", que vai até 45. Resolvido na
+  `main` pelo PR #6 (registros 049 e 050).
 - Os prompts da conversa que escolheu o modelo, num repositório de teste, não estão neste
   registro.
 - O Victor tem `lab/FraudRadar_LightGBM.ipynb` na branch `victor`: vale comparar.
 - A pasta do lab se chama `lab/modelo-lightgbm/`, e não `lab/<pessoa>/`, como pede a skill.
+
+(Atualizado em 05/11/2026, depois do 051: o Isolation Forest foi confirmado fora, a tipologia é
+do LLM e os pontos da nota na tela foram resolvidos na `main`.)
