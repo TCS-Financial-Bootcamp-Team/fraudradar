@@ -22,6 +22,7 @@ class Alert(BaseModel):
     amount: float = Field(ge=0)
     transaction_count: int = Field(ge=0)
     status: AlertStatus
+    queue_position: int = Field(ge=1, description="posição na fila da semana (1 = mais suspeita)")
 
 
 class AlertQueue(BaseModel):

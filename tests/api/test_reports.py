@@ -237,7 +237,7 @@ def test_draft_deterministic_content_and_length_limit(client, seed, alert_id, wi
     for snippet in (
         "Conta: 123456789",
         "02/01/2023 a 08/01/2023",
-        "90.0%",
+        "Nota de risco do modelo: 90,0 de 100",
         "Fan-out",
         "1.234.567,89",
         "17",
@@ -269,6 +269,8 @@ def test_draft_undefined_typology_and_countries(client, seed):
     assert resp.status_code == 200
     draft = seed.row("SELECT draft FROM reports")["draft"]
     assert "Tipologia prevista: Indefinida" in draft
+    assert "Nota de risco do modelo: 90,0 de 100 (ordena a fila; não é probabilidade)" in draft
+    assert "%" not in draft
     assert "Países: Indefinidos" in draft
 
 

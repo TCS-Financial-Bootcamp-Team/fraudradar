@@ -282,6 +282,7 @@ def test_alert_from_row_converts_fields(seed, db):
         1234567890,
         date(2023, 1, 2),
         score=0.9,  # REAL: volta como 0.899999976...
+        position=7,
         countries=("UAE", "UK"),
         typology=None,
         total_amount=1500.5,
@@ -291,6 +292,7 @@ def test_alert_from_row_converts_fields(seed, db):
     assert alert.id == str(alert_id)
     assert alert.account == "1234567890"
     assert alert.score == 90.0
+    assert alert.queue_position == 7
     assert alert.country == "UAE"
     assert alert.typology == "Indefinida"
     assert (alert.amount, alert.transaction_count) == (1500.5, 7)
