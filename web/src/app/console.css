@@ -38,6 +38,8 @@
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #294255;
   --sidebar-primary: #75dbc3;
+  --sidebar-primary-foreground: #10283c;
+  --sidebar-ring: #75dbc3;
   --brand-accent: #75dbc3;
   --brand-ink: #10283c;
   --brand-paper: #e4eef5;
@@ -74,6 +76,11 @@
   --sidebar: #0c1e2c;
   --sidebar-foreground: #c1d3e1;
   --sidebar-accent: #1d3b4c;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f3747;
+  --sidebar-primary: #74d7bf;
+  --sidebar-primary-foreground: #0c1e2c;
+  --sidebar-ring: #74d7bf;
 }
 html {
   font-family: var(--font-geist-sans), sans-serif;
@@ -172,61 +179,6 @@ h3 {
 .data-table tbody tr:hover {
   background: color-mix(in srgb, var(--muted) 50%, transparent);
 }
-.app-sidebar {
-  position: fixed;
-  inset: 0 auto 0 0;
-  width: 15rem;
-  z-index: 40;
-  background: var(--sidebar);
-  color: var(--sidebar-foreground);
-  display: flex;
-  flex-direction: column;
-  transition: width 0.15s;
-}
-.app-content {
-  padding-left: 15rem;
-  min-height: 100dvh;
-  transition: padding-left 0.15s;
-}
-.sidebar-small .app-sidebar {
-  width: 5rem;
-}
-.sidebar-small .app-content {
-  padding-left: 5rem;
-}
-.sidebar-small .sidebar-label {
-  display: none;
-}
-.nav-item {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  font-size: 0.8125rem;
-  color: var(--sidebar-foreground);
-}
-.nav-item:hover {
-  background: var(--sidebar-accent);
-}
-.nav-item[aria-current="page"] {
-  background: var(--sidebar-accent);
-  color: var(--sidebar-accent-foreground);
-  box-shadow: inset 3px 0 var(--brand-accent);
-}
-.app-topbar {
-  height: 4.5rem;
-  background: var(--card);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 2rem;
-  gap: 1rem;
-  position: sticky;
-  top: 0;
-  z-index: 30;
-}
 .auth-layout {
   display: grid;
   min-height: 100dvh;
@@ -281,27 +233,6 @@ h3 {
   }
 }
 @media (max-width: 767px) {
-  .app-sidebar {
-    transform: translateX(-100%);
-    width: 15rem;
-  }
-  .sidebar-mobile .app-sidebar {
-    transform: translateX(0);
-  }
-  .app-content,
-  .sidebar-small .app-content {
-    padding-left: 0;
-  }
-  .app-topbar {
-    padding: 0 1rem;
-    height: 4rem;
-  }
-  .sidebar-small .app-sidebar {
-    width: 15rem;
-  }
-  .sidebar-small .sidebar-label {
-    display: inline;
-  }
   .data-table td,
   .data-table th {
     padding-left: 1rem;
