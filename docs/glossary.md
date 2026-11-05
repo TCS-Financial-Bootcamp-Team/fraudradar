@@ -32,6 +32,7 @@ sentido e acrescente a linha.
 | --- | --- | --- |
 | alerta | alert | |
 | fila (de alertas) | queue | `posicao_fila` → `queue_position` |
+| nota de risco | score | 0 a 100 na tela (0 a 1 no banco); ordena a fila, não é probabilidade |
 | conta | account | número da conta do SAML-D |
 | transação | transaction | |
 | movimentação (lista do detalhe) | movement | não confundir com `transaction_count` |
@@ -158,7 +159,7 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 
 | Modelo (Pydantic / zod) | Antes | Campos depois |
 | --- | --- | --- |
-| `Alert` / `alertSchema` | `Alerta` | `id`, `account`, `week`, `country`, `typology`, `score`, `amount`, `transaction_count`, `status` |
+| `Alert` / `alertSchema` | `Alerta` | `id`, `account`, `week`, `country`, `typology`, `score`, `amount`, `transaction_count`, `status`, `queue_position` |
 | `AlertStatus` / `statusSchema` | `pendente`, `aprofundar`, `arquivado`, `comunicar` | `pending`, `escalated`, `archived`, `reported` |
 | `AlertQueue` / `queueSchema` | `Fila {itens, total, paises}` | `items`, `total`, `countries` |
 | `AlertDetail` / `alertDetailSchema` | `Detalhe` | campos do `Alert` + `contributions`, `rules`, `movements`, `assessment` (anulável) |
