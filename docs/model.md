@@ -34,8 +34,8 @@ uv run --group ml pytest tests/test_model.py tests/test_features.py
 
 `train` grava o modelo (`lightgbm_vN.txt`), a ficha (`lightgbm_vN.json`) e uma cópia do modelo
 em `lightgbm_model.txt`, o arquivo que o health da API confere. A ficha traz as variáveis, as
-categorias, os parâmetros, os cortes, os segmentos e as métricas no teste. O CI não instala o
-grupo `ml`, então lá os testes do modelo são pulados; os das variáveis rodam.
+categorias, os parâmetros, os cortes, os segmentos e as métricas no teste. O CI instala o
+grupo `ml`: os testes do modelo e do worker rodam lá também.
 
 ## Configuração oficial, e por quê
 
@@ -140,8 +140,8 @@ Decisões, com o registro de cada uma em `docs/vibe-coding/prompts/`:
 
 Pontos de atenção:
 
-- O `fraudradar.model` importa sem o grupo `ml`, porque o CI e a imagem da API não o instalam.
-  No CI, `tests/test_model.py` é pulado; os testes das variáveis rodam.
+- O `fraudradar.model` importa sem o grupo `ml`, porque a imagem da API não o instala.
+  O CI instala o grupo `ml`, então `tests/test_model.py` e `tests/worker/` rodam lá.
 - O rótulo só entra como alvo do treino e na avaliação: `training.build_training_data` devolve
   o gabarito numa tabela à parte (`truth`), e o score usa só as variáveis.
 - O CAIXA é aplicado no cálculo (`features.history.with_cash_account`), não na carga: o banco

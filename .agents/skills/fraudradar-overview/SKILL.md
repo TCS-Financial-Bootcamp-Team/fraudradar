@@ -159,7 +159,8 @@ fraudradar/
 │   ├── repositories/        SQL de cada recurso
 │   └── schemas/             Pydantic, espelho do zod do front
 │
-├── worker/                  CLI em lote: python -m worker batch --week AAAA-MM-DD | replay
+├── worker/                  CLI em lote: python -m worker load | batch --week AAAA-MM-DD |
+│                            backfill | replay (README, seção Worker)
 ├── db/
 │   ├── init/                001_extensions.sql, 002_tables.sql (o esquema inteiro, comentado)
 │   └── rules/               regras de cenário em SQL (NNN_rule_name.sql), uma por arquivo
@@ -213,7 +214,8 @@ O esquema roda só na criação do volume. Mudou o SQL? `docker compose down -v`
 
 Status do alerta no banco: `new`, `in_review`, `archived`, `escalated`, `reported`. O
 front mostra `pending` (`new` e `in_review`), `escalated`, `archived` e `reported`.
-O formato dos JSON que o worker grava está comentado no próprio SQL.
+O formato dos JSON que o worker grava está comentado no próprio SQL; a versão completa
+(com `weekly_signals` e as chaves novas de `metrics`) está no README, seção Worker.
 
 ## 8. API
 
@@ -255,7 +257,8 @@ Detalhes (limites, códigos de erro, padrões de código): `README.md` e `api/AG
 - Camadas: componente → hook → service → API. Componente não faz fetch. Os schemas
   zod de cada feature são o contrato com a API (`web/API_CONTRACTS.md`).
 - `NEXT_PUBLIC_USE_MOCKS=true` troca a API por dados simulados (faixa "Ambiente
-  demonstrativo" no topo). Útil enquanto o worker não grava dados reais.
+  demonstrativo" no topo). Com `false`, o front lê o banco que o worker preparou
+  (`load` e `backfill`) e as semanas que o replay liberou.
 - Next 16 tem mudanças de API: leia `web/node_modules/next/dist/docs/` antes de usar
   algo do Next de que não tenha certeza.
 
@@ -273,7 +276,9 @@ de `vibelog/.env.local`. Sem a chave, o registro em `docs/vibe-coding/prompts/` 
 cp .env.example .env
 uv sync --all-groups
 docker compose up -d --build              # db :5432, api :8000, web :3000
-docker compose run --rm worker replay     # o worker tem profile próprio
+uv run python -m worker load              # SAML-D no Postgres (uma vez, ~1,5 min)
+uv run python -m worker backfill          # as 14 semanas do teste (~1,5 min, ~7 GB)
+docker compose run --rm worker replay     # ou pelo Docker (o worker tem profile próprio)
 cd web && pnpm install && pnpm dev        # front em modo dev
 ```
 
@@ -289,11 +294,13 @@ Variáveis (`.env.example`): `POSTGRES_*` e `DATABASE_URL` (banco); `LLM_PROVIDE
 ## 12. Testes e CI
 
 - Python: `uv run ruff check . && uv run ruff format --check . && uv run pytest`.
-  `tests/api/` roda contra Postgres de verdade; use `REQUIRE_TEST_DB=1` e um banco
-  terminado em `_test`, senão os testes são pulados sem aviso.
+  `tests/api/` e `tests/worker/` rodam contra Postgres de verdade (fixtures em
+  `tests/conftest.py`); use `REQUIRE_TEST_DB=1` e um banco terminado em `_test`, senão os
+  testes são pulados sem aviso. Os do modelo e do worker precisam do grupo `ml`
+  (`uv run --group api --group ml pytest`).
 - Web: `cd web && pnpm lint && pnpm test && pnpm build`.
-- CI (`.github/workflows/ci.yml`): job `python` (com Postgres), job `web`, job
-  `terraform` (`fmt` e `validate`).
+- CI (`.github/workflows/ci.yml`): job `python` (com Postgres e os grupos `api` e `ml`),
+  job `web`, job `terraform` (`fmt` e `validate`).
 
 ## 13. Frentes do time
 
@@ -308,26 +315,33 @@ Variáveis (`.env.example`): `POSTGRES_*` e `DATABASE_URL` (banco); `LLM_PROVIDE
 Não implemente a parte de outra frente por iniciativa própria: pergunte a quem pediu a
 tarefa.
 
-## 14. Estado em 05/11/2026
+## 14. Estado em 06/11/2026
 
 Confira com `git log` antes de confiar; isto muda rápido.
 
 - **Pronto**: API (fila, detalhe, grafo, decisões, comunicação, monitoramento, replay,
-  ingestão), com 280 testes; front (todas as telas, também com dados simulados);
-  esquema do banco; Compose, Terraform e CI; VibeLog.
+  ingestão); front (todas as telas, também com dados simulados); esquema do banco;
+  Compose, Terraform e CI; VibeLog.
 - **Responde de propósito que não existe**: parecer e chat da IA (503, esperando a
   frente 3); cadastro de fontes Postgres (501, pede um desenho de segurança próprio).
-- **Modelo (Vinicius, frente 2; PR da branch `feat/model-lightgbm`)**: carga do
-  SAML-D para o treino (`src/fraudradar/data/saml_d.py`), 26 variáveis por transação
-  (19 das 21 do modelo vêm do histórico das contas; `features/history.py`), LightGBM
-  oficial com fila semanal por conta, explicação por contribuição e segmentos K-Means
-  (`model/`), `python -m fraudradar.model train | check`. Números e limites em
-  `docs/model.md`. Não prevê a tipologia: ela vem do parecer da IA (frente 3).
-- **Vazio**: carga do SAML-D no Postgres, `db/rules/`, `src/fraudradar/ai`, `rag/`,
-  os notebooks oficiais, e o worker (só o esqueleto da CLI): nada grava
-  `transaction_scores`, `alerts`, `evidence` nem `weekly_batches`. Sem o worker, o
-  banco real não tem alertas; o front só mostra dados com
-  `NEXT_PUBLIC_USE_MOCKS=true`.
+- **Modelo (Vinicius, frente 2; na `main` desde o PR #7)**: carga do SAML-D para o treino
+  (`src/fraudradar/data/saml_d.py`), 26 variáveis por transação (19 das 21 do modelo vêm do
+  histórico das contas; `features/history.py`), LightGBM oficial com fila semanal por conta,
+  explicação por contribuição e segmentos K-Means (`model/`), `python -m fraudradar.model
+  train | check`. Números e limites em `docs/model.md`. Não prevê a tipologia: ela vem do
+  parecer da IA (frente 3).
+- **Worker (PR da branch `feat/worker-batch`, registros 062 e 063)**: `python -m worker
+  load | batch | backfill | replay`. Carrega o SAML-D no Postgres (ids = linha do CSV + 1) e,
+  por semana, grava `transaction_scores`, `alerts` (fila com o corte da ficha, até 300),
+  `evidence` (contribuições, regras de `db/rules/`, sinais semanais), `accounts.segment`,
+  `model_versions`, `weekly_batches` (métricas contra o gabarito), `ingestions` e
+  `audit_log`. Só semanas depois do treino, a não ser com `--allow-in-sample`. No SAML-D
+  inteiro, a fila das 14 semanas do teste repete a ficha (recall 95,1%, precisão 99,0%, 2,2
+  inocentes por semana) e os 2,76 milhões de scores são os do modelo. Fluxo da demo: `load`,
+  `backfill`, e liberar as semanas no app.
+- **Vazio**: regras em `db/rules/` (frente 1; o worker já roda o que entrar lá),
+  `src/fraudradar/ai` e `rag/` (frente 3; o worker ainda não grava `assessments` nem
+  tipologia), os notebooks oficiais.
 - **Em exploração**: LSTM e GRU em notebooks do `lab/` (branch `origin/victor` e
   `lab/FraudRadar_LSTM.ipynb`).
 

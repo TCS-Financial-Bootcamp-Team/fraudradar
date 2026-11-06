@@ -66,8 +66,9 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
 ## Testes
 
 - `tests/api/`, contra um Postgres de verdade. Use os fixtures de
-  `tests/api/conftest.py`: `db` (esvazia as tabelas a cada teste) e
-  `client` (API com autenticação desligada). Não faça mock do banco.
+  `tests/conftest.py` (os mesmos de `tests/worker/`): `db` (esvazia as tabelas a
+  cada teste), `client` (API com autenticação desligada) e `seed`. Não faça mock
+  do banco.
 - **Sem banco, os testes são pulados e a suíte fica verde sem ter testado nada.**
   Rode sempre com `REQUIRE_TEST_DB=1`. Se outra pessoa ou agente roda testes
   na mesma máquina, use um banco só seu (o nome precisa terminar em `_test`,

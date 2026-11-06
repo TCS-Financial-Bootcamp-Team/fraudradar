@@ -41,6 +41,12 @@ sentido e acrescente a linha.
 | segunda-feira (da semana) | week start | |
 | lote (semanal) | batch | `lotes_semana` → `weekly_batches` |
 | liberar (semana no replay) | release | |
+| carga (do SAML-D no banco) | load | `python -m worker load` |
+| processar várias semanas de uma vez | backfill | `python -m worker backfill` |
+| reprocessar (semana já processada) | force | flag `--force` do worker |
+| dentro / fora do treino (semana) | in-sample / out-of-sample | flag `--allow-in-sample` do worker |
+| sinais semanais | weekly signals | `evidence.weekly_signals` |
+| contraparte | counterparty | `distinct_counterparties` nos sinais semanais |
 | parecer (texto da IA) | assessment | |
 | decisão | decision | |
 | arquivar / aprofundar / comunicar | archive / escalate / report | verbo da decisão |
@@ -121,14 +127,21 @@ Valores gravados:
 | `ingestions.status` | `recebido`, `processando`, `concluido` | `received`, `processing`, `completed` |
 | `ingestions.source` | `csv`, `manual` | (iguais) |
 | `audit_log.entity` | `alerta`, `ingestao`, `semana` | `alert`, `ingestion`, `week` |
-| `audit_log.action` | `decisao`, `comunicacao_aprovada`, `ingestao`, `replay` | `decision`, `report_approved`, `ingestion`, `replay` |
+| `audit_log.action` | `decisao`, `comunicacao_aprovada`, `ingestao`, `replay`, `lote` | `decision`, `report_approved`, `ingestion`, `replay`, `batch` |
 
 JSON gravado pelo worker (contrato worker → API):
 
 - `evidence.contributions`: `{"<feature>": contribuição SHAP em log-odds}`.
 - `evidence.rules`: `[{"code", "description", "detail"}]`.
+- `evidence.weekly_signals`: `{"sent_count", "received_count", "sent_amount",
+  "received_amount", "distinct_counterparties", "cash_share", "cross_border_share"}`.
 - `assessments.sources`: `[{"title", "excerpt"}]`.
 - `weekly_batches.metrics`: `{"recall", "typology_accuracy", "country_rates": {país: taxa}, "payment_type_rates": {meio: taxa}}`.
+  O worker grava também `precision`, `laundering_accounts` (contas lavadoras), `queue_size`
+  (contas na fila) e `innocents_in_queue` (inocentes na fila), e deixa `typology_accuracy`
+  de fora enquanto o modelo não prevê tipologia.
+- `model_versions.metrics`: as métricas da ficha, com `transaction_threshold` (limiar da
+  transação); `model_versions.threshold` é o corte da fila (`queue_cut`).
 
 ## API
 
@@ -259,6 +272,9 @@ Constantes citadas na documentação: `MOEDA_DOS_VALORES` → `AMOUNT_CURRENCY`,
 | --- | --- |
 | `python -m worker lote --semana AAAA-MM-DD` | `python -m worker batch --week AAAA-MM-DD` |
 | `python -m worker replay` | (igual) |
+| carga do SAML-D (não existia) | `python -m worker load [--csv CAMINHO]` |
+| várias semanas de uma vez (não existia) | `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` |
+| reprocessar / aceitar semana do treino (não existiam) | `--force` / `--allow-in-sample` (em `batch` e `backfill`) |
 | `pnpm vibelog no` | `pnpm vibelog node` |
 | `pnpm vibelog evidencia` | `pnpm vibelog evidence` |
 | `pnpm vibelog importar-md`, `importar-claude`, `importar-codex` | `pnpm vibelog import-md`, `import-claude`, `import-codex` |

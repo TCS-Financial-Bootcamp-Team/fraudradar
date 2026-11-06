@@ -80,8 +80,8 @@ Outros comandos:
 ```bash
 uv run pytest                               # testes; os da API usam o Postgres do Compose
 uv run ruff check . && uv run ruff format .  # lint e formatação
-docker compose run --rm worker replay       # roda o worker (job em lote)
-docker compose run --rm worker batch --week 2023-01-02
+docker compose run --rm worker replay       # roda o worker (job em lote; seção Worker)
+docker compose run --rm worker batch --week 2023-05-22
 uv run --group ml python -m fraudradar.model train  # treina o LightGBM (SAML-D.csv em data/)
 cd web && pnpm install && pnpm dev          # front em modo dev (com a API rodando)
 docker compose down                         # para tudo (o volume do banco fica)
@@ -94,9 +94,10 @@ configuração oficial e os números.
 As tabelas são criadas por `db/init/*.sql` só na **primeira** subida do volume.
 Mudou o SQL? `docker compose down -v` e suba de novo.
 
-Os testes da API criam e apagam o banco `fraudradar_test` no Postgres do
+Os testes da API e do worker criam e apagam o banco `fraudradar_test` no Postgres do
 Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
-`TEST_DATABASE_URL` (o nome do banco precisa terminar em `_test`).
+`TEST_DATABASE_URL` (o nome do banco precisa terminar em `_test`). Os do modelo e do
+worker precisam do grupo `ml`: `uv run --group api --group ml pytest`.
 
 ## API
 
@@ -124,7 +125,7 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 A API não roda o modelo: ela lê o que o worker grava, e o replay só libera
 semanas que o worker já processou (`weekly_batches`). Os formatos JSON que o
 worker grava (evidências e métricas da semana) estão comentados em
-`db/init/002_tables.sql`.
+`db/init/002_tables.sql` e, completos, na seção [Worker](#worker).
 
 ### Ingestão
 
@@ -153,6 +154,86 @@ cd infra/terraform
 terraform init
 terraform apply -var 'docker_host=npipe:////./pipe/docker_engine'   # Windows
 ```
+
+## Worker
+
+O worker transforma as transações do Postgres na fila semanal de alertas. Ele processa uma
+semana (de segunda 00:00 à segunda seguinte) por vez, sempre lendo do banco; a API só mostra
+as semanas que o replay liberou. Precisa do grupo `ml` e de um modelo treinado em `models/`
+(`docs/model.md`).
+
+| Comando | O que faz |
+|---|---|
+| `python -m worker load [--csv CAMINHO]` | carrega o `data/SAML-D.csv` em `transactions`, `ground_truth` e `accounts`; uma vez, num banco vazio |
+| `python -m worker batch --week AAAA-MM-DD` | processa uma semana (a data é a segunda-feira) |
+| `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` | processa várias semanas, com as variáveis calculadas uma vez só; sem datas, da primeira semana depois do treino do modelo à última com transações |
+| `python -m worker replay` | processa a próxima semana com transações depois da última processada; não libera nada (liberar é o `POST /replay/next-week`) |
+
+`batch` e `backfill` aceitam `--force` (refaz uma semana já processada) e `--allow-in-sample`
+(aceita uma semana do período de treino do modelo). O worker sai com 0 quando dá certo ou não
+há nada a fazer, e com 1 em erro, com a mensagem do que rodar.
+
+### Preparar o banco da demo
+
+```bash
+docker compose up -d db
+uv run python -m worker load       # ~1,5 min e ~3 GB de memória: 9,5 milhões de transações
+uv run python -m worker backfill   # ~1,5 min e ~7 GB: as 14 semanas do teste (22/05 a 21/08/2023)
+docker compose up -d --build api web
+```
+
+Depois, no app, libere uma semana por vez (o replay chama `POST /replay/next-week`). Pelo
+Docker: `docker compose run --rm worker load` e `docker compose run --rm worker backfill` (a
+imagem tem o grupo `ml`; `models/` e `data/` são montados, e o `data/SAML-D.csv` precisa ser
+um arquivo, não um atalho para fora da pasta). Tempos medidos num Mac de 16 GB.
+
+Memória: o pico é o `compute_features` nas 9,5 milhões de transações, 7 GB medidos num
+container Linux (no Mac o Monitor de Atividade mostra uns 4,5 GB, porque comprime a
+memória). Vale também para cada `batch` e `replay`, porque o histórico das variáveis sempre
+começa em `history_start`. Dê ao Docker pelo menos 8 GB (ou rode pelo host) e não rode o
+treino, o worker e a suíte de testes ao mesmo tempo.
+
+### O que o worker garante
+
+- **Só fora do treino**: processa semanas que começam depois de `train_end` da ficha (o
+  período de teste do modelo). Semana do treino é recusada sem `--allow-in-sample`: o modelo
+  já viu esses scores, e a demo pareceria melhor do que é.
+- **O mesmo modelo**: as variáveis saem de `compute_features` com as transações desde
+  `history_start` da ficha (as contagens do histórico dependem desse início), com as
+  categorias da ficha, e o score é o do booster. No SAML-D inteiro, os 2,76 milhões de scores
+  do teste são iguais aos do treino, e a fila das 14 semanas repete a ficha: recall 95,1%,
+  precisão 99,0% e 2,2 inocentes por semana.
+- **Gabarito fora do score**: só `worker/metrics.py` lê `ground_truth`, depois de a fila da
+  semana estar gravada.
+- **Trabalho do analista nunca é apagado**: semana já processada fica como está; `--force`
+  apaga e refaz os alertas, os scores e o lote da semana, mas é recusado se a semana já foi
+  liberada ou se algum alerta tem decisão (ou já saiu do status `new`).
+- **Uma transação do banco por semana**: ou a semana sai inteira, ou nada é gravado.
+
+### O que cada semana grava
+
+| Tabela | O quê |
+|---|---|
+| `model_versions` | a versão da ficha (`lightgbm_vN`), a única ativa; `threshold` é o corte da fila (`queue_cut`) e `metrics` traz as métricas da ficha com `transaction_threshold` |
+| `transaction_scores` | um score por transação da semana |
+| `alerts` | a fila: contas (nunca o CAIXA) com score de pelo menos o corte, até `queue_size` (300), da maior para a menor (empate: a conta menor primeiro). O score da conta é o maior das transações que ela enviou ou recebeu; `countries` vem pelo valor movimentado; `total_amount` e `transaction_count` resumem as transações da conta na semana; `typology` fica vazia (virá do parecer, frente 3) |
+| `evidence` | `contributions` (todas as variáveis, em log-odds, na transação de maior score da conta), `rules` (as de `db/rules/`, ver o README de lá), `weekly_signals` e `graph` vazio (a API monta o grafo) |
+| `accounts` | primeira e última transação das contas da semana (conta nova da ingestão entra aqui) e o segmento do K-Means das contas ativas, pelo perfil das 12 semanas anteriores |
+| `weekly_batches` | a semana, as contas ativas e as métricas contra o gabarito; `released_at` fica vazio até o replay |
+| `ingestions` | envios da API com transações na semana passam a `processing`, e a `completed` quando todas as semanas deles estão processadas |
+| `audit_log` | `actor = worker`, `action = batch`, `entity = week`, com alertas, versão do modelo e contas ativas |
+
+`evidence.weekly_signals`: `sent_count`, `received_count`, `sent_amount`, `received_amount`,
+`distinct_counterparties`, `cash_share` (fração em espécie) e `cross_border_share` (fração
+com países diferentes), sobre as transações da conta na semana como estão no banco: as mesmas
+que a API lista no detalhe do alerta.
+
+`weekly_batches.metrics`: `recall` e `precision` da fila (conta-semana lavadora: alguma
+transação dela tem rótulo 1, com o CAIXA, como na avaliação do modelo), as contagens
+`laundering_accounts`, `queue_size` e `innocents_in_queue`, `country_rates` (só países com 30
+ou mais contas ativas na semana, pelo país principal da conta) e `payment_type_rates`. Só
+contam as transações com gabarito: as enviadas pela API ficam fora. `typology_accuracy` fica
+de fora enquanto o modelo não prevê tipologia (a API mostra 0).
 
 ## Quem cuida de quê
 
