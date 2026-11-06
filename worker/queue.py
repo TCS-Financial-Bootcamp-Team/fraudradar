@@ -66,5 +66,7 @@ def select_queue(accounts: pd.DataFrame, cut: float, size: int) -> pd.DataFrame:
 def contributions(booster: lgb.Booster, x: pd.DataFrame) -> list[dict[str, float]]:
     """A contribuição de cada variável do modelo ao score de cada linha de `x`, em log-odds
     (`training.explain`, o mesmo cálculo do SHAP), para `evidence.contributions`."""
+    if x.empty:  # fila vazia: o LightGBM recusa predict sem linhas
+        return []
     explained = explain(booster, x, top=x.shape[1])
     return [{r["feature"]: r["contribution"] for r in reasons} for reasons in explained]

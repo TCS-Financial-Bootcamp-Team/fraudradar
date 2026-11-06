@@ -2,6 +2,8 @@
 scores do modelo, o gabarito fora do score e o reprocessamento que nunca apaga trabalho de
 analista."""
 
+import json
+import shutil
 from datetime import timedelta
 
 import numpy as np
@@ -311,3 +313,35 @@ def test_segments_are_set_for_the_active_accounts(batch, loaded):
 def test_missing_model_is_an_error(loaded, tmp_path):
     with pytest.raises(WorkerError, match="nenhum modelo"):
         run_batch(loaded, FIRST_WEEK, model_dir=tmp_path)
+
+
+def test_card_not_in_utf8_is_an_error_that_says_what_to_run(loaded, model_dir, tmp_path):
+    """Ficha gravada no Windows antes do conserto do UTF-8: mensagem clara, não traceback."""
+    folder = tmp_path / "model"
+    shutil.copytree(model_dir, folder)
+    path = folder / "lightgbm_v1.json"
+    path.write_bytes(
+        path.read_text(encoding="utf-8").replace("{", '{"x": "ç",', 1).encode("cp1252")
+    )
+    with pytest.raises(WorkerError, match="python -m fraudradar.model train"):
+        run_batch(loaded, FIRST_WEEK, model_dir=folder)
+
+
+def test_week_with_an_empty_queue_is_processed(loaded, model_dir, no_rules, client, tmp_path):
+    """Nenhuma conta acima do corte (ex.: um envio pequeno pela API): a semana ganha lote sem
+    alertas. Sem isso, ela nunca seria processada e o replay ficaria preso nela."""
+    folder = tmp_path / "model"
+    shutil.copytree(model_dir, folder)
+    path = folder / "lightgbm_v1.json"
+    high_cut = {**json.loads(path.read_text(encoding="utf-8")), "queue_cut": 1.0}
+    path.write_text(json.dumps(high_cut), encoding="utf-8")
+
+    [week] = run_batch(loaded, FIRST_WEEK, model_dir=folder, rules_dir=no_rules).processed
+
+    assert week.alerts == 0 and scalar(loaded, "SELECT count(*) FROM alerts") == 0
+    metrics = scalar(loaded, "SELECT metrics FROM weekly_batches")
+    assert metrics["queue_size"] == 0 and metrics["recall"] == 0 and metrics["precision"] is None
+    assert client.post("/replay/next-week").json()["alerts_generated"] == 0
+    response = client.get("/monitoring", params={"week": FIRST_WEEK.isoformat()})
+    assert response.status_code == 200
+    assert response.json()["indicators"]["alerts"] == 0

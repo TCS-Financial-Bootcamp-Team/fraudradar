@@ -99,6 +99,11 @@ def load_card(model_dir: Path | None = None) -> tuple[lgb.Booster, dict]:
         raise WorkerError(f"{exc} (uv run --group ml python -m fraudradar.model train)") from exc
     except lgb.basic.LightGBMError as exc:
         raise WorkerError(f"não consegui ler o modelo: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise WorkerError(
+            "a ficha do modelo não está em UTF-8 (foi gravada antes do conserto da ficha): treine"
+            " de novo (uv run --group ml python -m fraudradar.model train)"
+        ) from exc
     missing = [key for key in CARD_KEYS if key not in card]
     if missing:
         raise WorkerError(
