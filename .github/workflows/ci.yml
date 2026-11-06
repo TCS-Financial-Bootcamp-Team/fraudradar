@@ -35,9 +35,10 @@ jobs:
         with:
           python-version: "3.12"
           enable-cache: true
-      # Os testes só precisam de base + api + dev; ml/ia ficam fora para o CI ser rápido.
+      # base + api + ml + dev: com o ml, os testes do modelo e do worker rodam em vez de serem
+      # pulados. O grupo ai (torch) fica fora para o CI ser rápido.
       - run: uv lock --check
-      - run: uv sync --locked --group api --group dev
+      - run: uv sync --locked --group api --group ml --group dev
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run pytest
