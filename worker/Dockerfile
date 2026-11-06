@@ -22,6 +22,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY src ./src
 COPY api ./api
 COPY worker ./worker
+# Regras de cenário que o lote roda a cada semana (evidence.rules)
+COPY db/rules ./db/rules
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-default-groups --group ml --group ai
 
