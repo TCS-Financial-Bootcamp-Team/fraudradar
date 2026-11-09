@@ -32,6 +32,8 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("DATABASE_URL", UNREACHABLE_DB)
     monkeypatch.setenv("DB_CONNECT_TIMEOUT", "1")
     monkeypatch.setenv("MODEL_DIR", str(tmp_path))
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("GOOGLE_API_KEY", "")
     monkeypatch.setenv("OPENAI_API_KEY", "")
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     monkeypatch.setenv("LLM_PROVIDER", "openai")

@@ -61,6 +61,32 @@ def test_health_detects_model_and_key(monkeypatch, tmp_path):
     assert body["llm"]["ok"] is True
 
 
+@pytest.mark.parametrize("variable", ["GEMINI_API_KEY", "GOOGLE_API_KEY"])
+def test_gemini_key_is_read_from_either_name(monkeypatch, variable):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv(variable, "  chave-de-teste  ")
+    get_settings.cache_clear()
+    s = get_settings()
+    assert s.llm_key_configured is True
+    assert s.llm_api_key == "chave-de-teste"
+
+
+def test_empty_gemini_key_does_not_hide_google_key(monkeypatch):
+    # É o .env.example preenchido só com GOOGLE_API_KEY.
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    monkeypatch.setenv("GOOGLE_API_KEY", "chave-google")
+    get_settings.cache_clear()
+    assert get_settings().llm_api_key == "chave-google"
+
+
+def test_key_of_another_provider_does_not_count(monkeypatch):
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    get_settings.cache_clear()
+    assert get_settings().llm_key_configured is False
+
+
 def test_worker_fails_cleanly_without_database():
     from worker.cli import main
 
