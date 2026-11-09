@@ -1,9 +1,8 @@
 "use client";
 
 import { Bell, Menu, Search } from "lucide-react";
-import { Input } from "@/components/ui/field";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { useAppContext } from "@/components/app-context";
+import { WeekPicker } from "@/features/alerts/components/week-picker";
 import { HeaderAccountMenu } from "./account-menu";
 import { SIDEBAR_ID } from "./sidebar";
 
@@ -24,8 +23,6 @@ export function Header({
   onMobileMenuToggle,
   onOpenNotifications,
 }: HeaderProps) {
-  const { week, setWeek } = useAppContext();
-
   return (
     <header className="z-10 flex h-16 shrink-0 items-center justify-between border-b border-border bg-card px-4 text-card-foreground transition-all duration-300 motion-reduce:transition-none">
       <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -57,20 +54,12 @@ export function Header({
 
         <div className="mx-1 hidden h-6 w-px shrink-0 bg-border md:block" />
 
-        <label className="flex items-center gap-2 text-xs">
+        <div className="flex items-center gap-2 text-xs">
           <span className="hidden text-muted-foreground lg:inline whitespace-nowrap">
             Semana de referência
           </span>
-          <Input
-            className="h-8 w-[145px] border-0 bg-muted text-xs"
-            type="date"
-            aria-label="Semana de referência"
-            value={week}
-            onChange={(e) => {
-              if (e.target.value) setWeek(e.target.value);
-            }}
-          />
-        </label>
+          <WeekPicker />
+        </div>
 
         <div className="hidden items-center gap-2 border-l border-border pl-4 text-xs text-muted-foreground xl:flex">
           <Search className="size-4 shrink-0" />

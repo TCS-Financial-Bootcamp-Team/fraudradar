@@ -34,11 +34,21 @@ test("mock: decisão, parecer, comunicação e replay preservam consistência na
         graph.nodes.some((n) => n.id === e.target),
     ),
   );
+  const weeksBefore = await s.fetchWeeks();
+  assert.equal(weeksBefore.current, week);
+  assert.equal(weeksBefore.next_release, "2026-10-26");
   const nextBatch = await s.advanceWeek(week);
   assert.equal(nextBatch.week, "2026-10-26");
   assert.equal(
     (await s.fetchAlerts({ week: nextBatch.week })).total,
     nextBatch.alerts_generated,
+  );
+  // O seletor só oferece semanas liberadas, da mais recente para a mais antiga.
+  const weeksAfter = await s.fetchWeeks();
+  assert.equal(weeksAfter.current, "2026-10-26");
+  assert.deepEqual(
+    weeksAfter.items.map((item) => item.week),
+    ["2026-10-26", "2026-10-19", "2026-10-12"],
   );
 });
 

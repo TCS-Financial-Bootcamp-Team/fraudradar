@@ -1,11 +1,24 @@
 "use client";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import {
+  EmptyState,
+  LoadingState,
+  ResourceError,
+} from "@/components/ui/states";
 import { formatPercent } from "@/lib/format";
 import { useMonitoring } from "../hooks/use-alerts";
 import { ChartCard } from "./charts";
 export function MonitoringView() {
   const resource = useMonitoring();
   if (resource.loading) return <LoadingState />;
+  if (resource.data === null)
+    return (
+      <section className="panel">
+        <EmptyState
+          title="Nenhuma semana liberada"
+          description="Libere uma semana na Visão geral para ver os indicadores."
+        />
+      </section>
+    );
   if (resource.error || !resource.data)
     return (
       <ResourceError

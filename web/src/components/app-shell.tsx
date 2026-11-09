@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useState } from "react";
 import { AppContextProvider, useAppContext } from "@/components/app-context";
 import { SidePanel } from "@/components/ui/side-panel";
+import { LoadingState, ResourceError } from "@/components/ui/states";
 import { FloatingAssistant } from "@/features/assistant/components/assistant";
 import { useAlertQueue } from "@/features/alerts/hooks/use-alerts";
 import { USE_MOCKS } from "@/lib/api";
@@ -30,7 +31,7 @@ function ShellContent({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const pathname = usePathname();
-  const { week } = useAppContext();
+  const { week, weeksLoading, weeksError, reloadWeeks } = useAppContext();
   const queue = useAlertQueue("pending");
 
   // Fecha o menu mobile ao trocar de rota sem passe de render extra.
@@ -98,10 +99,17 @@ function ShellContent({
           className="flex-1 overflow-y-auto min-w-0 outline-none"
         >
           <div className="mx-auto grid max-w-[1600px] w-full min-w-0 gap-7 p-4 pb-12 sm:p-8 sm:pb-16">
-            {children}
+            {weeksLoading ? (
+              <LoadingState />
+            ) : weeksError ? (
+              <ResourceError message={weeksError} onRetry={reloadWeeks} />
+            ) : (
+              children
+            )}
           </div>
           <footer className="mx-auto max-w-[1600px] w-full px-4 pb-6 sm:px-8 text-[10px] text-muted-foreground">
-            FraudRadar PLD · SAML-D · Semana de {formatShortDate(week)}
+            FraudRadar PLD · SAML-D
+            {week ? " · Semana de " + formatShortDate(week) : ""}
           </footer>
         </main>
       </div>

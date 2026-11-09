@@ -1,39 +1,67 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { USE_MOCKS } from "@/lib/api";
+import { useWeekCatalog } from "@/features/alerts/hooks/use-week-catalog";
+import type { Weeks } from "@/features/alerts/schemas/alerts";
 
-function getInitialWeek() {
-  if (USE_MOCKS) return "2026-10-19";
-  const today = new Date();
-  const day = today.getUTCDay() || 7;
-  today.setUTCDate(today.getUTCDate() - day + 1);
-  return today.toISOString().slice(0, 10);
-}
-
-const AppContext = createContext<{
+type AppContextValue = {
+  /** Semana em exibição (segunda-feira, AAAA-MM-DD); "" quando nenhuma foi liberada. */
   week: string;
   setWeek: (value: string) => void;
+  /** Semanas liberadas, da mais recente para a mais antiga: as únicas que dá para escolher. */
+  weeks: string[];
+  nextRelease: string | null;
+  weeksLoading: boolean;
+  weeksError?: string;
+  reloadWeeks: () => void;
   revision: number;
   refresh: () => void;
-}>({
-  week: "2026-10-19",
+};
+
+const AppContext = createContext<AppContextValue>({
+  week: "",
   setWeek: () => {},
+  weeks: [],
+  nextRelease: null,
+  weeksLoading: true,
+  reloadWeeks: () => {},
   revision: 0,
   refresh: () => {},
 });
+
+// A semana escolhida só vale se estiver entre as liberadas; senão vale a mais recente. Assim
+// o app abre na última semana com dados (não na semana de hoje, que não existe no SAML-D) e
+// nunca mostra uma semana sem transações processadas.
+function pickWeek(selected: string | null, catalog?: Weeks) {
+  if (!catalog) return "";
+  if (selected && catalog.items.some((item) => item.week === selected))
+    return selected;
+  return catalog.current ?? "";
+}
+
 export function AppContextProvider({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [week, setWeek] = useState(getInitialWeek);
+  const [selected, setSelected] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const catalog = useWeekCatalog(revision);
+  // Enquanto recarrega (depois de um replay), o useResource não devolve dado: vale o último
+  // catálogo, para a tela não piscar como se não houvesse semana.
+  const [lastCatalog, setLastCatalog] = useState<Weeks>();
+  if (catalog.data && catalog.data !== lastCatalog) setLastCatalog(catalog.data);
+  const data = catalog.data ?? lastCatalog;
   return (
     <AppContext.Provider
       value={{
-        week,
-        setWeek,
+        week: pickWeek(selected, data),
+        setWeek: setSelected,
+        weeks: data?.items.map((item) => item.week) ?? [],
+        nextRelease: data?.next_release ?? null,
+        weeksLoading: !data && !catalog.error,
+        weeksError: catalog.error,
+        reloadWeeks: catalog.reload,
         revision,
         refresh: () => setRevision((v) => v + 1),
       }}

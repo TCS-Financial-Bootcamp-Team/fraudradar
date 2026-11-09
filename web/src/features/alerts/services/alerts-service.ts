@@ -10,6 +10,7 @@ import {
   monitoringSchema,
   assessmentSchema,
   replaySchema,
+  weeksSchema,
   type DecisionRequest,
   type AlertFilters,
 } from "../schemas/alerts";
@@ -160,6 +161,10 @@ export async function fetchMonitoring(week: string, signal?: AbortSignal) {
           signal,
         }),
   );
+}
+export async function fetchWeeks(signal?: AbortSignal) {
+  if (USE_MOCKS) return weeksSchema.parse((await import("./mocks")).weeksMock());
+  return weeksSchema.parse(await apiGet("/weeks", { signal }));
 }
 export async function advanceWeek(week: string) {
   if (USE_MOCKS) {

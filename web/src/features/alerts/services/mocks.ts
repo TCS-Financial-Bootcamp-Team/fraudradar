@@ -4,6 +4,7 @@ import type {
   AlertDetail,
   AlertFilters,
   Monitoring,
+  Weeks,
 } from "../schemas/alerts";
 
 export const alertsMock: Alert[] = Array.from({ length: 36 }, (_, i) => ({
@@ -53,6 +54,24 @@ export function queueMock(filters: AlertFilters) {
     items: items.slice(start, start + 10),
     total: items.length,
     countries: [...new Set(alertsMock.map((a) => a.country))],
+  };
+}
+export function weeksMock(): Weeks {
+  const weeks = [...new Set(alertsMock.map((a) => a.week))].sort().reverse();
+  const next = new Date(weeks[0] + "T00:00:00Z");
+  next.setUTCDate(next.getUTCDate() + 7);
+  return {
+    current: weeks[0] ?? null,
+    // No modo demonstrativo sempre há uma semana a mais para liberar.
+    next_release: next.toISOString().slice(0, 10),
+    items: weeks.map((week) => {
+      const ofWeek = alertsMock.filter((a) => a.week === week);
+      return {
+        week,
+        alerts: ofWeek.length,
+        pending: ofWeek.filter((a) => a.status === "pending").length,
+      };
+    }),
   };
 }
 export function alertDetailMock(id: string): AlertDetail {

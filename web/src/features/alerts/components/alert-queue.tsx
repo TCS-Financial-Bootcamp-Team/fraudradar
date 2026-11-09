@@ -3,22 +3,18 @@ import { useState } from "react";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { useAppContext } from "@/components/app-context";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Select } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
 import { useAlertQueue } from "../hooks/use-alerts";
 import { AlertsTable, statusLabels } from "./alerts-table";
+import { WeekPicker } from "./week-picker";
 
 export function AlertQueue() {
-  const { week, setWeek } = useAppContext();
-  return <WeeklyAlertQueue key={week} week={week} setWeek={setWeek} />;
+  const { week } = useAppContext();
+  // A key zera filtros e página quando a semana muda.
+  return <WeeklyAlertQueue key={week} />;
 }
-function WeeklyAlertQueue({
-  week,
-  setWeek,
-}: {
-  week: string;
-  setWeek: (value: string) => void;
-}) {
+function WeeklyAlertQueue() {
   const [status, setStatus] = useState("");
   const [country, setCountry] = useState("");
   const [page, setPage] = useState(1);
@@ -71,16 +67,9 @@ function WeeklyAlertQueue({
             </Select>
           </Field>
         </div>
-        <div className="min-w-40 flex-1">
-          <Field label="Semana">
-            <Input
-              type="date"
-              value={week}
-              onChange={(e) => {
-                if (e.target.value) setWeek(e.target.value);
-              }}
-            />
-          </Field>
+        <div className="grid min-w-40 flex-1 gap-2 text-sm font-medium">
+          <span>Semana</span>
+          <WeekPicker />
         </div>
         <Button
           variant="outline"
