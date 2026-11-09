@@ -83,6 +83,19 @@ export const replaySchema = z.object({
   week: z.iso.date(),
   alerts_generated: z.number().int().nonnegative(),
 });
+// Semanas liberadas pelo replay, da mais recente para a mais antiga: as únicas que o
+// seletor deixa escolher. next_release é a que o próximo replay libera (null: nenhuma).
+export const weeksSchema = z.object({
+  current: z.iso.date().nullable(),
+  next_release: z.iso.date().nullable(),
+  items: z.array(
+    z.object({
+      week: z.iso.date(),
+      alerts: z.number().int().nonnegative(),
+      pending: z.number().int().nonnegative(),
+    }),
+  ),
+});
 export const seriesSchema = z.object({
   name: z.string(),
   value: z.number().nonnegative(),
@@ -114,6 +127,7 @@ export type DecisionRequest = z.infer<typeof decisionSchema>;
 export type Report = z.infer<typeof reportSchema>;
 export type ApprovalRequest = z.infer<typeof approvalSchema>;
 export type Replay = z.infer<typeof replaySchema>;
+export type Weeks = z.infer<typeof weeksSchema>;
 export type Monitoring = z.infer<typeof monitoringSchema>;
 export type Series = z.infer<typeof seriesSchema>;
 export type AlertFilters = {

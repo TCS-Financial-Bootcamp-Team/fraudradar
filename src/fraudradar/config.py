@@ -18,7 +18,13 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://fraudradar:fraudradar@localhost:5432/fraudradar"
     db_connect_timeout: int = 3
 
-    llm_provider: Literal["openai", "anthropic"] = "openai"
+    # O time usa o Gemini; OpenAI e Anthropic continuam como alternativa.
+    llm_provider: Literal["gemini", "openai", "anthropic"] = "gemini"
+    # Dois campos, e não um com AliasChoices: o .env.example traz GEMINI_API_KEY vazio, e o
+    # alias pegaria esse vazio e ignoraria um GOOGLE_API_KEY preenchido (o nome que a
+    # biblioteca do Google, langchain-google-genai, procura).
+    gemini_api_key: str | None = None
+    google_api_key: str | None = None
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     llm_model: str | None = None
@@ -55,9 +61,18 @@ class Settings(BaseSettings):
         return self.model_dir / self.model_file
 
     @property
+    def llm_api_key(self) -> str | None:
+        """A chave do provedor escolhido em LLM_PROVIDER (só a API e o worker leem)."""
+        candidates = {
+            "gemini": [self.gemini_api_key, self.google_api_key],
+            "openai": [self.openai_api_key],
+            "anthropic": [self.anthropic_api_key],
+        }[self.llm_provider]
+        return next((k.strip() for k in candidates if k and k.strip()), None)
+
+    @property
     def llm_key_configured(self) -> bool:
-        key = self.openai_api_key if self.llm_provider == "openai" else self.anthropic_api_key
-        return bool(key and key.strip())
+        return self.llm_api_key is not None
 
 
 @lru_cache

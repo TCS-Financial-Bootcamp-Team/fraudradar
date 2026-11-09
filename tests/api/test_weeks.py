@@ -8,7 +8,28 @@ W1, W2, W3 = date(2023, 1, 2), date(2023, 1, 9), date(2023, 1, 16)
 
 def test_no_released_week(client, seed):
     seed.batch(W1)  # processada, ainda não liberada
-    assert client.get("/weeks").json() == {"current": None, "items": []}
+    assert client.get("/weeks").json() == {
+        "current": None,
+        "next_release": "2023-01-02",
+        "items": [],
+    }
+
+
+def test_empty_database_has_nothing_to_show_or_release(client):
+    assert client.get("/weeks").json() == {"current": None, "next_release": None, "items": []}
+
+
+def test_next_release_follows_the_replay(client, seed):
+    seed.batch(W1, released=True)
+    seed.batch(W3)
+    seed.batch(W2)
+    assert client.get("/weeks").json()["next_release"] == "2023-01-09"
+    client.post("/replay/next-week")
+    assert client.get("/weeks").json()["next_release"] == "2023-01-16"
+    client.post("/replay/next-week")
+    body = client.get("/weeks").json()
+    assert (body["current"], body["next_release"]) == ("2023-01-16", None)
+    assert client.post("/replay/next-week").status_code == 409
 
 
 def test_lists_only_released_weeks_from_newest_to_oldest(client, seed):
@@ -22,6 +43,7 @@ def test_lists_only_released_weeks_from_newest_to_oldest(client, seed):
     seed.alert(5, W3)
     body = client.get("/weeks").json()
     assert body["current"] == "2023-01-09"
+    assert body["next_release"] == "2023-01-16"
     assert body["items"] == [
         {"week": "2023-01-09", "alerts": 0, "pending": 0},
         {"week": "2023-01-02", "alerts": 4, "pending": 2},

@@ -14,7 +14,11 @@ def test_queue_detail_replay_and_monitoring(client, loaded, model_dir, no_rules)
     params = {"week": FIRST_WEEK.isoformat()}
 
     # processada, mas ainda não liberada
-    assert client.get("/weeks").json() == {"current": None, "items": []}
+    assert client.get("/weeks").json() == {
+        "current": None,
+        "next_release": "2023-05-22",
+        "items": [],
+    }
     released = client.post("/replay/next-week", json={}).json()
     assert released == {"week": "2023-05-22", "alerts_generated": week.alerts}
 

@@ -13,6 +13,9 @@ export function useAlertQueue(status = "", country = "", page = 1) {
   const loader = useCallback(
     (signal: AbortSignal) => {
       void revision;
+      // Sem semana liberada não há fila (a API exige a semana).
+      if (!week)
+        return Promise.resolve({ items: [], total: 0, countries: [] });
       return alertsService.fetchAlerts(
         { week, status, country, page },
         signal,
@@ -28,6 +31,7 @@ export function useMonitoring() {
     useCallback(
       (signal: AbortSignal) => {
         void revision;
+        if (!week) return Promise.resolve(null);
         return alertsService.fetchMonitoring(week, signal);
       },
       [week, revision],
@@ -79,10 +83,12 @@ export function useAlertDetail(id: string) {
   };
 }
 export function useReplay() {
-  const { week, setWeek, refresh } = useAppContext();
+  const { week, setWeek, refresh, nextRelease } = useAppContext();
   const [busy, setBusy] = useState(false);
   return {
     busy,
+    // Sem semana processada aguardando, o replay responderia 409: o botão fica desligado.
+    nextRelease,
     advance: async () => {
       setBusy(true);
       try {
@@ -104,6 +110,7 @@ export function useReports() {
     useCallback(
       (signal: AbortSignal) => {
         void revision;
+        if (!week) return Promise.resolve([]);
         return alertsService.listReports(week, signal);
       },
       [week, revision],

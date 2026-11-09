@@ -10,9 +10,18 @@ import {
   Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import {
+  EmptyState,
+  LoadingState,
+  ResourceError,
+} from "@/components/ui/states";
 import { HealthBadge } from "@/features/health/components/health-badge";
-import { formatCurrency, formatNumber, formatPercent } from "@/lib/format";
+import {
+  formatCurrency,
+  formatNumber,
+  formatPercent,
+  formatShortDate,
+} from "@/lib/format";
 import { useAlertQueue, useMonitoring, useReplay } from "../hooks/use-alerts";
 import { ChartCard } from "./charts";
 import { AlertsTable } from "./alerts-table";
@@ -21,7 +30,49 @@ export function Dashboard() {
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
   const replay = useReplay();
+  const heading = (
+    <div className="page-heading">
+      <div>
+        <p className="eyebrow !mt-0 mb-2">Centro de operações</p>
+        <h1>Visão geral</h1>
+        <p>O que precisa da sua atenção, em um só lugar.</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <HealthBadge />
+        <div className="grid justify-items-end gap-1">
+          <Button
+            disabled={replay.busy || !replay.nextRelease}
+            onClick={() => void replay.advance()}
+          >
+            <RefreshCw className={replay.busy ? "animate-spin" : ""} />
+            {replay.busy ? "Liberando…" : "Liberar próxima semana"}
+          </Button>
+          <p className="text-[11px] text-muted-foreground">
+            {replay.nextRelease
+              ? "Próxima: semana de " + formatShortDate(replay.nextRelease)
+              : "Nenhuma semana processada aguardando. Rode o worker."}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
   if (monitoring.loading) return <LoadingState />;
+  if (monitoring.data === null)
+    return (
+      <>
+        {heading}
+        <section className="panel">
+          <EmptyState
+            title="Nenhuma semana liberada"
+            description={
+              replay.nextRelease
+                ? "Libere a primeira semana para ver a fila e os indicadores."
+                : "Ainda não há semana processada. Rode o worker (docker compose run --rm worker backfill) e volte aqui."
+            }
+          />
+        </section>
+      </>
+    );
   if (monitoring.error || !monitoring.data)
     return (
       <ResourceError
@@ -58,20 +109,7 @@ export function Dashboard() {
   ];
   return (
     <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow !mt-0 mb-2">Centro de operações</p>
-          <h1>Visão geral</h1>
-          <p>O que precisa da sua atenção, em um só lugar.</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <HealthBadge />
-          <Button disabled={replay.busy} onClick={() => void replay.advance()}>
-            <RefreshCw className={replay.busy ? "animate-spin" : ""} />
-            {replay.busy ? "Processando…" : "Processar próxima semana"}
-          </Button>
-        </div>
-      </div>
+      {heading}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {kpis.map(({ label, value, hint, icon: IconComponent }) => (
           <article key={label} className="panel p-5">

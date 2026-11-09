@@ -42,14 +42,22 @@ variable "web_port" {
 }
 
 variable "llm_provider" {
-  type    = string
-  default = "openai"
+  description = "Provedor do LLM: gemini (o do time), openai ou anthropic."
+  type        = string
+  default     = "gemini"
 }
 
 # A API valida o login dos analistas com a chave pública deste projeto Supabase.
 variable "supabase_url" {
   type    = string
   default = ""
+}
+
+variable "gemini_api_key" {
+  description = "Chave do Gemini (Google AI Studio). Só a API recebe."
+  type        = string
+  default     = ""
+  sensitive   = true
 }
 
 variable "openai_api_key" {

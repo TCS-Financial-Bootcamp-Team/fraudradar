@@ -106,6 +106,7 @@ resource "docker_container" "api" {
     "DATABASE_URL=${local.database_url}",
     "MODEL_DIR=/app/models",
     "LLM_PROVIDER=${var.llm_provider}",
+    "GEMINI_API_KEY=${var.gemini_api_key}",
     "OPENAI_API_KEY=${var.openai_api_key}",
     "ANTHROPIC_API_KEY=${var.anthropic_api_key}",
     "SUPABASE_URL=${var.supabase_url}",

@@ -226,7 +226,7 @@ token do Supabase (`Authorization: Bearer ...`); em desenvolvimento,
 | Rota | O que faz |
 |---|---|
 | `GET /health` | saúde: banco, modelo e LLM (`ok` ou `degraded`); sem login |
-| `GET /weeks` | semanas liberadas pelo replay |
+| `GET /weeks` | semanas liberadas pelo replay e a próxima a liberar (`next_release`) |
 | `POST /replay/next-week` | libera a próxima semana já processada |
 | `GET /alerts?week=` | fila paginada, filtros `status` e `country` |
 | `GET /alerts/{id}` | detalhe: contribuições, regras, movimentações, último parecer |
@@ -285,8 +285,8 @@ cd web && pnpm install && pnpm dev        # front em modo dev
 Terraform (`infra/terraform`) sobe os mesmos containers com prefixo `fraudradar-tf`;
 não rode junto com o Compose, as portas colidem.
 
-Variáveis (`.env.example`): `POSTGRES_*` e `DATABASE_URL` (banco); `LLM_PROVIDER`,
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `EMBEDDING_MODEL` (IA, só na API e no worker);
+Variáveis (`.env.example`): `POSTGRES_*` e `DATABASE_URL` (banco); `LLM_PROVIDER`
+(`gemini`, o do time), `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `EMBEDDING_MODEL` (IA, só na API e no worker);
 `MODEL_DIR`, `MODEL_FILE` (modelo treinado); `CORS_ORIGINS`, `AUTH_DISABLED` (API);
 `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_USE_MOCKS`, `NEXT_PUBLIC_SUPABASE_URL`,
 `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (front).

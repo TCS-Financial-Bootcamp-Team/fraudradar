@@ -31,6 +31,7 @@ ai = [
     "langchain>=0.3",
     "langchain-openai>=0.2",
     "langchain-anthropic>=0.2",
+    "langchain-google-genai>=2.0",
     "langchain-postgres>=0.0.12",
     "sentence-transformers>=3.0",
     # declarado só para forçar a build CPU (ver tool.uv.sources)
