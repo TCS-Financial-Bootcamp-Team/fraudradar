@@ -57,8 +57,9 @@ trash/
 
 # Rascunho da equipe (exploração do dataset)
 # Manter README e notebook oficial no Git
-lab/*
+/lab/*
 !lab/README.md
 !lab/FraudRadar_LSTM.ipynb
 laboratorio/
 .pnpm-store/
+!yuji/
