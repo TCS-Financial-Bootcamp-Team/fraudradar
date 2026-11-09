@@ -24,6 +24,13 @@ def released_weeks(conn: Connection) -> list[RowMapping]:
     return list(conn.execute(text(sql), {"pending": pending}).mappings())
 
 
+def next_release(conn: Connection) -> date | None:
+    """A semana que o próximo replay libera: a processada mais antiga ainda não liberada."""
+    return conn.execute(
+        text("SELECT min(week) FROM weekly_batches WHERE released_at IS NULL")
+    ).scalar()
+
+
 def release_next_week(conn: Connection, user: User) -> tuple[date, int] | None:
     """Libera a semana processada mais antiga ainda não exibida. None se não houver."""
     # Dois cliques simultâneos liberam duas semanas em sequência, nunca a mesma duas vezes.

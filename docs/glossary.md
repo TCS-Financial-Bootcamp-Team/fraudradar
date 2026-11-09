@@ -188,7 +188,7 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 | `Report` / `reportSchema` | `Comunicacao {alerta_id, texto, status, atualizado_em}` | `alert_id`, `content`, `status` (`draft`, `approved`), `updated_at` |
 | `ApprovalRequest` / `approvalSchema` | `PedidoAprovacao {texto}` | `content` |
 | `Replay` / `replaySchema` | `{semana, alertas_gerados}` | `week`, `alerts_generated` |
-| `Weeks` | `Semanas {atual, itens}` | `current`, `items` |
+| `Weeks` | `Semanas {atual, proxima_liberacao, itens}` | `current`, `next_release`, `items` |
 | `ProcessedWeek` | `SemanaProcessada {semana, alertas, pendentes}` | `week`, `alerts`, `pending` |
 | `Monitoring` / `monitoringSchema` | `Monitoramento {semana, indicadores, semanas, tipologias, paises, taxa_paises, taxa_meios}` | `week`, `indicators`, `weeks`, `typologies`, `countries`, `country_rates`, `payment_type_rates` |
 | `Indicators` | `{alertas, revisados, comunicados, taxa_alerta, valor_sinalizado, recall, acerto_tipologia}` | `alerts`, `reviewed`, `reported`, `alert_rate`, `flagged_amount`, `recall`, `typology_accuracy` |

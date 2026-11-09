@@ -108,7 +108,7 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 
 | Rota | O que faz |
 |---|---|
-| `GET /weeks` | semanas já liberadas pelo replay (`current` é a mais recente) |
+| `GET /weeks` | semanas já liberadas pelo replay (`current` é a mais recente; `next_release`, a que o próximo replay libera, ou `null`) |
 | `POST /replay/next-week` | libera a próxima semana já processada pelo worker |
 | `GET /alerts?week=` | fila paginada da semana (filtros `status` e `country`) |
 | `GET /alerts/{id}` | detalhe: contribuições, regras, movimentações e último parecer |

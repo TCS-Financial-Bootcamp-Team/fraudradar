@@ -22,6 +22,7 @@ A normalização/conversão dos valores é responsabilidade da API.
 | GET /alerts/{id}/report             | reportSchema: alert_id, content, status, updated_at.                                                         |
 | POST /alerts/{id}/report/approve    | approvalSchema: {content}; resposta reportSchema atualizado. A edição é persistida junto da aprovação.       |
 | POST /alerts/{id}/chat              | chatRequestSchema; resposta chatResponseSchema.                                                              |
+| GET /weeks                          | weeksSchema: {current, next_release, items}. Só as semanas liberadas entram no seletor; next_release nulo desliga o replay. |
 | POST /replay/next-week              | Pedido {}; resposta replaySchema: {week, alerts_generated}. A API controla a progressão e a idempotência.    |
 | GET /monitoring?week=               | monitoringSchema, usado pelo dashboard e pela tela de qualidade.                                             |
 | GET /health                         | healthSchema, compatível com o contrato anterior.                                                            |
