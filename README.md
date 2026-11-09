@@ -147,7 +147,9 @@ Cada envio vira um registro em `ingestions`, cujo id é o do recibo, com status
 `received`: o score sai quando o worker processa a semana das transações.
 
 Terraform (alternativa ao Compose, mesmos containers com prefixo
-`fraudradar-tf`; não rode os dois juntos, as portas colidem):
+`fraudradar-tf`; não rode os dois juntos, as portas colidem). Como funciona, cada
+recurso e variável, passo a passo e diferenças em relação ao Compose:
+[`infra/terraform/README.md`](infra/terraform/README.md).
 
 ```bash
 cd infra/terraform
