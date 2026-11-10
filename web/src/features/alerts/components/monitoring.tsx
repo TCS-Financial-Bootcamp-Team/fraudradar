@@ -68,7 +68,7 @@ export function MonitoringView() {
           <article className="panel p-6" key={metric.label}>
             <h2 className="text-sm text-muted-foreground">{metric.label}</h2>
             <p className="my-5 text-4xl font-semibold tracking-tight">
-              {formatPercent(metric.value)}
+              {metric.value !== null ? formatPercent(metric.value) : "—"}
             </p>
             <p className="text-xs leading-relaxed text-muted-foreground">
               {metric.description}

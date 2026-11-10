@@ -154,8 +154,8 @@ export function monitoringMock(week: string): Monitoring {
       ).length,
       alert_rate: items.length ? 0.024 : 0,
       flagged_amount: items.reduce((sum, a) => sum + a.amount, 0),
-      recall: items.length ? 0.924 : 0,
-      typology_accuracy: items.length ? 0.876 : 0,
+      recall: items.length ? 0.924 : null,
+      typology_accuracy: items.length ? 0.876 : null,
     },
     weeks: [
       { name: "14 set", value: 12 },
@@ -176,5 +176,47 @@ export function monitoringMock(week: string): Monitoring {
       "Dinheiro",
       "Pagamento digital",
     ].map((name, i) => ({ name, value: [0.032, 0.014, 0.048, 0.021][i] })),
+    recall_series: [
+      { name: "14 set", value: 0.88 },
+      { name: "21 set", value: 0.91 },
+      { name: "28 set", value: 0.89 },
+      { name: "05 out", value: 0.93 },
+      { name: "12 out", value: 0.9 },
+      { name: "19 out", value: 0.924 },
+    ],
+    score_histogram: [
+      { name: "40", value: items.filter((a) => a.score < 50).length },
+      {
+        name: "50",
+        value: items.filter((a) => a.score >= 50 && a.score < 60).length,
+      },
+      {
+        name: "60",
+        value: items.filter((a) => a.score >= 60 && a.score < 70).length,
+      },
+      {
+        name: "70",
+        value: items.filter((a) => a.score >= 70 && a.score < 80).length,
+      },
+      {
+        name: "80",
+        value: items.filter((a) => a.score >= 80 && a.score < 90).length,
+      },
+      {
+        name: "90",
+        value: items.filter((a) => a.score >= 90 && a.score < 95).length,
+      },
+      {
+        name: "95",
+        value: items.filter((a) => a.score >= 95 && a.score < 99.95).length,
+      },
+      { name: "100", value: items.filter((a) => a.score >= 99.95).length },
+    ],
+    status_counts: {
+      pending: items.filter((a) => a.status === "pending").length,
+      escalated: items.filter((a) => a.status === "escalated").length,
+      archived: items.filter((a) => a.status === "archived").length,
+      reported: items.filter((a) => a.status === "reported").length,
+    },
   };
 }

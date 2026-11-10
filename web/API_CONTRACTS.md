@@ -43,8 +43,9 @@ Monitoramento retorna:
 
 - week;
 - indicators: alerts, reviewed, reported, alert_rate, flagged_amount,
-  recall, typology_accuracy;
-- weeks, typologies, countries, country_rates e payment_type_rates: listas {name, value}.
+  recall (anulável), typology_accuracy (anulável);
+- weeks, typologies, countries, country_rates, payment_type_rates, recall_series e score_histogram: listas {name, value};
+- status_counts: contagem por status do alerta ({pending, escalated, archived, reported}).
 
 A série semanal inclui o histórico até a semana de referência. Métricas de
 qualidade são resultados de avaliação, sem expor rótulos ao modelo ou à UI.

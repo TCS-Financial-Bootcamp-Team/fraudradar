@@ -116,7 +116,7 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `POST /alerts/{id}/decision` | arquivar, aprofundar ou comunicar, com justificativa |
 | `GET /alerts/{id}/report` | rascunho da comunicação ao COAF |
 | `POST /alerts/{id}/report/approve` | aprova a comunicação e encerra o alerta |
-| `GET /monitoring?week=` | indicadores e séries da semana |
+| `GET /monitoring?week=` | indicadores e séries da semana (inclui recall_series, score_histogram e status_counts) |
 | `POST /alerts/{id}/assessment`, `/chat` | ainda respondem 503: dependem do RAG (frente 3) |
 | `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
 | `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
