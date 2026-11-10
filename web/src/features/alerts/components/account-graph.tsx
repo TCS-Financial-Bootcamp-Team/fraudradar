@@ -10,6 +10,7 @@ export function AccountGraph({ graph }: { graph: Graph }) {
   useEffect(() => {
     if (!ref.current) return;
     const css = getComputedStyle(document.documentElement);
+    const color = (name: string) => css.getPropertyValue(name).trim();
     const cy = cytoscape({
       container: ref.current,
       elements: [
@@ -26,36 +27,39 @@ export function AccountGraph({ graph }: { graph: Graph }) {
       ],
       style: [
         {
+          // Demais contas: círculo vazado, com a borda em tom neutro.
           selector: "node",
           style: {
-            "background-color": css.getPropertyValue("--chart-2").trim(),
+            "background-color": color("--card"),
+            "border-width": 1.4,
+            "border-color": color("--muted-foreground"),
             label: "data(label)",
-            color: css.getPropertyValue("--foreground").trim(),
+            color: color("--muted-foreground"),
+            "font-family": "Geist Mono, monospace",
             "font-size": 10,
             "text-valign": "bottom",
             "text-margin-y": 8,
-            width: 22,
-            height: 22,
+            width: 14,
+            height: 14,
           },
         },
         {
+          // Conta do alerta: nó cheio na cor primária.
           selector: 'node[central = "yes"]',
           style: {
-            "background-color": css.getPropertyValue("--chart-1").trim(),
-            width: 40,
-            height: 40,
-            "border-width": 6,
-            "border-color": css.getPropertyValue("--accent").trim(),
+            "background-color": color("--primary"),
+            "border-width": 0,
+            color: color("--foreground"),
+            width: 24,
+            height: 24,
           },
         },
         {
           selector: "edge",
           style: {
-            width: 1.5,
-            "line-color": css.getPropertyValue("--input").trim(),
-            "target-arrow-color": css
-              .getPropertyValue("--muted-foreground")
-              .trim(),
+            width: 1.4,
+            "line-color": color("--chart-muted"),
+            "target-arrow-color": color("--chart-muted"),
             "target-arrow-shape": "triangle",
             "curve-style": "bezier",
           },
@@ -86,11 +90,11 @@ export function AccountGraph({ graph }: { graph: Graph }) {
     <>
       <div
         ref={ref}
-        className="h-80 w-full"
+        className="h-72 w-full"
         role="img"
         aria-label="Rede de contas pseudonimizadas em até dois saltos"
       />
-      <details className="border-t px-5 py-3 text-xs text-muted-foreground">
+      <details className="mt-3 border-t border-soft pt-3 text-xs text-muted-foreground">
         <summary className="cursor-pointer">
           Consultar conexões em texto · alternativa ao grafo
         </summary>
