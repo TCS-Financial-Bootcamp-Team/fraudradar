@@ -247,7 +247,6 @@ Detalhes (limites, códigos de erro, padrões de código): `README.md` e `api/AG
 |---|---|---|
 | Visão geral | `/dashboard` | `features/alerts` |
 | Fila de alertas e detalhe | `/alerts`, `/alerts/[id]` | `features/alerts` |
-| Comunicações | `/reports` | `features/alerts` |
 | Monitoramento | `/monitoring` | `features/alerts` |
 | Fontes de dados | `/ingestion` | `features/ingestion` |
 | Configurações | `/settings` | `features/settings` |
