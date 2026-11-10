@@ -14,7 +14,7 @@ A normalização/conversão dos valores é responsabilidade da API.
 
 | Requisição                          | Pedido / resposta assumida                                                                                   |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| GET /alerts                         | Query: week, status e country opcionais; page (base 1), size=10, sort=score_desc. Resposta: queueSchema.     |
+| GET /alerts                         | Query: week obrigatória; status, country e search opcionais; page (base 1), size=10, sort=score_desc. Resposta: queueSchema.     |
 | GET /alerts/{id}                    | alertDetailSchema: resumo, contributions, rules, movements e assessment anulável.                            |
 | GET /alerts/{id}/graph              | graphSchema: nodes e edges, com IDs/labels de contas pseudonimizados. Até dois saltos.                       |
 | POST /alerts/{id}/assessment        | Pedido {}; resposta assessmentSchema com content e sources {title, excerpt}.                                 |
@@ -32,8 +32,9 @@ Decisão: archive, escalate, report. Justificativa: 10–4000 caracteres.
 Comunicação: draft ou approved; content: 30–20000 caracteres para aprovação.
 
 A fila retorna `{items, total, countries}`. `total` é o total filtrado antes da
-paginação; `countries` é o catálogo disponível para o filtro e não deve sumir
-quando um país for selecionado. A API deve ordenar por score antes de paginar.
+paginação (reflete os filtros de status, país e busca); `countries` é o catálogo
+disponível para o filtro na semana e não deve sumir quando um país for selecionado.
+A API deve ordenar por score antes de paginar.
 
 O detalhe contém contas pseudonimizadas, dados financeiros, regras e
 contribuições já calculadas. O frontend não calcula features ou score.
@@ -48,9 +49,9 @@ Monitoramento retorna:
 A série semanal inclui o histórico até a semana de referência. Métricas de
 qualidade são resultados de avaliação, sem expor rótulos ao modelo ou à UI.
 
-A lista de comunicações usa a fila paginada com status=reported e consulta o
-rascunho de cada alerta. Não foi inventado um GET /reports. Para um volume
-grande, o time deve fornecer uma coleção paginada para evitar várias consultas.
+O rascunho da comunicação é revisado e aprovado diretamente no detalhe do alerta
+(`/alerts/{id}`), consultando `GET /alerts/{id}/report` e gravando a aprovação via
+`POST /alerts/{id}/report/approve`.
 
 **Nada é enviado ao COAF.** O indicador de comunicados representa aprovações
 simuladas neste produto acadêmico. Validar esse rótulo com o responsável do produto.

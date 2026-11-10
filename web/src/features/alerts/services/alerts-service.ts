@@ -26,6 +26,7 @@ export async function fetchAlerts(filters: AlertFilters, signal?: AbortSignal) {
   });
   if (filters.status) query.set("status", filters.status);
   if (filters.country) query.set("country", filters.country);
+  if (filters.search) query.set("search", filters.search);
   return queueSchema.parse(await apiGet("/alerts?" + query, { signal }));
 }
 export async function fetchAlertDetail(id: string, signal?: AbortSignal) {
@@ -121,17 +122,6 @@ export async function fetchReport(id: string, signal?: AbortSignal) {
           signal,
         }),
   );
-}
-export async function listReports(week: string, signal?: AbortSignal) {
-  // A API planejada não tem endpoint de coleção: percorremos a fila paginada.
-  const firstPage = await fetchAlerts({ week, status: "reported" }, signal);
-  const items = [...firstPage.items];
-  for (let page = 2; items.length < firstPage.total; page++) {
-    const batch = await fetchAlerts({ week, status: "reported", page }, signal);
-    if (!batch.items.length) break;
-    items.push(...batch.items);
-  }
-  return Promise.all(items.map((a) => fetchReport(a.id, signal)));
 }
 export async function approveReport(id: string, content: string) {
   const parsed = approvalSchema.parse({ content });

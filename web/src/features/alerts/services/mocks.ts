@@ -41,12 +41,21 @@ export const alertsMock: Alert[] = Array.from({ length: 36 }, (_, i) => ({
 export const reportsMock = new Map<string, Report>();
 export const assessmentsMock = new Map<string, AlertDetail["assessment"]>();
 export function queueMock(filters: AlertFilters) {
+  const searchTerm = filters.search?.trim();
+  const isDigits = searchTerm ? /^\d+$/.test(searchTerm) : false;
   const items = alertsMock
     .filter(
       (a) =>
         (!filters.week || a.week === filters.week) &&
         (!filters.status || a.status === filters.status) &&
-        (!filters.country || a.country === filters.country),
+        (!filters.country || a.country === filters.country) &&
+        (!searchTerm ||
+          (isDigits
+            ? a.id === searchTerm ||
+              a.id === "ALT-" + searchTerm ||
+              a.account.startsWith(searchTerm) ||
+              a.account.startsWith("CTA-" + searchTerm)
+            : a.account.startsWith(searchTerm))),
     )
     .sort((a, b) => b.score - a.score);
   const start = ((filters.page ?? 1) - 1) * 10;
@@ -108,19 +117,21 @@ export function alertDetailMock(id: string): AlertDetail {
   };
 }
 export function reportMock(id: string): Report {
-  alertDetailMock(id);
+  const alert = alertDetailMock(id);
   const existing = reportsMock.get(id);
-  return (
-    existing ?? {
-      alert_id: id,
-      status: "draft",
-      updated_at: "2026-10-21T14:30:00Z",
-      content:
-        "RELATO DE OPERAÇÃO ATÍPICA\n\nO monitoramento identificou dispersão de recursos para múltiplas contrapartes em curto intervalo, com movimentação incompatível com o histórico observado.\n\nEvidências: regra R-014 e transferências vinculadas ao alerta " +
-        id +
-        ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Este documento é uma simulação acadêmica.",
-    }
-  );
+  if (existing) return existing;
+  if (alert.status !== "reported") {
+    throw new Error("Este alerta não tem comunicação.");
+  }
+  return {
+    alert_id: id,
+    status: "draft",
+    updated_at: "2026-10-21T14:30:00Z",
+    content:
+      "RELATO DE OPERAÇÃO ATÍPICA\n\nO monitoramento identificou dispersão de recursos para múltiplas contrapartes em curto intervalo, com movimentação incompatível com o histórico observado.\n\nEvidências: regra R-014 e transferências vinculadas ao alerta " +
+      id +
+      ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Este documento é uma simulação acadêmica.",
+  };
 }
 export function monitoringMock(week: string): Monitoring {
   const items = alertsMock.filter((a) => a.week === week);

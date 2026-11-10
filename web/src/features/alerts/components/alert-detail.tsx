@@ -1,15 +1,21 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, FileText, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Select, Textarea } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
 import { Chat } from "@/features/assistant/components/assistant";
 import { formatCurrency, formatShortDate } from "@/lib/format";
 import { useAlertDetail } from "../hooks/use-alerts";
-import { decisionSchema, type DecisionRequest } from "../schemas/alerts";
+import {
+  approvalSchema,
+  decisionSchema,
+  type DecisionRequest,
+  type Report,
+} from "../schemas/alerts";
 import { RiskScore, statusLabels } from "./alerts-table";
 import { SCORE_HINT, formatQueuePosition } from "@/lib/risk";
 import { AccountGraph } from "./account-graph";
@@ -28,7 +34,8 @@ export function AlertDetailView({ id }: { id: string }) {
         onRetry={resource.reload}
       />
     );
-  const { detail: alert, graph } = resource.data;
+  const { detail: alert, graph, report } = resource.data;
+  const isApproved = report?.status === "approved";
   return (
     <>
       <Link
@@ -52,13 +59,6 @@ export function AlertDetailView({ id }: { id: string }) {
             {statusLabels[alert.status]}
           </p>
         </div>
-        <Link
-          className="flex items-center gap-2 rounded-lg border bg-card px-4 py-2 text-xs text-primary"
-          href="/reports"
-        >
-          <FileText className="size-4" />
-          Comunicações
-        </Link>
       </div>
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="grid min-w-0 gap-6">
@@ -203,13 +203,17 @@ export function AlertDetailView({ id }: { id: string }) {
             <h2 className="panel-title">Registrar decisão</h2>
             <form
               className="grid gap-5 p-6"
-              onSubmit={form.handleSubmit(resource.submitDecision)}
+              onSubmit={
+                isApproved
+                  ? (e) => e.preventDefault()
+                  : form.handleSubmit(resource.submitDecision)
+              }
             >
               <Field
                 label="Encaminhamento"
                 error={form.formState.errors.decision?.message}
               >
-                <Select {...form.register("decision")}>
+                <Select disabled={isApproved} {...form.register("decision")}>
                   <option value="escalate">Aprofundar investigação</option>
                   <option value="archive">Arquivar alerta</option>
                   <option value="report">Preparar comunicação ao COAF</option>
@@ -222,6 +226,7 @@ export function AlertDetailView({ id }: { id: string }) {
                 <Textarea
                   maxLength={4000}
                   placeholder="Descreva as evidências e o motivo da decisão…"
+                  disabled={isApproved}
                   {...form.register("justification")}
                 />
               </Field>
@@ -232,12 +237,26 @@ export function AlertDetailView({ id }: { id: string }) {
               <Button
                 type="submit"
                 className="justify-self-start"
-                disabled={resource.busy}
+                disabled={resource.busy || isApproved}
               >
                 {resource.busy ? "Registrando…" : "Registrar decisão"}
               </Button>
+              {isApproved && (
+                <p className="text-xs text-muted-foreground">
+                  A comunicação deste alerta já foi aprovada; a decisão está
+                  encerrada.
+                </p>
+              )}
             </form>
           </section>
+          {report && (
+            <ReportSection
+              key={report.alert_id + report.status}
+              report={report}
+              onApprove={resource.approveReport}
+              busy={resource.busy}
+            />
+          )}
         </div>
         <section className="panel flex h-[640px] flex-col overflow-hidden xl:sticky xl:top-24">
           <h2 className="panel-title">
@@ -250,5 +269,76 @@ export function AlertDetailView({ id }: { id: string }) {
         </section>
       </div>
     </>
+  );
+}
+
+function ReportSection({
+  report,
+  onApprove,
+  busy,
+}: {
+  report: Report;
+  onApprove: (content: string) => Promise<unknown>;
+  busy: boolean;
+}) {
+  const [content, setContent] = useState(report.content);
+  const [error, setError] = useState("");
+  const isApproved = report.status === "approved";
+
+  return (
+    <section className="panel">
+      <div className="panel-title">
+        <h2>Comunicação ao COAF</h2>
+        <span className="text-xs font-normal text-muted-foreground">
+          {isApproved ? "Aprovada" : "Rascunho"}
+        </span>
+      </div>
+      <div className="grid gap-5 p-6">
+        <p className="notice border-primary/30 bg-accent text-accent-foreground">
+          <strong>Ambiente acadêmico: nada é enviado de verdade.</strong> A
+          aprovação é uma simulação e não comunica operações ao COAF.
+        </p>
+        <form
+          className="grid gap-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const validation = approvalSchema.safeParse({ content });
+            if (!validation.success) {
+              setError(validation.error.issues[0].message);
+              return;
+            }
+            setError("");
+            void onApprove(content);
+          }}
+        >
+          <Field label="Relato da comunicação" error={error}>
+            <Textarea
+              className="min-h-[280px] font-mono text-xs leading-loose"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              disabled={isApproved}
+              readOnly={isApproved}
+              maxLength={20000}
+            />
+          </Field>
+          <p className="text-xs text-muted-foreground">
+            Revise fatos, evidências e justificativa. Aprovar apenas registra sua
+            revisão neste ambiente.
+          </p>
+          <Button
+            type="submit"
+            className="justify-self-start"
+            disabled={busy || isApproved}
+          >
+            <CheckCheck />
+            {busy
+              ? "Aprovando…"
+              : isApproved
+                ? "Revisão aprovada"
+                : "Aprovar rascunho"}
+          </Button>
+        </form>
+      </div>
+    </section>
   );
 }

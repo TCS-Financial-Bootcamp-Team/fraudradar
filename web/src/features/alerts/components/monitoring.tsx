@@ -1,13 +1,16 @@
 "use client";
+import Link from "next/link";
+import { useAppContext } from "@/components/app-context";
 import {
   EmptyState,
   LoadingState,
   ResourceError,
 } from "@/components/ui/states";
-import { formatPercent } from "@/lib/format";
+import { formatPercent, formatShortDate } from "@/lib/format";
 import { useMonitoring } from "../hooks/use-alerts";
 import { ChartCard } from "./charts";
 export function MonitoringView() {
+  const { week } = useAppContext();
   const resource = useMonitoring();
   if (resource.loading) return <LoadingState />;
   if (resource.data === null)
@@ -34,6 +37,14 @@ export function MonitoringView() {
           <p className="eyebrow !mt-0 mb-2">Qualidade do monitoramento</p>
           <h1>Performance sob observação</h1>
           <p>Acompanhe a cobertura da fila e a qualidade das sugestões.</p>
+          {week && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Semana de {formatShortDate(week)} ·{" "}
+              <Link href="/alerts" className="underline hover:text-foreground">
+                trocar na fila de alertas
+              </Link>
+            </p>
+          )}
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
