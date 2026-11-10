@@ -1,12 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useCallback, useState } from "react";
+import Link from "next/link";
 import { AppContextProvider, useAppContext } from "@/components/app-context";
 import { SidePanel } from "@/components/ui/side-panel";
 import { LoadingState, ResourceError } from "@/components/ui/states";
-import { FloatingAssistant } from "@/features/assistant/components/assistant";
+import { AssistantDrawer } from "@/features/assistant/components/assistant";
 import { useAlertQueue } from "@/features/alerts/hooks/use-alerts";
 import { USE_MOCKS } from "@/lib/api";
 import { formatShortDate } from "@/lib/format";
@@ -29,17 +28,11 @@ function ShellContent({
 }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(initialSidebarOpen);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const pathname = usePathname();
   const { week, weeksLoading, weeksError, reloadWeeks } = useAppContext();
   const queue = useAlertQueue("pending");
-
-  // Fecha o menu mobile ao trocar de rota sem passe de render extra.
-  const [prevPathname, setPrevPathname] = useState(pathname);
-  if (pathname !== prevPathname) {
-    setPrevPathname(pathname);
-    setIsMobileMenuOpen(false);
-  }
+  const pendingCount = queue.data?.total ?? 0;
 
   const toggleSidebar = useCallback(() => {
     setIsSidebarOpen((open) => {
@@ -57,14 +50,41 @@ function ShellContent({
     setIsMobileMenuOpen(false);
   }, []);
 
+  const toggleAssistant = useCallback(() => {
+    setNotificationsOpen(false);
+    setIsMobileMenuOpen(false);
+    setIsAssistantOpen((open) => !open);
+  }, []);
+
+  const openNotifications = useCallback(() => {
+    setIsAssistantOpen(false);
+    setNotificationsOpen(true);
+  }, []);
+
   return (
     <div
       data-app-shell
-      className="flex h-dvh w-full overflow-hidden bg-background text-foreground"
+      className="flex h-dvh w-full items-start overflow-hidden bg-background text-foreground"
     >
+      <style>{`
+        @keyframes assistant-drawer-in {
+          from { opacity: 0; transform: translateX(24px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @media (min-width: 640px) {
+          body:has([data-assistant-drawer="open"])
+            section[aria-label="Notificações"][aria-live="polite"]:has(> .toast) {
+            right: 420px;
+          }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [data-assistant-drawer="open"] { animation: none !important; }
+        }
+      `}</style>
+
       <a
         href="#main-content"
-        className="fixed left-4 top-4 z-[200] -translate-y-24 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-transform duration-200 focus:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform duration-200 focus:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         Pular para o conteúdo
       </a>
@@ -74,20 +94,24 @@ function ShellContent({
         isOpen={isSidebarOpen}
         isMobileOpen={isMobileMenuOpen}
         onMobileClose={closeMobileMenu}
+        pendingCount={pendingCount}
       />
 
-      <div className="relative flex flex-1 flex-col overflow-hidden min-w-0 w-full">
+      <div className="relative flex h-dvh min-w-0 flex-1 flex-col overflow-hidden">
         <Header
           sidebarId={SIDEBAR_ID}
           isSidebarOpen={isSidebarOpen}
           isMobileMenuOpen={isMobileMenuOpen}
+          isAssistantOpen={isAssistantOpen}
+          pendingCount={pendingCount}
           onToggleSidebar={toggleSidebar}
           onMobileMenuToggle={toggleMobileMenu}
-          onOpenNotifications={() => setNotificationsOpen(true)}
+          onToggleAssistant={toggleAssistant}
+          onOpenNotifications={openNotifications}
         />
 
         {USE_MOCKS && (
-          <div className="shrink-0 border-b bg-accent px-4 py-2 text-center text-[11px] text-accent-foreground">
+          <div className="shrink-0 border-b border-border bg-soft px-4 py-2 text-center text-[11px] text-muted-foreground">
             Ambiente demonstrativo · dados simulados · nenhuma comunicação é
             enviada
           </div>
@@ -96,9 +120,9 @@ function ShellContent({
         <main
           id="main-content"
           tabIndex={-1}
-          className="flex-1 overflow-y-auto min-w-0 outline-none"
+          className="min-w-0 flex-1 overflow-y-auto outline-none"
         >
-          <div className="mx-auto grid max-w-[1600px] w-full min-w-0 gap-7 p-4 pb-12 sm:p-8 sm:pb-16">
+          <div className="mx-auto grid w-full max-w-[1320px] gap-9 px-[clamp(16px,3.5vw,48px)] pb-16 pt-9">
             {weeksLoading ? (
               <LoadingState />
             ) : weeksError ? (
@@ -107,45 +131,74 @@ function ShellContent({
               children
             )}
           </div>
-          <footer className="mx-auto max-w-[1600px] w-full px-4 pb-6 sm:px-8 text-[10px] text-muted-foreground">
+          <footer className="mx-auto w-full max-w-[1320px] px-[clamp(16px,3.5vw,48px)] pb-6 text-[11px] text-muted-foreground">
             FraudRadar PLD · SAML-D
             {week ? " · Semana de " + formatShortDate(week) : ""}
           </footer>
         </main>
       </div>
 
-      <FloatingAssistant />
+      <AssistantDrawer
+        isOpen={isAssistantOpen}
+        onClose={() => setIsAssistantOpen(false)}
+      />
 
       {notificationsOpen && (
         <SidePanel
           title="Notificações"
           onClose={() => setNotificationsOpen(false)}
         >
-          <div className="space-y-4 p-5">
+          <div className="flex flex-col gap-4 p-5">
             <p className="text-sm text-muted-foreground">
               Alertas pendentes na semana selecionada.
             </p>
             {queue.loading ? (
-              <p role="status">Carregando…</p>
+              <p role="status" className="text-sm text-muted-foreground">
+                Carregando…
+              </p>
             ) : queue.error ? (
-              <p role="alert">{queue.error}</p>
-            ) : queue.data?.items.length ? (
-              queue.data.items.slice(0, 5).map((alert) => (
-                <Link
-                  onClick={() => setNotificationsOpen(false)}
-                  className="block rounded-lg border p-4 text-sm hover:bg-muted"
-                  key={alert.id}
-                  href={"/alerts/" + alert.id}
+              <div role="alert" className="rounded-xl border border-border p-4">
+                <p className="text-sm text-foreground">{queue.error}</p>
+                <button
+                  type="button"
+                  onClick={queue.reload}
+                  className="mt-3 text-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  <strong>{alert.id}</strong>
-                  <p className="mt-1 text-muted-foreground">
-                    {alert.typology} · Nota {formatScore(alert.score)} ·{" "}
-                    {formatQueuePosition(alert.queue_position)}
-                  </p>
-                </Link>
-              ))
+                  Tentar novamente
+                </button>
+              </div>
+            ) : queue.data?.items.length ? (
+              <div className="flex flex-col gap-2">
+                {queue.data.items.slice(0, 5).map((alert) => (
+                  <Link
+                    onClick={() => setNotificationsOpen(false)}
+                    className="rounded-xl border border-border bg-card p-4 text-sm transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    key={alert.id}
+                    href={`/alerts/${alert.id}`}
+                  >
+                    <strong className="font-mono text-sm font-medium text-foreground">
+                      Alerta {alert.id}
+                    </strong>
+                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                      {alert.typology} · Nota {formatScore(alert.score)} ·{" "}
+                      {formatQueuePosition(alert.queue_position)}
+                    </p>
+                  </Link>
+                ))}
+                {pendingCount > 5 && (
+                  <Link
+                    href="/alerts"
+                    onClick={() => setNotificationsOpen(false)}
+                    className="mt-1 text-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    Ver todos os {pendingCount} alertas pendentes
+                  </Link>
+                )}
+              </div>
             ) : (
-              <p>Nenhum alerta pendente.</p>
+              <p className="text-sm text-foreground">
+                Nenhum alerta pendente.
+              </p>
             )}
           </div>
         </SidePanel>
