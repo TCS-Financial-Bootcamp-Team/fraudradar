@@ -1,12 +1,12 @@
 "use client";
 import { useEffect, useRef } from "react";
 import cytoscape from "cytoscape";
-import { useTheme } from "next-themes";
+import { useAppTheme } from "@/components/theme";
 import type { Graph } from "../schemas/alerts";
 
 export function AccountGraph({ graph }: { graph: Graph }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
+  const { isDark, tokens } = useAppTheme();
   useEffect(() => {
     if (!ref.current) return;
     const css = getComputedStyle(document.documentElement);
@@ -81,7 +81,7 @@ export function AccountGraph({ graph }: { graph: Graph }) {
       observer.disconnect();
       cy.destroy();
     };
-  }, [graph, resolvedTheme]);
+  }, [graph, isDark, tokens]);
   return (
     <>
       <div

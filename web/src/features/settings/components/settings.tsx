@@ -1,13 +1,13 @@
 "use client";
-import { useTheme } from "next-themes";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AppearancePanel } from "@/components/theme";
 import { useProfile } from "@/features/auth/hooks/use-profile";
 import { profileSchema, type Profile } from "@/features/auth/schemas/auth";
 import { HealthPanel } from "@/features/health/components/health-panel";
 import { API_URL, USE_MOCKS } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
+import { Field, Input } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
 
 function ProfileForm({
@@ -48,7 +48,6 @@ function ProfileForm({
 }
 export function Settings() {
   const profile = useProfile();
-  const { theme, setTheme } = useTheme();
   return (
     <>
       <div className="page-heading">
@@ -83,16 +82,7 @@ export function Settings() {
           <section className="panel">
             <h2 className="panel-title">Aparência</h2>
             <div className="p-6">
-              <Field label="Tema da plataforma">
-                <Select
-                  value={theme ?? "system"}
-                  onChange={(e) => setTheme(e.target.value)}
-                >
-                  <option value="system">Seguir o sistema</option>
-                  <option value="light">Claro</option>
-                  <option value="dark">Escuro</option>
-                </Select>
-              </Field>
+              <AppearancePanel />
             </div>
           </section>
         </div>

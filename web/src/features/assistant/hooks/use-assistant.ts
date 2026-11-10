@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { usePathname } from "next/navigation";
 import { useAppContext } from "@/components/app-context";
 import { getErrorMessage, pseudonymize } from "@/lib/format";
@@ -50,7 +50,7 @@ export function useAssistant(alertId?: string) {
       return true;
     } catch (error) {
       if (!controller.signal.aborted) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
         setMessages((m) => [
           ...m,
           {

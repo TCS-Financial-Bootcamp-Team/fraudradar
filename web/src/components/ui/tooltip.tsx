@@ -21,7 +21,7 @@ export function CollapsedTooltip({
       <Tooltip.Trigger render={children} />
       <Tooltip.Portal>
         <Tooltip.Positioner side="right" sideOffset={8}>
-          <Tooltip.Popup className="z-50 rounded-md border border-border bg-popover px-3 py-1.5 text-xs font-semibold text-popover-foreground shadow-xl">
+          <Tooltip.Popup className="z-50 rounded-[6px] bg-foreground px-2 py-1 text-xs font-medium text-background select-none">
             {label}
           </Tooltip.Popup>
         </Tooltip.Positioner>
