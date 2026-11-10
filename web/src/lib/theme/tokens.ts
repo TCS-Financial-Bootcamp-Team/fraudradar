@@ -133,6 +133,8 @@ export function computeTokens(config: ThemeConfig): Record<string, string> {
     "--risk-medium": dark ? "#e0a96d" : "#b07d38",
     "--risk-high": p.accent,
     "--risk-critical": p.accent,
+    // Âmbar de "Em investigação": contraste ≥ 3:1 contra o card (branco no claro).
+    "--warning": dark ? "#e0a96d" : "#b7791f",
     "--sidebar": p.sidebar,
     "--sidebar-foreground": sidebarInk,
     "--sidebar-accent": sidebarActive,

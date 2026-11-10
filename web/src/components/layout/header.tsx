@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { Bell, Menu, PanelLeft, Palette, Sparkles, X } from "lucide-react";
 import { cn } from "cn";
@@ -8,6 +15,9 @@ import { AppearancePanel } from "@/components/theme";
 import { getBreadcrumb } from "@/lib/sidebar";
 import { HeaderAccountMenu } from "./account-menu";
 import { SIDEBAR_ID } from "./sidebar";
+import { useDismiss } from "./use-dismiss";
+
+const subscribeNoop = () => () => {};
 
 interface HeaderProps {
   isSidebarOpen?: boolean;
@@ -38,27 +48,39 @@ export function Header({
   const pathname = usePathname();
   const breadcrumb = getBreadcrumb(pathname);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
-  const appearanceRef = useRef<HTMLDivElement>(null);
+  const [appearanceTop, setAppearanceTop] = useState(68);
+  const [appearanceRight, setAppearanceRight] = useState(16);
+  const appearanceTriggerRef = useRef<HTMLButtonElement>(null);
+  const appearancePanelRef = useRef<HTMLElement>(null);
+  // O popover vai para o <body>: o header é sticky e cria um contexto de
+  // empilhamento próprio, então dentro dele o popover nunca passaria o drawer.
+  const canPortal = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false,
+  );
+
+  const updateAppearancePosition = useCallback(() => {
+    const rect = appearanceTriggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    setAppearanceTop(rect.bottom + 8);
+    setAppearanceRight(Math.max(8, window.innerWidth - rect.right));
+  }, []);
+
+  useDismiss(
+    isAppearanceOpen,
+    [appearanceTriggerRef, appearancePanelRef],
+    (reason) => {
+      setIsAppearanceOpen(false);
+      if (reason === "escape") appearanceTriggerRef.current?.focus();
+    },
+  );
 
   useEffect(() => {
     if (!isAppearanceOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!appearanceRef.current?.contains(event.target as Node)) {
-        setIsAppearanceOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsAppearanceOpen(false);
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isAppearanceOpen]);
+    window.addEventListener("resize", updateAppearancePosition);
+    return () => window.removeEventListener("resize", updateAppearancePosition);
+  }, [isAppearanceOpen, updateAppearancePosition]);
 
   return (
     <header className="sticky top-0 z-30 flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-topbar-border bg-topbar px-2 text-topbar-foreground sm:gap-4 sm:px-4">
@@ -114,10 +136,14 @@ export function Header({
           <span className="hidden min-[360px]:inline">Assistente</span>
         </button>
 
-        <div ref={appearanceRef} className="relative">
+        <div className="relative">
           <button
+            ref={appearanceTriggerRef}
             type="button"
-            onClick={() => setIsAppearanceOpen((open) => !open)}
+            onClick={() => {
+              updateAppearancePosition();
+              setIsAppearanceOpen((open) => !open);
+            }}
             aria-label="Aparência"
             aria-expanded={isAppearanceOpen}
             title="Aparência"
@@ -129,30 +155,36 @@ export function Header({
             <Palette className="size-[18px]" strokeWidth={1.5} />
           </button>
 
-          <section
-            role="dialog"
-            aria-label="Aparência"
-            aria-modal={false}
-            className={cn(
-              "absolute right-0 top-[calc(100%+8px)] z-40 flex max-h-[calc(100dvh-80px)] w-[360px] max-w-[calc(100vw-16px)] origin-top-right flex-col gap-[18px] overflow-y-auto rounded-[14px] border border-border bg-card p-5 text-card-foreground shadow-xl transition duration-150 motion-reduce:transition-none",
-              isAppearanceOpen
-                ? "visible scale-100 opacity-100"
-                : "invisible pointer-events-none scale-95 opacity-0",
-            )}
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-[15px] font-semibold">Aparência</h2>
-              <button
-                type="button"
-                onClick={() => setIsAppearanceOpen(false)}
-                aria-label="Fechar aparência"
-                className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          {canPortal &&
+            createPortal(
+              <section
+                ref={appearancePanelRef}
+                role="dialog"
+                aria-label="Aparência"
+                aria-modal={false}
+                style={{ top: appearanceTop, right: appearanceRight }}
+                className={cn(
+                  "fixed z-[90] flex max-h-[calc(100dvh-80px)] w-[360px] max-w-[calc(100vw-16px)] origin-top-right flex-col gap-[18px] overflow-y-auto rounded-[14px] border border-border bg-card p-5 text-card-foreground shadow-xl transition duration-150 motion-reduce:transition-none",
+                  isAppearanceOpen
+                    ? "visible scale-100 opacity-100"
+                    : "invisible pointer-events-none scale-95 opacity-0",
+                )}
               >
-                <X className="size-3.5" strokeWidth={1.5} />
-              </button>
-            </div>
-            <AppearancePanel />
-          </section>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-[15px] font-semibold">Aparência</h2>
+                  <button
+                    type="button"
+                    onClick={() => setIsAppearanceOpen(false)}
+                    aria-label="Fechar aparência"
+                    className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <X className="size-3.5" strokeWidth={1.5} />
+                  </button>
+                </div>
+                <AppearancePanel />
+              </section>,
+              document.body,
+            )}
         </div>
 
         <button

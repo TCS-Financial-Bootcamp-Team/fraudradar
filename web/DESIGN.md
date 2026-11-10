@@ -31,6 +31,7 @@ Os tokens shadcn continuam (`--background`, `--foreground`, `--card`, `--primary
 | Token | Uso |
 |---|---|
 | `--signal` | destaque de risco: nota ≥ 98, "Para comunicação", erro, meta no gráfico |
+| `--warning` | âmbar de status "Em investigação" (ponto colorido); claro `#B7791F`, escuro `#E0A96D`, contraste ≥ 3:1 contra o card |
 | `--topbar`, `--topbar-foreground`, `--topbar-muted`, `--topbar-border` | barra superior |
 | `--sidebar-muted`, `--sidebar-divider` | texto secundário e linhas da barra lateral |
 | `--track` | trilho de barras e de progresso |

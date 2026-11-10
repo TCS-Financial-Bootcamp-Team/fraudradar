@@ -453,7 +453,7 @@ export function ReviewProgressCard({
     {
       label: "Em investigação",
       value: statusCounts.escalated,
-      dotClass: "bg-[#C98A1B]",
+      dotClass: "bg-warning",
     },
     {
       label: "Arquivados",

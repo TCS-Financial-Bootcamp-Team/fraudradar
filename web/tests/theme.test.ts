@@ -48,6 +48,7 @@ const REQUIRED_VARIABLES = [
   "--risk-medium",
   "--risk-high",
   "--risk-critical",
+  "--warning",
   "--sidebar",
   "--sidebar-foreground",
   "--sidebar-accent",
@@ -124,6 +125,10 @@ test("theme: computeTokens retorna todas as variáveis obrigatórias para cada p
         })`
       );
     }
+    assert.ok(
+      contrastRatio(tokens["--warning"], tokens["--card"]) >= 3,
+      `--warning precisa de contraste ≥ 3:1 contra o card no tema ${cfg.mode}`
+    );
   }
 });
 

@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import Link from "next/link";
 import { ChevronsUpDown, LogOut, SlidersHorizontal } from "lucide-react";
 import { cn } from "cn";
 import { CollapsedTooltip } from "@/components/ui/tooltip";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useProfile } from "@/features/auth/hooks/use-profile";
+import { useDismiss } from "./use-dismiss";
 
 type AccountMenuPlacement = "header" | "sidebar-expanded" | "sidebar-collapsed";
 
@@ -31,28 +32,10 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
   const profile = useProfile();
   const auth = useAuth();
 
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [isOpen]);
+  useDismiss(isOpen, containerRef, (reason) => {
+    setIsOpen(false);
+    if (reason === "escape") triggerRef.current?.focus();
+  });
 
   const name = profile.data?.name || "Minha conta";
   // O contrato atual do perfil não expõe cargo; este é o papel único do produto.

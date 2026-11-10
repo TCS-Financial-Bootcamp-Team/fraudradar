@@ -41,6 +41,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
   --color-signal: var(--signal);
+  --color-warning: var(--warning);
   --color-track: var(--track);
   --color-chart-muted: var(--chart-muted);
   --color-soft: var(--soft);

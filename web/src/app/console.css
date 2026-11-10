@@ -3,6 +3,7 @@
   --color-risk-medium: var(--risk-medium);
   --color-risk-high: var(--risk-high);
   --color-risk-critical: var(--risk-critical);
+  --color-warning: var(--warning);
 }
 
 :root {
@@ -33,6 +34,7 @@
   --risk-medium: #b07d38;
   --risk-high: #d4442e;
   --risk-critical: #d4442e;
+  --warning: #b7791f;
   --sidebar: #fafaf9;
   --sidebar-foreground: #111111;
   --sidebar-accent: #ebebea;
@@ -85,6 +87,7 @@
   --risk-medium: #e0a96d;
   --risk-high: #ff6a4d;
   --risk-critical: #ff6a4d;
+  --warning: #e0a96d;
   --sidebar: #0e0e10;
   --sidebar-foreground: #ededea;
   --sidebar-accent: #262628;

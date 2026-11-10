@@ -72,7 +72,7 @@ const STATUS_CONFIG: Record<
   },
   escalated: {
     label: "Em investigação",
-    dotClass: "bg-[#C98A1B]",
+    dotClass: "bg-warning",
   },
   archived: {
     label: "Arquivado",
