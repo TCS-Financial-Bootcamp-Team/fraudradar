@@ -241,62 +241,36 @@ h3 {
 }
 
 .auth-layout {
-  display: grid;
   min-height: 100dvh;
-  grid-template-columns: 1fr;
+  display: flex;
+  flex-wrap: wrap;
+  background: var(--background);
+  color: var(--foreground);
 }
 
 .auth-brand {
-  display: none;
-  position: relative;
-  overflow: hidden;
-  padding: 3rem;
-  background: var(--brand-ink);
-  color: var(--brand-paper);
+  flex: 1 1 420px;
+  min-height: 320px;
+  box-sizing: border-box;
+  padding: 40px clamp(24px, 5vw, 64px);
+  background: var(--sidebar);
+  color: var(--sidebar-foreground);
+  display: flex;
   flex-direction: column;
   justify-content: space-between;
+  gap: 40px;
+  border-right: 1px solid var(--border);
 }
 
-.auth-brand::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  opacity: 0.09;
-  background-image:
-    linear-gradient(var(--brand-accent) 1px, transparent 1px),
-    linear-gradient(90deg, var(--brand-accent) 1px, transparent 1px);
-  background-size: 48px 48px;
-  mask-image: linear-gradient(transparent, black);
+@media (max-width: 859px) {
+  .auth-brand {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
 }
 
 .radar-art {
-  width: 14rem;
-  height: 14rem;
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--sidebar-border);
-  border-radius: 50%;
-  margin-top: 3rem;
-  box-shadow:
-    0 0 0 2rem color-mix(in srgb, var(--brand-accent) 3%, transparent),
-    0 0 0 4rem color-mix(in srgb, var(--brand-accent) 2%, transparent);
-}
-
-.radar-art svg {
-  width: 10rem;
-  height: 10rem;
-  stroke-width: 0.5;
-  color: var(--brand-accent);
-  opacity: 0.6;
-}
-
-@media (min-width: 1024px) {
-  .auth-layout {
-    grid-template-columns: 1fr 1fr;
-  }
-  .auth-brand {
-    display: flex;
-  }
+  display: none;
 }
 
 @media (max-width: 767px) {

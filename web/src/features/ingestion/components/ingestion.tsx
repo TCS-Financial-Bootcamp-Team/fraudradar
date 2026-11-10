@@ -1,11 +1,11 @@
 "use client";
-import { useRef, useState } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Database, FileUp, Plus, RefreshCw, UploadCloud } from "lucide-react";
+import { Database, FileUp, Plus, RefreshCw, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
-import { EmptyState, LoadingState, ResourceError } from "@/components/ui/states";
 import { formatShortDate } from "@/lib/format";
 import {
   useCsvUpload,
@@ -23,165 +23,86 @@ import {
   type TransactionRequest,
 } from "../schemas/ingestion";
 
-function CsvUploadTab() {
-  const csv = useCsvUpload();
-  const inputRef = useRef<HTMLInputElement>(null);
-  return (
-    <div className="grid gap-6">
-      <section className="panel p-6">
-        <h2 className="mb-2 font-semibold">Importar transações</h2>
-        <p className="mb-6 text-sm text-muted-foreground">
-          Escolha um CSV no formato SAML-D. A prévia lê até 20 linhas; a API
-          valida o arquivo completo.
-        </p>
-        <div
-          className="rounded-xl border-2 border-dashed p-8 text-center sm:p-12"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={(e) => {
-            e.preventDefault();
-            if (!csv.busy && e.dataTransfer.files[0])
-              void csv.selectFile(e.dataTransfer.files[0]);
-          }}
-        >
-          <UploadCloud className="mx-auto mb-4 size-10 text-primary" />
-          <h3 className="font-medium">Arraste seu arquivo CSV até aqui</h3>
-          <p className="mb-5 mt-2 text-xs text-muted-foreground">
-            ou selecione um arquivo do seu computador
-          </p>
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".csv,text/csv"
-            className="sr-only"
-            tabIndex={-1}
-            aria-label="Arquivo CSV"
-            disabled={csv.busy}
-            onChange={(e) => {
-              if (e.target.files?.[0]) void csv.selectFile(e.target.files[0]);
-              e.target.value = "";
-            }}
-          />
-          <Button
-            disabled={csv.busy}
-            variant="outline"
-            onClick={() => inputRef.current?.click()}
-          >
-            <FileUp />
-            Selecionar CSV
-          </Button>
-        </div>
-        <details className="mt-5 text-xs text-muted-foreground">
-          <summary className="cursor-pointer">
-            Ver as 11 colunas obrigatórias
-          </summary>
-          <p className="mt-3 break-words font-mono leading-loose">
-            {csvHeaders.join(", ")}
-          </p>
-        </details>
-        {csv.reading && (
-          <p className="mt-4 text-sm" role="status">
-            Validando a prévia…
-          </p>
-        )}
-        {csv.error && (
-          <p role="alert" className="mt-4 text-sm text-destructive">
-            {csv.error}
-          </p>
-        )}
-      </section>
-      {csv.preview && (
-        <section className="panel overflow-hidden">
-          <div className="panel-title">
-            <h2 className="truncate">Prévia · {csv.preview.fileName}</h2>
-            <span className="shrink-0 text-xs font-normal text-muted-foreground">
-              {csv.preview.rows.length} linhas
-            </span>
-          </div>
-          <div className="max-h-96 overflow-auto">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  {csv.preview.headers.map((header) => (
-                    <th key={header}>{header}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {csv.preview.rows.map((row, i) => (
-                  <tr key={i}>
-                    {csv.preview?.headers.map((header) => (
-                      <td key={header}>
-                        {header.endsWith("_account")
-                          ? "••••" + row[header].slice(-4)
-                          : row[header]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div className="grid gap-4 border-t p-6">
-            <p className="text-xs text-muted-foreground">
-              A validação local cobre apenas esta amostra. A API deve rejeitar
-              linhas inválidas e colunas não permitidas em todo o arquivo.
-            </p>
-            {(csv.busy || csv.completed) && (
-              <div>
-                <label className="mb-2 block text-xs" htmlFor="csv-progress">
-                  {csv.completed
-                    ? "Recebimento confirmado"
-                    : csv.progress === 100
-                      ? "Arquivo enviado. Aguardando confirmação…"
-                      : "Enviando arquivo… " + csv.progress + "%"}
-                </label>
-                <progress
-                  className="h-2 w-full accent-primary"
-                  id="csv-progress"
-                  max={100}
-                  value={csv.progress}
-                />
-              </div>
-            )}
-            <div className="flex gap-3">
-              <Button
-                disabled={csv.busy || csv.completed || csv.reading}
-                onClick={() => void csv.upload()}
-              >
-                <UploadCloud />
-                {csv.busy
-                  ? "Enviando…"
-                  : csv.completed
-                    ? "Arquivo recebido"
-                    : "Enviar arquivo para ingestão"}
-              </Button>
-              {csv.busy && (
-                <Button variant="outline" onClick={csv.cancel}>
-                  Cancelar envio
-                </Button>
-              )}
-            </div>
-          </div>
-        </section>
-      )}
-    </div>
-  );
+interface RecentUpload {
+  id: string;
+  file: string;
+  when: string;
 }
-function ConnectionsTab() {
+
+const transactionFieldLabels: Record<keyof TransactionRequest, string> = {
+  Date: "Data",
+  Time: "Horário",
+  Sender_account: "Conta de origem",
+  Receiver_account: "Conta de destino",
+  Amount: "Valor",
+  Payment_currency: "Moeda do pagamento",
+  Received_currency: "Moeda do recebimento",
+  Sender_bank_location: "País do banco de origem",
+  Receiver_bank_location: "País do banco de destino",
+  Payment_type: "Meio de pagamento",
+};
+
+export function Ingestion() {
+  const csv = useCsvUpload();
   const sources = useDataSources();
-  const [mode, setMode] = useState("uri");
-  const [error, setError] = useState("");
+  const manual = useManualTransaction();
+
+  const inputRef = useRef<HTMLInputElement>(null);
+  const lastFileRef = useRef("");
+  const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
+  const [showConnectionForm, setShowConnectionForm] = useState(false);
+  const [connMode, setConnMode] = useState<"uri" | "fields">("uri");
+  const [connError, setConnError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
-  async function handleRegister(e: React.FormEvent<HTMLFormElement>) {
+
+  const {
+    register: registerManual,
+    handleSubmit: handleManualSubmit,
+    reset: resetManual,
+    formState: { errors: manualErrors },
+  } = useForm<TransactionRequest>({
+    resolver: zodResolver(transactionSchema),
+    defaultValues: {
+      Payment_currency: "BRL",
+      Received_currency: "BRL",
+      Time: "12:00:00",
+    },
+  });
+
+  const handleUploadClick = async () => {
+    if (!csv.preview || csv.busy) return;
+    lastFileRef.current = csv.preview.fileName;
+    await csv.upload();
+  };
+
+  // Só registra o envio quando o upload termina com sucesso (csv.completed).
+  useEffect(() => {
+    if (!csv.completed || !lastFileRef.current) return;
+    const file = lastFileRef.current;
+    lastFileRef.current = "";
+    setRecentUploads((prev) => [
+      {
+        id: `#${prev.length + 1}`,
+        file,
+        when: new Date().toLocaleString("pt-BR", {
+          dateStyle: "short",
+          timeStyle: "short",
+        }),
+      },
+      ...prev,
+    ]);
+  }, [csv.completed]);
+
+  async function handleRegisterSource(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setError("");
+    setConnError("");
     const form = e.currentTarget;
     const formData = new FormData(form);
     let uri = String(formData.get("uri") ?? "");
-    if (mode === "fields") {
+    if (connMode === "fields") {
       const port = String(formData.get("port"));
       if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
-        setError("Informe uma porta entre 1 e 65535.");
+        setConnError("Informe uma porta entre 1 e 65535.");
         return;
       }
       uri =
@@ -204,210 +125,433 @@ function ConnectionsTab() {
     };
     const validation = connectionSchema.safeParse(payload);
     if (!validation.success) {
-      setError(validation.error.issues[0].message);
+      setConnError(validation.error.issues[0].message);
       return;
     }
-    // Credenciais não são guardadas no estado nem no armazenamento do navegador.
     try {
-      if (await sources.register(validation.data)) form.reset();
+      if (await sources.register(validation.data)) {
+        form.reset();
+        setShowConnectionForm(false);
+      }
     } finally {
       for (const fieldName of ["uri", "password"]) {
         const inputElement = form.elements.namedItem(fieldName);
         if (inputElement instanceof HTMLInputElement) inputElement.value = "";
       }
-      uri = "";
-      payload.connection_string = "";
     }
   }
+
+  // Verifica se a API respondeu 501 / não implementado
+  const is501 =
+    Boolean(sources.error) &&
+    (Boolean(sources.error?.includes("501")) ||
+      Boolean(sources.error?.toLowerCase().includes("não implementado")) ||
+      Boolean(sources.error?.toLowerCase().includes("not implemented")));
+
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-[1fr_1fr]">
-      <section className="panel">
-        <h2 className="panel-title">Cadastrar fonte Postgres</h2>
-        <form
-          ref={formRef}
-          onSubmit={handleRegister}
-          className="grid gap-5 p-6"
-          autoComplete="off"
-        >
-          <Field label="Nome da fonte">
-            <Input
-              name="name"
-              required
-              minLength={2}
-              maxLength={100}
-              placeholder="Ex.: Operações de produção"
+    <div className="flex flex-col gap-7">
+      <div className="flex flex-col gap-1.5">
+        <p className="m-0 text-[13px] text-muted-foreground">
+          Entrada de transações
+        </p>
+        <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
+          Fontes de dados
+        </h1>
+      </div>
+
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+        {/* Card 1: Importar CSV */}
+        <article className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-4">
+          <h2 className="m-0 text-sm font-semibold text-foreground">
+            Importar CSV
+          </h2>
+
+          <div
+            className="border-[1.5px] border-dashed border-border rounded-xl p-8 sm:p-10 flex flex-col items-center gap-2.5 text-center bg-background"
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => {
+              e.preventDefault();
+              if (!csv.busy && e.dataTransfer.files[0]) {
+                void csv.selectFile(e.dataTransfer.files[0]);
+              }
+            }}
+          >
+            <Upload
+              className="size-7 text-muted-foreground"
+              strokeWidth={1.5}
+              aria-hidden="true"
             />
-          </Field>
-          <Field label="Tipo de banco">
-            <Select name="type">
-              <option>Postgres</option>
-            </Select>
-          </Field>
-          <Field label="Como deseja conectar?">
-            <Select value={mode} onChange={(e) => setMode(e.target.value)}>
-              <option value="uri">Connection string</option>
-              <option value="fields">Host, porta e credenciais</option>
-            </Select>
-          </Field>
-          {mode === "uri" ? (
-            <Field label="Connection string">
-              <Input
-                type="password"
-                name="uri"
-                autoComplete="new-password"
-                required
-                placeholder="postgresql://usuario:senha@host:5432/banco"
-              />
-            </Field>
-          ) : (
-            <>
-              <div className="grid gap-4 sm:grid-cols-[1fr_100px]">
-                <Field label="Host">
-                  <Input name="host" required placeholder="db.exemplo.com" />
-                </Field>
-                <Field label="Porta">
-                  <Input
-                    name="port"
-                    type="number"
-                    min={1}
-                    max={65535}
-                    defaultValue={5432}
-                    required
-                  />
-                </Field>
-              </div>
-              <Field label="Banco de dados">
-                <Input name="database" required />
-              </Field>
-              <Field label="Usuário">
-                <Input name="username" autoComplete="off" required />
-              </Field>
-              <Field label="Senha">
-                <Input
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  required
-                />
-              </Field>
-            </>
-          )}
-          <label className="flex items-center gap-3 text-sm">
+            <p className="m-0 font-medium text-foreground">
+              Arraste o arquivo até aqui
+            </p>
+            <p className="m-0 text-[13px] text-muted-foreground max-w-sm">
+              CSV no formato do SAML-D, sem as colunas de avaliação. Até 20 MB
+              ou 200 mil linhas; tudo ou nada.
+            </p>
+
             <input
-              className="size-4 accent-primary"
-              type="checkbox"
-              name="ssl"
-              defaultChecked
+              ref={inputRef}
+              type="file"
+              accept=".csv,text/csv"
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Arquivo CSV"
+              disabled={csv.busy}
+              onChange={(e) => {
+                if (e.target.files?.[0]) void csv.selectFile(e.target.files[0]);
+                e.target.value = "";
+              }}
             />
-            Exigir conexão SSL
-          </label>
-          <p className="notice text-xs">
-            As credenciais são enviadas uma única vez para a API via HTTPS. Após
-            o cadastro, apenas host e banco mascarados são exibidos. Use um
-            usuário de banco com acesso somente de leitura.
-          </p>
-          {error && (
-            <p role="alert" className="text-sm text-destructive">
-              {error}
+
+            <Button
+              type="button"
+              disabled={csv.busy}
+              onClick={() => inputRef.current?.click()}
+              className="mt-1.5"
+            >
+              <FileUp className="size-4" strokeWidth={1.5} />
+              Escolher arquivo
+            </Button>
+          </div>
+
+          <details className="text-xs text-muted-foreground">
+            <summary className="cursor-pointer hover:text-foreground">
+              Ver as 11 colunas obrigatórias
+            </summary>
+            <p className="mt-2.5 break-words font-mono leading-relaxed text-[11px] p-2 bg-muted/30 rounded border border-border">
+              {csvHeaders.join(", ")}
+            </p>
+          </details>
+
+          {csv.reading && (
+            <p className="m-0 text-sm text-muted-foreground" role="status">
+              Validando a prévia…
             </p>
           )}
-          <Button type="submit" disabled={sources.busy}>
-            <Database />
-            {sources.busy ? "Registrando…" : "Registrar fonte"}
-          </Button>
-        </form>
-      </section>
-      <section className="panel">
-        <h2 className="panel-title">Fontes registradas</h2>
-        {sources.loading ? (
-          <div className="p-6">
-            <LoadingState />
-          </div>
-        ) : sources.error ? (
-          <ResourceError message={sources.error} onRetry={sources.reload} />
-        ) : !sources.data?.items.length ? (
-          <EmptyState
-            title="Nenhuma fonte cadastrada"
-            description="Cadastre um banco Postgres para iniciar a ingestão."
-          />
-        ) : (
-          <div className="divide-y px-6">
-            {sources.data.items.map((source) => (
-              <article key={source.id} className="grid gap-3 py-5">
-                <div className="flex justify-between gap-3">
-                  <h3 className="text-sm font-semibold">{source.name}</h3>
-                  <span
-                    className={`text-xs ${source.status === "error" ? "text-destructive" : "text-primary"}`}
-                  >
-                    {source.status === "connected"
-                      ? "Conectada"
-                      : source.status === "error"
-                        ? "Falha de conexão"
-                        : "Sincronizando"}
-                  </span>
+
+          {csv.error && (
+            <p role="alert" className="m-0 text-sm text-signal">
+              {csv.error}
+            </p>
+          )}
+
+          {csv.preview && (
+            <div className="flex flex-col gap-3 pt-3 border-t border-border">
+              <div className="flex justify-between items-center text-xs">
+                <span className="font-mono truncate max-w-[200px]">
+                  {csv.preview.fileName}
+                </span>
+                <span className="text-muted-foreground">
+                  {csv.preview.rows.length} linhas na prévia
+                </span>
+              </div>
+
+              <div className="max-h-48 overflow-auto border border-border rounded-lg">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-muted/40 text-muted-foreground border-b border-border sticky top-0">
+                    <tr>
+                      {csv.preview.headers.map((h) => (
+                        <th
+                          key={h}
+                          className="p-2 font-normal whitespace-nowrap"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-soft font-mono">
+                    {csv.preview.rows.map((row, i) => (
+                      <tr key={i} className="hover:bg-muted/20">
+                        {csv.preview?.headers.map((h) => (
+                          <td
+                            key={h}
+                            className="p-2 whitespace-nowrap text-muted-foreground"
+                          >
+                            {h.endsWith("_account")
+                              ? "••••" + row[h].slice(-4)
+                              : row[h]}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {(csv.busy || csv.completed) && (
+                <div className="flex flex-col gap-1.5">
+                  <div className="flex justify-between text-xs text-muted-foreground">
+                    <span>
+                      {csv.completed
+                        ? "Recebimento confirmado"
+                        : csv.progress === 100
+                          ? "Arquivo enviado. Aguardando confirmação…"
+                          : "Enviando arquivo…"}
+                    </span>
+                    <span className="font-mono">{csv.progress}%</span>
+                  </div>
+                  <div className="h-2 w-full bg-track rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${csv.progress}%` }}
+                    />
+                  </div>
                 </div>
-                <p className="font-mono text-xs text-muted-foreground">
-                  {source.masked_host} / {source.masked_database}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Última sincronização:{" "}
-                  {source.last_synced_at
-                    ? formatShortDate(source.last_synced_at)
-                    : "ainda não realizada"}
-                </p>
+              )}
+
+              <div className="flex gap-2.5 pt-1">
+                <Button
+                  disabled={csv.busy || csv.completed || csv.reading}
+                  onClick={() => void handleUploadClick()}
+                >
+                  {csv.busy
+                    ? "Enviando…"
+                    : csv.completed
+                      ? "Arquivo recebido"
+                      : "Enviar arquivo para ingestão"}
+                </Button>
+                {csv.busy && (
+                  <Button variant="outline" onClick={csv.cancel}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </article>
+
+        {/* Card 2: Conexões com bancos externos */}
+        <article className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Conexões com bancos externos
+            </h2>
+            <span className="text-xs px-2 py-0.5 border border-border rounded-full text-muted-foreground">
+              em breve
+            </span>
+          </div>
+
+          <p className="m-0 text-[13px] text-muted-foreground leading-relaxed">
+            Ler transações direto de um Postgres do banco. Precisa de um desenho
+            de segurança próprio (credenciais, rede, escopo de leitura) antes de
+            existir.
+          </p>
+
+          {is501 && (
+            <p className="text-xs text-muted-foreground p-2.5 bg-muted/20 border border-border rounded-lg">
+              Endpoint não implementado na API (501). Funcionalidade prevista
+              para próximas versões.
+            </p>
+          )}
+
+          {/* Se houver fontes cadastradas */}
+          {sources.data?.items && sources.data.items.length > 0 ? (
+            <div className="flex flex-col gap-3 pt-2">
+              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Fontes cadastradas
+              </h3>
+              <div className="divide-y divide-soft border border-border rounded-lg overflow-hidden">
+                {sources.data.items.map((src) => (
+                  <div
+                    key={src.id}
+                    className="p-3 flex items-center justify-between text-xs"
+                  >
+                    <div>
+                      <p className="m-0 font-medium text-foreground">
+                        {src.name}
+                      </p>
+                      <p className="m-0 font-mono text-muted-foreground">
+                        {src.masked_host} / {src.masked_database}
+                      </p>
+                      {src.last_synced_at && (
+                        <p className="m-0 text-[11px] text-muted-foreground">
+                          Última sincronização:{" "}
+                          {formatShortDate(src.last_synced_at)}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span
+                          className={`size-2 rounded-full ${
+                            src.status === "connected"
+                              ? "bg-primary"
+                              : "bg-signal"
+                          }`}
+                        />
+                        {src.status === "connected" ? "Conectada" : "Erro"}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={sources.busy}
+                        onClick={() => void sources.sync(src.id)}
+                      >
+                        <RefreshCw className="size-3" strokeWidth={1.5} />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+
+          {showConnectionForm ? (
+            <form
+              ref={formRef}
+              onSubmit={handleRegisterSource}
+              className="flex flex-col gap-3.5 pt-3 border-t border-border"
+              autoComplete="off"
+            >
+              <Field label="Nome da fonte">
+                <Input
+                  name="name"
+                  required
+                  placeholder="Ex.: Operações de produção"
+                />
+              </Field>
+              <Field label="Como deseja conectar?">
+                <Select
+                  value={connMode}
+                  onChange={(e) =>
+                    setConnMode(e.target.value as "uri" | "fields")
+                  }
+                >
+                  <option value="uri">Connection string</option>
+                  <option value="fields">Host, porta e credenciais</option>
+                </Select>
+              </Field>
+              {connMode === "uri" ? (
+                <Field label="Connection string">
+                  <Input
+                    type="password"
+                    name="uri"
+                    required
+                    placeholder="postgresql://usuario:senha@host:5432/banco"
+                  />
+                </Field>
+              ) : (
+                <>
+                  <div className="grid grid-cols-[1fr_90px] gap-2">
+                    <Field label="Host">
+                      <Input
+                        name="host"
+                        required
+                        placeholder="db.exemplo.com"
+                      />
+                    </Field>
+                    <Field label="Porta">
+                      <Input
+                        name="port"
+                        type="number"
+                        defaultValue={5432}
+                        required
+                      />
+                    </Field>
+                  </div>
+                  <Field label="Banco de dados">
+                    <Input name="database" required />
+                  </Field>
+                  <Field label="Usuário">
+                    <Input name="username" required />
+                  </Field>
+                  <Field label="Senha">
+                    <Input type="password" name="password" required />
+                  </Field>
+                </>
+              )}
+              {connError && (
+                <p className="text-xs text-signal m-0">{connError}</p>
+              )}
+              <div className="flex gap-2 pt-1">
+                <Button type="submit" disabled={sources.busy}>
+                  <Database className="size-4" strokeWidth={1.5} />
+                  {sources.busy ? "Registrando…" : "Registrar"}
+                </Button>
                 <Button
                   variant="outline"
-                  size="sm"
-                  className="justify-self-start"
-                  disabled={sources.busy || source.status === "syncing"}
-                  onClick={() => void sources.sync(source.id)}
+                  type="button"
+                  onClick={() => setShowConnectionForm(false)}
                 >
-                  <RefreshCw />
-                  Sincronizar
+                  Cancelar
                 </Button>
-              </article>
-            ))}
+              </div>
+            </form>
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="self-start h-10 px-4 border border-border rounded-lg bg-transparent text-muted-foreground opacity-70 text-sm font-medium cursor-not-allowed"
+            >
+              Nova conexão
+            </button>
+          )}
+        </article>
+      </section>
+
+      {/* Envios recentes */}
+      <section className="bg-card border border-border rounded-[14px] p-[20px_22px_12px] flex flex-col gap-2">
+        <h2 className="m-0 text-sm font-semibold text-foreground">
+          Envios recentes
+        </h2>
+        {recentUploads.length === 0 ? (
+          <p className="m-0 pb-4 text-xs text-muted-foreground">
+            Nenhum envio nesta sessão.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] border-collapse text-sm tabular-nums">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="font-normal py-2.5 pr-3">Nº</th>
+                  <th className="font-normal py-2.5 px-3">Arquivo</th>
+                  <th className="font-normal py-2.5 px-3">Enviado</th>
+                  <th className="font-normal py-2.5 pl-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentUploads.map((u) => (
+                  <tr
+                    key={u.id}
+                    className="border-b border-soft last:border-b-0"
+                  >
+                    <td className="py-3.5 pr-3 font-mono text-xs text-foreground">
+                      {u.id}
+                    </td>
+                    <td className="py-3.5 px-3 font-mono text-[13px] text-foreground">
+                      {u.file}
+                    </td>
+                    <td className="py-3.5 px-3 text-muted-foreground text-xs">
+                      {u.when}
+                    </td>
+                    <td className="py-3.5 pl-3">
+                      <span className="inline-flex items-center gap-2 text-foreground">
+                        <span className="size-2 rounded-full bg-primary" />
+                        Enviado
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </section>
-    </div>
-  );
-}
-const transactionFieldLabels: Record<keyof TransactionRequest, string> = {
-  Date: "Data",
-  Time: "Horário",
-  Sender_account: "Conta de origem",
-  Receiver_account: "Conta de destino",
-  Amount: "Valor",
-  Payment_currency: "Moeda do pagamento",
-  Received_currency: "Moeda do recebimento",
-  Sender_bank_location: "País do banco de origem",
-  Receiver_bank_location: "País do banco de destino",
-  Payment_type: "Meio de pagamento",
-};
-function ManualTransactionTab() {
-  const manual = useManualTransaction();
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<TransactionRequest>({
-    resolver: zodResolver(transactionSchema),
-    defaultValues: {
-      Payment_currency: "BRL",
-      Received_currency: "BRL",
-      Time: "12:00:00",
-    },
-  });
-  return (
-    <div className="grid gap-6">
-      <section className="panel">
-        <h2 className="panel-title">Adicionar uma transação</h2>
+
+      {/* Formulário de transação individual (mantido e reestilizado) */}
+      <details className="group bg-card border border-border rounded-[14px] p-[20px_22px]">
+        <summary className="flex justify-between items-center cursor-pointer font-semibold text-sm text-foreground list-none select-none">
+          <span>Adicionar transação individual (registro manual)</span>
+          <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">
+            ▼
+          </span>
+        </summary>
+
         <form
-          className="grid gap-5 p-6 sm:grid-cols-2 lg:grid-cols-3"
-          onSubmit={handleSubmit(async (data) => {
-            if (await manual.submit(data)) reset();
+          className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 pt-4 mt-3 border-t border-border"
+          onSubmit={handleManualSubmit(async (data) => {
+            if (await manual.submit(data)) resetManual();
           })}
         >
           {(
@@ -418,10 +562,10 @@ function ManualTransactionTab() {
             <Field
               key={fieldKey}
               label={transactionFieldLabels[fieldKey]}
-              error={errors[fieldKey]?.message}
+              error={manualErrors[fieldKey]?.message}
             >
               <Input
-                {...register(
+                {...registerManual(
                   fieldKey,
                   fieldKey === "Amount" ? { valueAsNumber: true } : {},
                 )}
@@ -477,129 +621,47 @@ function ManualTransactionTab() {
               <option key={p} value={p} />
             ))}
           </datalist>
-          <div className="flex items-end sm:col-span-2 lg:col-span-3">
+
+          <div className="flex items-end sm:col-span-2 lg:col-span-3 pt-2">
             <Button type="submit" disabled={manual.busy}>
-              <Plus />
+              <Plus className="size-4" strokeWidth={1.5} />
               {manual.busy ? "Registrando…" : "Registrar transação"}
             </Button>
           </div>
         </form>
-      </section>
-      <section className="panel overflow-hidden">
-        <h2 className="panel-title">
-          Registros desta sessão · {manual.entries.length}
-        </h2>
-        {!manual.entries.length ? (
-          <EmptyState
-            title="Nenhuma transação registrada"
-            description="Os registros enviados por este formulário aparecerão aqui durante a sessão."
-          />
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="data-table">
+
+        {manual.entries.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-border overflow-x-auto">
+            <table className="w-full text-xs">
               <thead>
-                <tr>
-                  <th>Origem</th>
-                  <th>Destino</th>
-                  <th>Valor</th>
-                  <th>Status</th>
+                <tr className="text-left text-muted-foreground border-b border-border">
+                  <th className="py-2">Origem</th>
+                  <th className="py-2">Destino</th>
+                  <th className="py-2">Valor</th>
+                  <th className="py-2">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-soft font-mono">
                 {manual.entries.map((entry) => (
                   <tr key={entry.id}>
-                    <td className="font-mono">{entry.sender}</td>
-                    <td className="font-mono">{entry.receiver}</td>
-                    <td>
+                    <td className="py-2">{entry.sender}</td>
+                    <td className="py-2">{entry.receiver}</td>
+                    <td className="py-2">
                       {new Intl.NumberFormat("pt-BR", {
                         style: "currency",
                         currency: entry.currency,
                       }).format(entry.amount)}
                     </td>
-                    <td>Recebido</td>
+                    <td className="py-2 font-sans text-muted-foreground">
+                      Recebido
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
         )}
-      </section>
+      </details>
     </div>
-  );
-}
-export function Ingestion() {
-  const [activeTab, setActiveTab] = useState("csv");
-  const tabs = [
-    { id: "csv", label: "Upload de CSV", icon: FileUp },
-    { id: "connections", label: "Conexão com banco", icon: Database },
-    { id: "manual", label: "Formulário manual", icon: Plus },
-  ];
-  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  return (
-    <>
-      <div className="page-heading">
-        <div>
-          <p className="eyebrow !mt-0 mb-2">Entrada de operações</p>
-          <h1>Fontes de dados</h1>
-          <p>
-            Conecte suas operações ao monitoramento com controle e visibilidade.
-          </p>
-        </div>
-      </div>
-      <div
-        role="tablist"
-        aria-label="Método de ingestão"
-        className="flex overflow-x-auto border-b"
-      >
-        {tabs.map(({ id, label, icon: IconComponent }, i) => (
-          <button
-            ref={(el) => {
-              tabRefs.current[i] = el;
-            }}
-            key={id}
-            id={"tab-" + id}
-            role="tab"
-            aria-controls={"panel-" + id}
-            aria-selected={activeTab === id}
-            tabIndex={activeTab === id ? 0 : -1}
-            onKeyDown={(e) => {
-              if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key))
-                return;
-              e.preventDefault();
-              const nextIndex =
-                e.key === "Home"
-                  ? 0
-                  : e.key === "End"
-                    ? 2
-                    : (i + (e.key === "ArrowRight" ? 1 : 2)) % 3;
-              setActiveTab(tabs[nextIndex].id);
-              tabRefs.current[nextIndex]?.focus();
-            }}
-            onClick={() => setActiveTab(id)}
-            className={`flex shrink-0 items-center gap-2 border-b-2 px-5 py-4 text-xs font-medium ${activeTab === id ? "border-primary text-primary" : "border-transparent text-muted-foreground"}`}
-          >
-            <IconComponent className="size-4" />
-            {label}
-          </button>
-        ))}
-      </div>
-      {tabs.map(({ id }) => (
-        <div
-          key={id}
-          id={"panel-" + id}
-          role="tabpanel"
-          aria-labelledby={"tab-" + id}
-          hidden={activeTab !== id}
-        >
-          {id === "csv" ? (
-            <CsvUploadTab />
-          ) : id === "connections" ? (
-            <ConnectionsTab />
-          ) : (
-            <ManualTransactionTab />
-          )}
-        </div>
-      ))}
-    </>
   );
 }
