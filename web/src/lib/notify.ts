@@ -56,6 +56,12 @@ export function dismissToast(id: number): void {
   emit();
 }
 
+export function clearToasts(): void {
+  const store = getStore();
+  store.toasts = [];
+  emit();
+}
+
 function pushToast(kind: ToastKind, title: string, body?: string): number {
   const store = getStore();
   const id = ++store.seq;
@@ -77,6 +83,7 @@ export const notify = {
   info: (title: string, body?: string) => pushToast("info", title, body),
   error: (title: string, body?: string) => pushToast("error", title, body),
   dismiss: (id: number) => dismissToast(id),
+  clear: () => clearToasts(),
 };
 
 if (typeof window !== "undefined") {

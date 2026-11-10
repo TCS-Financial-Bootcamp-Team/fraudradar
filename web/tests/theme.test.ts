@@ -16,6 +16,7 @@ import {
 import {
   loadSavedTheme,
   saveTheme,
+  ThemeStorageLoader,
   THEME_STORAGE_KEY,
 } from "../src/lib/theme/storage";
 
@@ -278,6 +279,80 @@ test("theme: configuração inválida no storage reverte para o padrão Grafite"
     saveTheme(validConfig, computeTokens(validConfig), true);
     const r4 = loadSavedTheme();
     assert.equal(r4.mode, "escuro");
+  } finally {
+    if (originalWindow === undefined) {
+      delete (globalThis as unknown as { window?: unknown }).window;
+    } else {
+      (globalThis as unknown as { window: unknown }).window = originalWindow;
+    }
+  }
+});
+
+test("theme: carregamento da configuração salva não é sobrescrito pelo padrão do primeiro render", () => {
+  const storageMap = new Map<string, string>();
+  const mockLocalStorage = {
+    getItem: (key: string) => storageMap.get(key) ?? null,
+    setItem: (key: string, val: string) => storageMap.set(key, val),
+    removeItem: (key: string) => storageMap.delete(key),
+    clear: () => storageMap.clear(),
+  };
+
+  const originalWindow = (globalThis as unknown as { window?: unknown }).window;
+  (globalThis as unknown as { window: unknown }).window = {
+    localStorage: mockLocalStorage,
+  };
+
+  try {
+    // 1. Simula usuário com tema 'escuro' já salvo anteriormente no localStorage
+    const savedConfig: ThemeConfig = {
+      mode: "escuro",
+      custom: DEFAULT_THEME_CONFIG.custom,
+    };
+    saveTheme(savedConfig, computeTokens(savedConfig), true);
+
+    // 2. Cria instância do loader/storage responsável pelo ciclo de vida
+    const loader = new ThemeStorageLoader();
+    assert.equal(loader.isLoaded, false);
+
+    // 3. Simula tentativa prematura de salvar o tema padrão antes do mount/load terminar
+    // (o que aconteceria no primeiro render do cliente / hidratação caso o efeito disparasse)
+    const defaultSaved = loader.save(
+      DEFAULT_THEME_CONFIG,
+      computeTokens(DEFAULT_THEME_CONFIG),
+      false
+    );
+    assert.equal(defaultSaved, false, "Gravação antes da carga deve ser ignorada");
+
+    // Verifica que o tema no localStorage NÃO foi sobrescrito pelo default
+    const currentRaw = mockLocalStorage.getItem(THEME_STORAGE_KEY);
+    assert.ok(currentRaw !== null);
+    const parsed = JSON.parse(currentRaw);
+    assert.equal(
+      parsed.config.mode,
+      "escuro",
+      "O tema salvo deve permanecer 'escuro' no localStorage"
+    );
+
+    // 4. Executa a carga (simulando a montagem pós-hidratação)
+    const loadedConfig = loader.load();
+    assert.equal(loadedConfig.mode, "escuro");
+    assert.equal(loader.isLoaded, true);
+
+    // 5. Após carregado, alterações subsequentes válidas são persistidas normalmente
+    const novoTema: ThemeConfig = {
+      mode: "oceano",
+      custom: DEFAULT_THEME_CONFIG.custom,
+    };
+    const savedSuccess = loader.save(
+      novoTema,
+      computeTokens(novoTema),
+      false
+    );
+    assert.equal(savedSuccess, true, "Gravação pós-carga deve ser permitida");
+
+    const updatedRaw = mockLocalStorage.getItem(THEME_STORAGE_KEY);
+    const updatedParsed = JSON.parse(updatedRaw!);
+    assert.equal(updatedParsed.config.mode, "oceano");
   } finally {
     if (originalWindow === undefined) {
       delete (globalThis as unknown as { window?: unknown }).window;
