@@ -1,8 +1,8 @@
 """Fila de alertas da semana, detalhe com evidências e grafo de 2 saltos.
 
-- GET /alerts?week=&status=&country=&page=&size=&sort=  — fila paginada da semana
-- GET /alerts/{id}                                      — detalhe + evidências
-- GET /alerts/{id}/graph                                — grafo de 2 saltos (Cytoscape)
+- GET /alerts?week=&status=&country=&search=&page=&size=&sort=  — fila paginada da semana
+- GET /alerts/{id}                                             — detalhe + evidências
+- GET /alerts/{id}/graph                                       — grafo de 2 saltos (Cytoscape)
 
 Decisão e comunicação ficam em decisions.py; parecer e chat em ai.py.
 """
@@ -26,14 +26,26 @@ def list_alerts(
     week: date,
     status: AlertStatus | None = None,
     country: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
+    search: Annotated[str | None, Query(min_length=1, max_length=40)] = None,
     page: Annotated[int, Query(ge=1, le=10_000)] = 1,  # sem teto, OFFSET estoura o bigint
     size: Annotated[int, Query(ge=1, le=100)] = 10,
     sort: alert_queue.SortOrder = "score_desc",
 ) -> AlertQueue:
-    """Fila paginada da semana; `countries` traz todas as opções da semana, sem os filtros."""
+    """Fila paginada da semana.
+
+    `search` filtra por id exato ou prefixo de conta;
+    `countries` traz todas as opções da semana, sem os filtros.
+    """
     week = week_start(week)
     rows, total = alert_queue.list_queue(
-        conn, week, status=status, country=country, page=page, size=size, sort=sort
+        conn,
+        week,
+        status=status,
+        country=country,
+        search=search,
+        page=page,
+        size=size,
+        sort=sort,
     )
     return AlertQueue(
         items=[alert_from_row(row) for row in rows],

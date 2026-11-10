@@ -149,7 +149,7 @@ JSON gravado pelo worker (contrato worker → API):
 | --- | --- |
 | `GET /saude` | `GET /health` |
 | `GET /semanas` | `GET /weeks` |
-| `GET /alertas?semana=&status=&pais=&pagina=&tamanho=&ordenar=` | `GET /alerts?week=&status=&country=&page=&size=&sort=` (`sort`: `score_desc` ou `queue`) |
+| `GET /alertas?semana=&status=&pais=&pagina=&tamanho=&ordenar=` | `GET /alerts?week=&status=&country=&search=&page=&size=&sort=` (`sort`: `score_desc` ou `queue`) |
 | `GET /alertas/{id}` | `GET /alerts/{id}` |
 | `GET /alertas/{id}/grafo` | `GET /alerts/{id}/graph` |
 | `POST /alertas/{id}/decisao` | `POST /alerts/{id}/decision` |
@@ -211,8 +211,8 @@ alerta não tem tipologia).
 
 | Antes | Depois |
 | --- | --- |
-| `/alertas`, `/alertas/[id]` | `/alerts`, `/alerts/[id]` |
-| `/comunicacoes` | `/reports` |
+| `/alertas`, `/alertas/[id]` | `/alerts`, `/alerts/[id]` (revisão de comunicação em `/alerts/[id]`) |
+| `/comunicacoes` | `/reports` (removida; rascunho movido para o detalhe do alerta) |
 | `/configuracoes` | `/settings` |
 | `/ingestao` | `/ingestion` |
 | `/monitoramento` | `/monitoring` |
