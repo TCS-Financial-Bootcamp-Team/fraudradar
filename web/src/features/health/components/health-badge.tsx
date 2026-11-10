@@ -1,24 +1,38 @@
 "use client";
+
 import { useHealth } from "../hooks/use-health";
+
 export function HealthBadge() {
   const { state, reload } = useHealth();
   const ok = state.status === "ok" && state.health.status === "ok";
+  const isLoading = state.status === "loading";
+
   return (
     <button
+      type="button"
       title="Atualizar saúde do sistema"
       onClick={reload}
-      className="flex items-center gap-2 rounded-full border bg-card px-3 py-2 text-[11px] text-muted-foreground"
+      className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-3 py-1.5 text-xs text-foreground transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     >
       <span
-        className={`size-1.5 rounded-full ${ok ? "bg-primary" : "bg-risk-medium"}`}
+        aria-hidden="true"
+        className={`size-1.5 shrink-0 rounded-full ${
+          isLoading
+            ? "bg-muted-foreground animate-pulse"
+            : ok
+              ? "bg-primary"
+              : "bg-signal"
+        }`}
       />
-      {state.status === "loading"
-        ? "Verificando sistema…"
-        : ok
-          ? "Sistema operacional"
-          : state.status === "error"
-            ? "API indisponível"
-            : "Sistema degradado"}
+      <span className="text-muted-foreground">
+        {isLoading
+          ? "Verificando sistema…"
+          : ok
+            ? "Sistema operacional"
+            : state.status === "error"
+              ? "API indisponível"
+              : "Sistema degradado"}
+      </span>
     </button>
   );
 }

@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { ChevronsUpDown, LogOut, SlidersHorizontal } from "lucide-react";
 import { cn } from "cn";
+import { CollapsedTooltip } from "@/components/ui/tooltip";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { useProfile } from "@/features/auth/hooks/use-profile";
 
-function getInitials(name?: string): string {
+type AccountMenuPlacement = "header" | "sidebar-expanded" | "sidebar-collapsed";
+
+interface AccountMenuProps {
+  placement: AccountMenuPlacement;
+  onNavigate?: () => void;
+}
+
+export function getInitials(name?: string): string {
   if (!name) return "A";
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "A";
@@ -15,87 +23,171 @@ function getInitials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export function HeaderAccountMenu() {
+function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
   const profile = useProfile();
   const auth = useAuth();
 
   useEffect(() => {
+    if (!isOpen) return;
+
     const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+      if (!containerRef.current?.contains(event.target as Node)) {
         setIsOpen(false);
       }
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         setIsOpen(false);
+        triggerRef.current?.focus();
       }
     };
+
     document.addEventListener("mousedown", handleClickOutside);
     document.addEventListener("keydown", handleKeyDown);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [isOpen]);
 
   const name = profile.data?.name || "Minha conta";
-  const email = profile.data?.email;
+  // O contrato atual do perfil não expõe cargo; este é o papel único do produto.
+  const role = "Analista PLD";
+  const isHeader = placement === "header";
+  const isExpanded = placement === "sidebar-expanded";
 
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex size-10 items-center justify-center rounded-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-        aria-expanded={isOpen}
-        aria-label="Menu da conta"
-      >
-        <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-accent font-medium text-accent-foreground text-xs shadow-sm">
-          {getInitials(profile.data?.name)}
-        </div>
-      </button>
+  const closeMenu = () => {
+    setIsOpen(false);
+    onNavigate?.();
+  };
 
-      <div
+  const trigger = (
+    <button
+      ref={triggerRef}
+      type="button"
+      onClick={() => setIsOpen((open) => !open)}
+      aria-controls={menuId}
+      aria-expanded={isOpen}
+      aria-haspopup="menu"
+      aria-label="Menu da conta"
+      className={cn(
+        "focus-visible:outline-none focus-visible:ring-2",
+        isHeader
+          ? "grid size-10 place-items-center rounded-lg text-topbar-foreground transition-colors hover:bg-topbar-border focus-visible:ring-topbar-foreground"
+          : "flex min-h-11 w-full items-center gap-2.5 rounded-[10px] p-1.5 text-left text-sidebar-foreground transition-colors hover:bg-sidebar-accent focus-visible:ring-sidebar-ring",
+        !isHeader && !isExpanded && "justify-center",
+        !isHeader && isOpen && "bg-sidebar-accent",
+      )}
+    >
+      <span
         className={cn(
-          "absolute right-0 z-50 mt-2 w-64 origin-top-right rounded-md border border-border bg-popover py-1 text-popover-foreground shadow-2xl ring-1 ring-foreground/10 transition-all duration-200 motion-reduce:transition-none",
-          isOpen
-            ? "opacity-100 scale-100 visible"
-            : "opacity-0 scale-95 pointer-events-none invisible"
+          "grid shrink-0 place-items-center rounded-full font-semibold",
+          isHeader
+            ? "size-8 bg-topbar-foreground text-xs text-topbar"
+            : "size-[30px] bg-sidebar-foreground text-[11px] text-sidebar",
         )}
       >
-        <div className="border-b border-border px-4 py-3">
-          <p className="truncate text-sm font-bold text-foreground">{name}</p>
-          {email ? (
-            <p className="truncate text-[11px] text-muted-foreground mt-0.5">
-              {email}
-            </p>
-          ) : null}
-        </div>
+        {getInitials(profile.data?.name)}
+      </span>
+      {isExpanded && (
+        <>
+          <span className="flex min-w-0 flex-1 flex-col leading-[1.3]">
+            <span className="truncate text-[13px] font-medium">{name}</span>
+            <span className="truncate text-xs text-sidebar-muted">{role}</span>
+          </span>
+          <ChevronsUpDown
+            aria-hidden="true"
+            className="size-3.5 shrink-0 text-sidebar-muted"
+            strokeWidth={1.5}
+          />
+        </>
+      )}
+    </button>
+  );
 
-        <div className="py-1">
-          <Link
-            href="/settings"
-            onClick={() => setIsOpen(false)}
-            className="flex w-full items-center px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors focus-visible:outline-none focus-visible:bg-muted"
-          >
-            Meu perfil
-          </Link>
-          <button
-            type="button"
-            disabled={auth.busy}
-            onClick={() => {
-              setIsOpen(false);
-              void auth.signOut();
-            }}
-            className="group flex w-full items-center px-4 py-2 text-sm text-foreground hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50 focus-visible:outline-none focus-visible:bg-destructive/10"
-          >
-            <LogOut size={16} className="mr-2 text-muted-foreground group-hover:text-destructive" />
-            Sair da conta
-          </button>
+  return (
+    <div
+      ref={containerRef}
+      className={cn("relative", isHeader ? "shrink-0" : "w-full")}
+    >
+      {placement === "sidebar-collapsed" ? (
+        <CollapsedTooltip label={`${name} · conta`} enabled={!isOpen}>
+          {trigger}
+        </CollapsedTooltip>
+      ) : (
+        trigger
+      )}
+
+      <div
+        id={menuId}
+        role="menu"
+        aria-label="Conta"
+        className={cn(
+          "absolute z-[80] flex origin-bottom-left flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 text-card-foreground shadow-xl transition duration-150 motion-reduce:transition-none",
+          placement === "header" &&
+            "right-0 top-[calc(100%+8px)] w-[240px] origin-top-right",
+          placement === "sidebar-expanded" &&
+            "bottom-[calc(100%-6px)] left-0 w-full",
+          placement === "sidebar-collapsed" &&
+            "bottom-0 left-[calc(100%+10px)] w-[220px]",
+          isOpen
+            ? "visible scale-100 opacity-100"
+            : "invisible pointer-events-none scale-95 opacity-0",
+        )}
+      >
+        <div className="mb-1 flex flex-col border-b border-soft px-2.5 py-2.5 leading-[1.35]">
+          <span className="truncate text-sm font-medium text-foreground">
+            {name}
+          </span>
+          <span className="truncate text-xs text-muted-foreground">{role}</span>
         </div>
+        <Link
+          href="/settings"
+          role="menuitem"
+          onClick={closeMenu}
+          className="flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+        >
+          <SlidersHorizontal className="size-4" strokeWidth={1.5} />
+          Configurações
+        </Link>
+        <button
+          type="button"
+          role="menuitem"
+          disabled={auth.busy}
+          onClick={() => {
+            setIsOpen(false);
+            onNavigate?.();
+            void auth.signOut();
+          }}
+          className="flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <LogOut className="size-4" strokeWidth={1.5} />
+          Sair
+        </button>
       </div>
     </div>
+  );
+}
+
+export function HeaderAccountMenu() {
+  return <AccountMenu placement="header" />;
+}
+
+export function SidebarAccountMenu({
+  isExpanded,
+  onNavigate,
+}: {
+  isExpanded: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <AccountMenu
+      placement={isExpanded ? "sidebar-expanded" : "sidebar-collapsed"}
+      onNavigate={onNavigate}
+    />
   );
 }

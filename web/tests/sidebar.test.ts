@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   SIDEBAR_COOKIE,
+  getAlertIdFromPathname,
+  getBreadcrumb,
   isNavItemActive,
   isSidebarOpenFromCookie,
   persistSidebarState,
@@ -36,4 +38,52 @@ test("sidebar: persistSidebarState lida de forma segura fora do navegador", () =
     persistSidebarState(true);
     persistSidebarState(false);
   });
+});
+
+test("sidebar: getBreadcrumb mapeia rotas conhecidas e padrão", () => {
+  assert.deepEqual(getBreadcrumb("/dashboard"), {
+    group: "Análise",
+    page: "Visão geral",
+  });
+  assert.deepEqual(getBreadcrumb("/"), {
+    group: "Análise",
+    page: "Visão geral",
+  });
+  assert.deepEqual(getBreadcrumb(""), {
+    group: "Análise",
+    page: "Visão geral",
+  });
+  assert.deepEqual(getBreadcrumb("/alerts"), {
+    group: "Análise",
+    page: "Fila de alertas",
+  });
+  assert.deepEqual(getBreadcrumb("/alerts/3126"), {
+    group: "Fila de alertas",
+    page: "Alerta 3126",
+  });
+  assert.deepEqual(getBreadcrumb("/alerts/AL-9988"), {
+    group: "Fila de alertas",
+    page: "Alerta AL-9988",
+  });
+  assert.deepEqual(getBreadcrumb("/monitoring"), {
+    group: "Qualidade",
+    page: "Monitoramento",
+  });
+  assert.deepEqual(getBreadcrumb("/ingestion"), {
+    group: "Dados",
+    page: "Fontes de dados",
+  });
+  assert.deepEqual(getBreadcrumb("/settings"), {
+    group: "Conta",
+    page: "Configurações",
+  });
+});
+
+test("sidebar: getAlertIdFromPathname detecta alertas em rotas de detalhe", () => {
+  assert.equal(getAlertIdFromPathname("/alerts/3126"), "3126");
+  assert.equal(getAlertIdFromPathname("/alerts/abc-123/sub"), "abc-123");
+  assert.equal(getAlertIdFromPathname("/alerts"), undefined);
+  assert.equal(getAlertIdFromPathname("/alerts/"), undefined);
+  assert.equal(getAlertIdFromPathname("/dashboard"), undefined);
+  assert.equal(getAlertIdFromPathname(""), undefined);
 });
