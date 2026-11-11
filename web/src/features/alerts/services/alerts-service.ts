@@ -100,7 +100,7 @@ export async function submitDecision(id: string, data: DecisionRequest) {
   const parsed = decisionSchema.parse(data);
   if (USE_MOCKS) {
     const mocks = await import("./mocks");
-    const alert = mocks.alertsMock.find((a) => a.id === id);
+    const alert = mocks.currentAlertsMock().find((a) => a.id === id);
     if (!alert) throw new Error("Alerta não encontrado.");
     const statusByDecision = {
       archive: "archived",
@@ -162,9 +162,10 @@ export async function advanceWeek(week: string) {
     const date = new Date(week + "T00:00:00Z");
     date.setUTCDate(date.getUTCDate() + 7);
     const nextWeek = date.toISOString().slice(0, 10);
-    if (!mocks.alertsMock.some((a) => a.week === nextWeek))
-      mocks.alertsMock.push(
-        ...mocks.alertsMock.slice(0, 12).map((a, i) => ({
+    const alerts = mocks.currentAlertsMock();
+    if (!alerts.some((a) => a.week === nextWeek))
+      alerts.push(
+        ...alerts.slice(0, 12).map((a, i) => ({
           ...a,
           id: "ALT-" + nextWeek + "-" + i,
           week: nextWeek,

@@ -5,6 +5,9 @@ Todas as respostas são JSON, exceto o pedido multipart de CSV. Erros HTTP
 não são convertidos em sucesso nem em mocks. As rotas de domínio exigem
 `Authorization: Bearer <access_token do Supabase>`. A API deve validar o JWT
 e autorizar os dados; o proxy do frontend não substitui a autorização da API.
+Todas as requisições do frontend enviam `X-Dataset` com o slug do conjunto atual;
+na ausência do cabeçalho a API usa `saml-d`. Rotas de dados respondem 404, com
+mensagem em português, quando o slug não existe.
 
 Datas de semana: `AAAA-MM-DD`; timestamps: ISO 8601. Score e contribuições:
 0–100. Taxas: frações de 0–1. Valores monetários nos indicadores: BRL.
@@ -118,6 +121,26 @@ Implementado em POST /ingestion/csv e /ingestion/transactions; as regras ficam e
   falha de conexão: confira `file.size` antes de enviar.
 - **Resposta**: 201 com receiptSchema, status `received`; o id é o do envio
   (tabela `ingestions`). O score sai quando o worker processa a semana.
+
+## Conjuntos de dados e trabalhos
+
+| Requisição | Pedido / resposta |
+| --- | --- |
+| `GET /datasets` | lista `datasetSchema[]`, ordenada por criação |
+| `POST /datasets` | pedido `{name, slug}`; cria um conjunto vazio e responde `datasetSchema` com 201 |
+| `POST /datasets/{slug}/process` | sem corpo; enfileira o processamento e responde `jobSchema` com 202 |
+| `GET /jobs?dataset=` | até 20 trabalhos mais recentes; filtro por slug opcional |
+| `GET /jobs/{id}` | um `jobSchema`; 404 quando não existe |
+
+`datasetSchema`: `{slug, name, origin: "saml-d" | "external",
+active_model_version: string | null, created_at}`. O slug aceita somente
+`[a-z0-9-]{1,40}`. A tela guarda o slug atual no `localStorage`, com fallback
+seguro para `saml-d`; a troca limpa a semana selecionada e recarrega os recursos.
+
+`jobSchema`: `{id, kind: "import" | "process" | "train", dataset, status:
+"queued" | "running" | "done" | "failed", progress, message, created_at,
+started_at, finished_at}`. Nesta fase, só `process` executa trabalho real;
+`import` e `train` falham com mensagem explícita de que ainda não foram implementados.
 
 ## Chat e privacidade
 

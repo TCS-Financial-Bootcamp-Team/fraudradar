@@ -1,3 +1,5 @@
+import { getCurrentDataset } from "@/lib/dataset";
+
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -5,6 +7,7 @@ export const USE_MOCKS = process.env.NEXT_PUBLIC_USE_MOCKS === "true";
 
 async function buildHeaders() {
   const headers = new Headers();
+  headers.set("X-Dataset", getCurrentDataset());
   if (typeof window !== "undefined") {
     const { getSupabaseConfig } = await import("./supabase/config");
     if (getSupabaseConfig()) {
