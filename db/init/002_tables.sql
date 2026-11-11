@@ -1,6 +1,8 @@
 -- Esquema do FraudRadar PLD. Roda uma vez, quando o volume do Postgres é criado.
 -- Datas do SAML-D não têm fuso: occurred_at e week ficam sem timezone.
 -- `week` é sempre a segunda-feira da semana.
+-- Este DDL não qualifica schemas de propósito: pode ser aplicado depois de
+-- `SET LOCAL search_path TO <schema_do_conjunto>, public`. O tipo vector vive em public.
 
 -- Transações do SAML-D (~9,5 mi linhas), carregadas por COPY.
 -- Sem FK para accounts: accounts é derivada de transactions e a FK deixaria a carga lenta.

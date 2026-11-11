@@ -18,6 +18,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.exc import OperationalError
 
 from fraudradar.config import ROOT_DIR, get_settings
+from fraudradar.datasets import quote_identifier
 from fraudradar.db import get_engine
 
 if TYPE_CHECKING:
@@ -88,10 +89,21 @@ def db(test_db_url, monkeypatch) -> Iterator[Engine]:
     get_engine.cache_clear()
     engine = get_engine()
     with engine.begin() as conn:
+        schemas = conn.execute(
+            text("SELECT nspname FROM pg_namespace WHERE nspname LIKE 'ds\\_%' ESCAPE '\\'")
+        ).scalars()
+        for schema in schemas:
+            conn.exec_driver_sql(f"DROP SCHEMA {quote_identifier(schema)} CASCADE")
         tables = conn.execute(
             text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
         ).scalars()
         conn.exec_driver_sql(f"TRUNCATE {', '.join(tables)} RESTART IDENTITY CASCADE")
+        conn.execute(
+            text(
+                "INSERT INTO public.datasets (slug, name, schema_name, origin) "
+                "VALUES ('saml-d', 'SAML-D', 'public', 'saml-d')"
+            )
+        )
     yield engine
     engine.dispose()
 

@@ -77,6 +77,8 @@ sentido e acrescente a linha.
 | origem / destino (aresta do grafo) | source / target | como no Cytoscape |
 | fonte (citação do parecer) | source | `titulo`/`trecho` → `title`/`excerpt` |
 | fonte de dados (conexão externa) | data source | |
+| conjunto de dados | dataset | schema isolado com fila, semanas e histórico próprios |
+| trabalho (em segundo plano) | job | pedido persistido e executado por `worker serve` |
 | conexão | connection | |
 | ingestão / envio | ingestion / upload | |
 | recibo | receipt | |

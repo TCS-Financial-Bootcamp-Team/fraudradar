@@ -18,7 +18,9 @@ Só processa semanas que começam depois do treino do modelo (`train_end` da fic
 Semana já processada fica como está; `force` refaz, menos quando há trabalho de analista nela.
 """
 
+import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -29,6 +31,8 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import Connection, Engine
 
+from fraudradar.config import get_settings
+from fraudradar.datasets import Dataset, use_dataset
 from fraudradar.features.history import (
     CASH_ACCOUNT,
     account_profile,
@@ -91,10 +95,19 @@ class _Week:
 # --- ficha e semanas ------------------------------------------------------------------------
 
 
-def load_card(model_dir: Path | None = None) -> tuple[lgb.Booster, dict]:
+def load_card(
+    model_dir: Path | None = None, model_version: str | None = None
+) -> tuple[lgb.Booster, dict]:
     """O modelo mais novo de MODEL_DIR (ou `model_dir`) e a ficha dele."""
     try:
-        booster, card = load_model(model_dir)
+        if model_version is None:
+            booster, card = load_model(model_dir)
+        else:
+            if not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", model_version):
+                raise WorkerError("a versão ativa do modelo tem um nome inválido")
+            folder = Path(model_dir or get_settings().model_dir)
+            card = json.loads((folder / f"{model_version}.json").read_text(encoding="utf-8"))
+            booster = lgb.Booster(model_file=str(folder / f"{model_version}.txt"))
     except FileNotFoundError as exc:
         raise WorkerError(f"{exc} (uv run --group ml python -m fraudradar.model train)") from exc
     except lgb.basic.LightGBMError as exc:
@@ -113,6 +126,19 @@ def load_card(model_dir: Path | None = None) -> tuple[lgb.Booster, dict]:
     return booster, card
 
 
+def _dataset_model(dataset: Dataset | None, model_dir: Path | None) -> tuple[lgb.Booster, dict]:
+    """Mantém o modelo oficial atual quando o conjunto não fixa uma versão própria."""
+    if dataset is None or dataset.active_model_version is None:
+        return load_card(model_dir)
+    root = Path(model_dir or get_settings().model_dir)
+    return load_card(root / dataset.slug, dataset.active_model_version)
+
+
+def _scope(conn: Connection, dataset: Dataset | None) -> None:
+    if dataset is not None:
+        use_dataset(conn, dataset)
+
+
 def model_version(card: dict) -> str:
     return f"lightgbm_v{card['version']}"
 
@@ -128,12 +154,13 @@ def run_batch(
     allow_in_sample: bool = False,
     model_dir: Path | None = None,
     rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
 ) -> RunResult:
     """Uma semana (`week` é a segunda-feira)."""
     check_monday(week, "--week")
-    booster, card = load_card(model_dir)
+    booster, card = _dataset_model(dataset, model_dir)
     check_out_of_sample([week], card, allow_in_sample)
-    return _run(engine, [week], booster, card, force=force, rules_dir=rules_dir)
+    return _run(engine, [week], booster, card, force=force, rules_dir=rules_dir, dataset=dataset)
 
 
 def run_backfill(
@@ -145,6 +172,7 @@ def run_backfill(
     allow_in_sample: bool = False,
     model_dir: Path | None = None,
     rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
 ) -> RunResult:
     """Todas as semanas de `start` a `end` (segundas), com as variáveis calculadas uma vez só.
 
@@ -153,12 +181,13 @@ def run_backfill(
     for day, flag in ((start, "--from"), (end, "--to")):
         if day is not None:
             check_monday(day, flag)
-    booster, card = load_card(model_dir)
+    booster, card = _dataset_model(dataset, model_dir)
     if start is not None and end is not None and start > end:
         raise WorkerError(f"--from {start.isoformat()} vem depois de --to {end.isoformat()}")
     start = start or first_out_of_sample_week(card)
     if end is None:
         with engine.connect() as conn:
+            _scope(conn, dataset)
             last = repository.last_transaction_at(conn)
         if last is None:
             return RunResult(
@@ -171,17 +200,22 @@ def run_backfill(
         )
     weeks = [start + timedelta(weeks=i) for i in range((end - start).days // 7 + 1)]
     check_out_of_sample(weeks, card, allow_in_sample)
-    return _run(engine, weeks, booster, card, force=force, rules_dir=rules_dir)
+    return _run(engine, weeks, booster, card, force=force, rules_dir=rules_dir, dataset=dataset)
 
 
 def run_replay(
-    engine: Engine, *, model_dir: Path | None = None, rules_dir: Path = RULES_DIR
+    engine: Engine,
+    *,
+    model_dir: Path | None = None,
+    rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
 ) -> RunResult:
     """A próxima semana com transações depois da última processada (ou a primeira depois do
     treino). Não libera nada: liberar é o POST /replay/next-week da API."""
-    booster, card = load_card(model_dir)
+    booster, card = _dataset_model(dataset, model_dir)
     first = first_out_of_sample_week(card)
     with engine.connect() as conn:
+        _scope(conn, dataset)
         latest = repository.latest_processed_week(conn)
         since = first if latest is None else max(latest + timedelta(days=7), first)
         next_at = repository.first_transaction_at(conn, datetime.combine(since, time.min))
@@ -191,19 +225,30 @@ def run_replay(
                 f"nada a processar: nenhuma semana com transações de {since.isoformat()} em diante"
             ]
         )
-    return _run(engine, [monday(next_at.date())], booster, card, force=False, rules_dir=rules_dir)
+    return _run(
+        engine,
+        [monday(next_at.date())],
+        booster,
+        card,
+        force=False,
+        rules_dir=rules_dir,
+        dataset=dataset,
+    )
 
 
 # --- planejamento e processamento ---------------------------------------------------------------
 
 
-def _run(engine, weeks, booster, card, *, force: bool, rules_dir: Path) -> RunResult:
+def _run(
+    engine, weeks, booster, card, *, force: bool, rules_dir: Path, dataset: Dataset | None
+) -> RunResult:
     """Separa o que fazer do que pular e recusa logo o --force sobre trabalho de analista,
     antes de ler 9 milhões de transações."""
     result = RunResult()
     first_start, _ = repository.week_window(min(weeks))
     _, last_end = repository.week_window(max(weeks))
     with engine.connect() as conn:
+        _scope(conn, dataset)
         with_transactions = repository.weeks_with_transactions(conn, first_start, last_end)
         done = repository.processed_weeks(conn, weeks)
         blocked = {}
@@ -229,15 +274,35 @@ def _run(engine, weeks, booster, card, *, force: bool, rules_dir: Path) -> RunRe
         else:
             todo.append(week)
     if todo:
-        _process(engine, todo, booster, card, force=force, rules_dir=rules_dir, result=result)
+        _process(
+            engine,
+            todo,
+            booster,
+            card,
+            force=force,
+            rules_dir=rules_dir,
+            result=result,
+            dataset=dataset,
+        )
     return result
 
 
-def _process(engine, weeks, booster, card, *, force: bool, rules_dir: Path, result: RunResult):
+def _process(
+    engine,
+    weeks,
+    booster,
+    card,
+    *,
+    force: bool,
+    rules_dir: Path,
+    result: RunResult,
+    dataset: Dataset | None,
+):
     clock = perf_counter()
     history_start = datetime.combine(date.fromisoformat(card["history_start"]), time.min)
     _, end = repository.week_window(max(weeks))
     with engine.connect() as conn:
+        _scope(conn, dataset)
         tx = repository.read_transactions(conn, history_start, end)
     log.info(
         "%s transações lidas, de %s a %s (%.0f s)",
@@ -270,6 +335,7 @@ def _process(engine, weeks, booster, card, *, force: bool, rules_dir: Path, resu
         begin, stop = np.searchsorted(times, np.array(repository.week_window(week), times.dtype))
         prepared = _prepare_week(week, tx, x, begin, stop, booster, card)
         with engine.begin() as conn:
+            _scope(conn, dataset)
             outcome = _write_week(conn, prepared, card, version, force=force, rules_dir=rules_dir)
         if isinstance(outcome, str):
             result.notes.append(outcome)

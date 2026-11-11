@@ -1,6 +1,7 @@
 """Peças do worker sem banco: a fila, o resumo da semana de cada conta e as métricas."""
 
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 
 import numpy as np
@@ -10,8 +11,10 @@ import pytest
 pytest.importorskip("lightgbm")
 
 from fraudradar.config import ROOT_DIR  # noqa: E402
+from fraudradar.datasets import Dataset  # noqa: E402
 from fraudradar.features.history import CASH_ACCOUNT  # noqa: E402
 from fraudradar.model.evaluation import account_weeks  # noqa: E402
+from worker import batch as batch_module  # noqa: E402
 from worker import metrics as metrics_module  # noqa: E402
 from worker.metrics import compute_metrics  # noqa: E402
 from worker.queue import account_scores, model_input, select_queue  # noqa: E402
@@ -184,6 +187,29 @@ def test_week_helpers():
     assert first_out_of_sample_week({"train_end": "2023-05-21"}).isoformat() == "2023-05-22"
     assert first_out_of_sample_week({"train_end": "2023-05-22"}).isoformat() == "2023-05-29"
     assert monday(pd.Timestamp("2023-05-28").date()).isoformat() == "2023-05-22"
+
+
+def test_dataset_active_model_uses_its_own_folder(monkeypatch, tmp_path):
+    selected = Dataset(
+        slug="external-demo",
+        name="Externa",
+        schema_name="ds_external_demo",
+        origin="external",
+        active_model_version="lightgbm_v2",
+        created_at=datetime.now(UTC),
+    )
+    called = {}
+
+    def fake_load_card(folder, version=None):
+        called.update(folder=folder, version=version)
+        return object(), {}
+
+    monkeypatch.setattr(batch_module, "load_card", fake_load_card)
+    batch_module._dataset_model(selected, tmp_path)
+    assert called == {
+        "folder": tmp_path / "external-demo",
+        "version": "lightgbm_v2",
+    }
 
 
 def test_only_metrics_reads_ground_truth():

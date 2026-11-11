@@ -21,7 +21,10 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
 - Banco → front: status `new`/`in_review` → `pending`, `escalated` →
   `escalated`, `reported` → `reported`; score 0–1 vira 0–100; ids e contas
   saem como texto; o país exibido é `countries[0]`.
-- Transação: use `DbConnection` (`api/dependencies.py`). É uma transação por
+- Transação de dados: use `DbConnection` (`api/dependencies.py`). Ela resolve
+  `X-Dataset` (padrão `saml-d`) e aplica `SET LOCAL search_path` antes da rota;
+  slug desconhecido responde 404. Catálogos globais em `public` usam
+  `PublicDbConnection`. Cada uma é uma transação por
   requisição, com commit antes da resposta; `HTTPException` faz rollback;
   `statement_timeout` de 15 s. Não abra outra conexão nem faça commit manual.
   Linha que vai mudar: `get_alert_row(..., for_update=True)` (FOR UPDATE).

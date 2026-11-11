@@ -68,7 +68,7 @@ Node 24 e pnpm 10. Terraform é opcional.
 ```bash
 cp .env.example .env            # preencha a chave do LLM se for usar
 uv sync --all-groups            # cria .venv com Python 3.12 e todas as dependências
-docker compose up -d --build    # sobe db, api e web
+docker compose up -d --build    # sobe db, api, web e o executor de trabalhos
 ```
 
 - Front: http://localhost:3000
@@ -91,8 +91,12 @@ docker compose down -v                      # para e APAGA o banco (re-roda db/i
 O modelo (LightGBM) está explicado em `docs/model.md`: o que ele faz, como treinar, a
 configuração oficial e os números.
 
-As tabelas são criadas por `db/init/*.sql` só na **primeira** subida do volume.
-Mudou o SQL? `docker compose down -v` e suba de novo.
+As tabelas são criadas por `db/init/*.sql` só na **primeira** subida do volume. O
+`002_tables.sql` cria as tabelas de dados do SAML-D em `public`; o `003_platform.sql`
+cria o catálogo de conjuntos de dados e a fila de trabalhos. Conjuntos adicionais
+recebem uma cópia do DDL de dados em um schema próprio. Mudou qualquer SQL de esquema?
+Avise o time: para aplicar na base local é preciso recriar o volume com
+`docker compose down -v` e subir novamente — esse comando apaga os dados locais.
 
 Os testes da API e do worker criam e apagam o banco `fraudradar_test` no Postgres do
 Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
@@ -121,11 +125,16 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
 | `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
 | `/ingestion/connections` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |
+| `GET /datasets`, `POST /datasets` | lista os conjuntos ou cria um conjunto vazio e isolado |
+| `POST /datasets/{slug}/process` | enfileira o processamento do conjunto |
+| `GET /jobs?dataset=`, `GET /jobs/{id}` | acompanha os 20 trabalhos mais recentes ou um trabalho |
 
 A API não roda o modelo: ela lê o que o worker grava, e o replay só libera
 semanas que o worker já processou (`weekly_batches`). Os formatos JSON que o
 worker grava (evidências e métricas da semana) estão comentados em
 `db/init/002_tables.sql` e, completos, na seção [Worker](#worker).
+As rotas de dados aceitam `X-Dataset`; sem o cabeçalho usam `saml-d`. Um slug
+desconhecido responde 404 antes de executar a consulta no schema.
 
 ### Ingestão
 
@@ -170,10 +179,15 @@ as semanas que o replay liberou. Precisa do grupo `ml` e de um modelo treinado e
 | `python -m worker batch --week AAAA-MM-DD` | processa uma semana (a data é a segunda-feira) |
 | `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` | processa várias semanas, com as variáveis calculadas uma vez só; sem datas, da primeira semana depois do treino do modelo à última com transações |
 | `python -m worker replay` | processa a próxima semana com transações depois da última processada; não libera nada (liberar é o `POST /replay/next-week`) |
+| `python -m worker serve` | atende continuamente os trabalhos de `public.jobs`; o Compose inicia esse serviço por padrão |
 
 `batch` e `backfill` aceitam `--force` (refaz uma semana já processada) e `--allow-in-sample`
 (aceita uma semana do período de treino do modelo). O worker sai com 0 quando dá certo ou não
 há nada a fazer, e com 1 em erro, com a mensagem do que rodar.
+`load`, `batch`, `backfill` e `replay` aceitam `--dataset SLUG` (padrão `saml-d`) e
+aplicam o schema registrado antes de qualquer consulta. Quando o conjunto define
+`active_model_version`, o worker lê `models/<slug>/<versão>.txt` e a ficha JSON ao
+lado; sem versão ativa, usa o modelo oficial atual, preservando o fluxo do SAML-D.
 
 ### Preparar o banco da demo
 

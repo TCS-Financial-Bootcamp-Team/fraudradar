@@ -223,7 +223,9 @@ uv run python -m worker backfill   # as 14 semanas do teste
 # 4. Abra http://localhost:3000, entre e libere as semanas no app
 ```
 
-O worker roda pela máquina porque o Terraform não o cria. O `.env` da raiz já aponta o
+O worker roda pela máquina porque o Terraform não o cria. Isso inclui o executor contínuo
+`python -m worker serve` dos trabalhos em segundo plano: ele existe no Compose como
+`worker-serve`, mas ainda não está descrito nos arquivos `.tf`. O `.env` da raiz já aponta o
 `DATABASE_URL` para `localhost:5432`, que é a porta publicada do banco do Terraform. O
 `docker compose run worker` não serve: ele entra na rede do Compose, onde esse banco não existe.
 
@@ -240,7 +242,7 @@ O certo é os dois subirem o mesmo sistema. Hoje não sobem:
 | A API não recebe `CORS_ORIGINS`                                                                   | O CORS libera só `http://localhost:3000`. Com outra `web_port`, o navegador bloqueia as chamadas                                           | Passar `CORS_ORIGINS` montado a partir da `web_port`    |
 | A API não tem healthcheck                                                                         | O front pode subir antes de a API estar pronta                                                                                             | Healthcheck no `/health` e `wait = true`                |
 | A API não lê o `.env`                                                                             | `MODEL_FILE`, `AUTH_DISABLED` e `EMBEDDING_MODEL` ficam com o padrão                                                                       | Variáveis próprias, se precisar                         |
-| Sem worker                                                                                        | Ver a seção 8                                                                                                                              | É de propósito: o worker é um job, não um serviço       |
+| Sem worker e sem executor de trabalhos                                                            | Ver a seção 8                                                                                                                              | Rodar `worker serve` pela máquina; ainda não está no Terraform |
 
 ## 10. Problemas comuns
 
