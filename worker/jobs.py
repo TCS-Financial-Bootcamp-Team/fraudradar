@@ -12,6 +12,7 @@ from sqlalchemy import Engine, text
 
 from fraudradar.datasets import DatasetNotFoundError, resolve_dataset
 from worker.errors import WorkerError
+from worker.import_job import import_handler, pull_new_rows
 
 log = logging.getLogger("worker.jobs")
 
@@ -122,8 +123,12 @@ def process_handler(engine: Engine, job: Job, progress: Progress) -> None:
     )
 
 
+# Ganchos executados antes de cada ``process``: (engine, dataset) -> None.
+PRE_PROCESS_HOOKS: list = []
+PRE_PROCESS_HOOKS.append(pull_new_rows)  # acompanha fontes externas (worker/import_job.py)
+
 DEFAULT_HANDLERS: Mapping[str, Handler] = {
-    "import": _not_implemented("import"),
+    "import": import_handler,
     "process": process_handler,
     "train": _not_implemented("train"),
 }

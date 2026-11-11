@@ -2,10 +2,10 @@
 
 from functools import lru_cache
 from pathlib import Path
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import AliasChoices, Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 
@@ -49,6 +49,21 @@ class Settings(BaseSettings):
     # worker, não da API.
     ingestion_max_bytes: int = 20 * 1024 * 1024
     ingestion_max_rows: int = 200_000
+
+    # Conexões com bancos externos (docs/external-data.md). Sem a chave a API recusa salvar
+    # conexões; a mesma chave decifra as senhas no worker. Gere uma com
+    # `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+    connections_secret_key: str | None = None
+    # Hosts permitidos para conexões externas (proteção contra SSRF). Vazio = recusa todos.
+    # Aceita lista separada por vírgula, como `localhost,127.0.0.1`.
+    external_db_allowed_hosts: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    @field_validator("external_db_allowed_hosts", mode="before")
+    @classmethod
+    def _split_hosts(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [host.strip().lower() for host in value.split(",") if host.strip()]
+        return value
 
     @field_validator("model_dir", "data_dir")
     @classmethod

@@ -26,20 +26,6 @@ class TransactionRequest(BaseModel):
     Payment_type: str
 
 
-class DataSource(BaseModel):
-    id: str
-    name: str
-    type: Literal["postgres"]
-    masked_host: str
-    masked_database: str
-    status: Literal["connected", "syncing", "error"]
-    last_synced_at: str | None
-
-
-class DataSources(BaseModel):
-    items: list[DataSource]
-
-
 class Receipt(BaseModel):
     id: str
     status: Literal["received", "processing", "completed"]

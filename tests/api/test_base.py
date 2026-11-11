@@ -207,7 +207,7 @@ def test_jwks_points_to_project():
     assert jwk_client.uri == f"{SUPABASE}/auth/v1/.well-known/jwks.json"
 
 
-def test_routes_require_session_except_health(supabase_auth):
+def test_routes_require_session_except_health(supabase_auth, db):
     from api.main import create_app
 
     api = TestClient(create_app())
@@ -331,10 +331,10 @@ def test_chat_validates_request_and_returns_503(client):
     assert client.post("/chat", json=empty).status_code == 422
 
 
-def test_postgres_data_sources_empty_list_and_register_501(client):
+def test_postgres_connections_start_empty_and_validate_the_body(client):
     assert client.get("/ingestion/connections").json() == {"items": []}
-    assert client.post("/ingestion/connections").status_code == 501
-    assert client.post("/ingestion/connections/1/sync").status_code == 501
+    assert client.post("/ingestion/connections", json={}).status_code == 422
+    assert client.post("/ingestion/connections/1/test").status_code == 404
 
 
 # --- a própria semente (os executores dependem dela) --------------------------------------------
