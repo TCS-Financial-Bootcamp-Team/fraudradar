@@ -2,33 +2,40 @@
 
 - POST /ingestion/csv           — arquivo CSV (multipart, campo `file`); tudo ou nada
 - POST /ingestion/transactions  — uma transação em JSON
-- GET  /ingestion/connections   — fontes Postgres externas: lista vazia por enquanto
+- GET    /ingestion/connections               — conexões com bancos Postgres externos
+- POST   /ingestion/connections               — cadastra (senha só entra aqui, cifrada)
+- DELETE /ingestion/connections/{id}          — remove a conexão (os dados importados ficam)
+- POST   /ingestion/connections/{id}/test     — relatório de compatibilidade
+- POST   /ingestion/connections/{id}/import   — as duas respostas (relação e processamento)
 
 As transações entram com status `received`: o score sai quando o worker processa a semana.
-Cadastrar e sincronizar fontes Postgres responde 501: guardar credenciais de terceiros e
-abrir conexão para hosts escolhidos pelo usuário (SSRF) pedem um desenho próprio.
+Conexões externas: docs/external-data.md. A senha é cifrada, o host precisa estar em
+EXTERNAL_DB_ALLOWED_HOSTS (proteção contra SSRF) e toda leitura na fonte é somente leitura.
 """
 
 from collections.abc import Callable, Coroutine
 from typing import Annotated, Any
 
-from fastapi import APIRouter, File, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, Header, HTTPException, Request, Response, UploadFile, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from starlette.types import Message
 
-from api.dependencies import CurrentUser, DbConnection
+from api.dependencies import CurrentUser, DbConnection, PublicDbConnection
+from api.repositories import connections as connections_repository
 from api.repositories import ingestion
-from api.schemas.ingestion import DataSource, DataSources, Receipt, TransactionRequest
+from api.schemas.connections import (
+    CompatibilityReport,
+    Connection,
+    ConnectionCreate,
+    Connections,
+    ImportRequest,
+    ImportResponse,
+)
+from api.schemas.ingestion import Receipt, TransactionRequest
 from fraudradar.config import get_settings
 
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
-
-NOT_IMPLEMENTED_MSG = "O cadastro de fontes Postgres ainda não está disponível nesta versão da API."
-_RESPONSES = {501: {"description": NOT_IMPLEMENTED_MSG}}
-
-
-def _not_implemented() -> HTTPException:
-    return HTTPException(status.HTTP_501_NOT_IMPLEMENTED, NOT_IMPLEMENTED_MSG)
 
 
 def _payload_too_large(limit: int) -> HTTPException:
@@ -69,11 +76,6 @@ class LimitedBodyRoute(APIRoute):
         return handle_with_limit
 
 
-@router.get("/connections", response_model=DataSources)
-def list_data_sources() -> DataSources:
-    return DataSources(items=[])
-
-
 def upload_csv(
     file: Annotated[UploadFile, File(description="CSV do SAML-D sem as colunas de avaliação")],
     conn: DbConnection,
@@ -100,11 +102,77 @@ def submit_transaction(
     return ingestion.save_transaction(conn, request, user)
 
 
-@router.post("/connections", response_model=DataSource, responses=_RESPONSES)
-def register_data_source() -> DataSource:
-    raise _not_implemented()
+@router.get("/connections", response_model=Connections)
+def list_connections(conn: PublicDbConnection) -> Connections:
+    return connections_repository.list_connections(conn)
 
 
-@router.post("/connections/{source_id}/sync", response_model=DataSource, responses=_RESPONSES)
-def sync_data_source(source_id: str) -> DataSource:
-    raise _not_implemented()
+class NoEchoRoute(APIRoute):
+    """Rota cujo 422 não devolve o corpo recebido (``input``): ele traz a senha da conexão."""
+
+    def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
+        handle = super().get_route_handler()
+
+        async def handle_without_echo(request: Request) -> Response:
+            try:
+                return await handle(request)
+            except RequestValidationError as exc:
+                cleaned = [
+                    {key: value for key, value in error.items() if key not in ("input", "ctx")}
+                    for error in exc.errors()
+                ]
+                raise RequestValidationError(cleaned) from None
+
+        return handle_without_echo
+
+
+def create_connection(
+    request: ConnectionCreate, conn: PublicDbConnection, user: CurrentUser
+) -> Connection:
+    return connections_repository.create_connection(conn, request, user)
+
+
+router.add_api_route(
+    "/connections",
+    create_connection,
+    methods=["POST"],
+    response_model=Connection,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        422: {"description": "Host fora da lista liberada, tabela ou coluna inválida"},
+        503: {"description": "CONNECTIONS_SECRET_KEY não configurada"},
+    },
+    route_class_override=NoEchoRoute,
+)
+
+
+@router.delete("/connections/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_connection(connection_id: int, conn: PublicDbConnection, user: CurrentUser) -> Response:
+    connections_repository.delete_connection(conn, connection_id, user)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/connections/{connection_id}/test", response_model=CompatibilityReport)
+def test_connection(
+    connection_id: int,
+    conn: DbConnection,
+    user: CurrentUser,
+    x_dataset: Annotated[str, Header(alias="X-Dataset")] = "saml-d",
+) -> CompatibilityReport:
+    """Compara a fonte com o formato do SAML-D e com o conjunto do cabeçalho X-Dataset."""
+    return connections_repository.check_compatibility(conn, connection_id, x_dataset, user)
+
+
+@router.post(
+    "/connections/{connection_id}/import",
+    response_model=ImportResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+def import_connection(
+    connection_id: int,
+    request: ImportRequest,
+    conn: DbConnection,
+    user: CurrentUser,
+    x_dataset: Annotated[str, Header(alias="X-Dataset")] = "saml-d",
+) -> ImportResponse:
+    return connections_repository.start_import(conn, connection_id, request, x_dataset, user)

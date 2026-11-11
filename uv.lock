@@ -510,6 +510,7 @@ name = "fraudradar"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "cryptography" },
     { name = "pandas" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyarrow" },
@@ -551,6 +552,7 @@ ml = [
 
 [package.metadata]
 requires-dist = [
+    { name = "cryptography", specifier = ">=43" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "pyarrow", specifier = ">=17" },

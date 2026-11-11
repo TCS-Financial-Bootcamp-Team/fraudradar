@@ -85,9 +85,11 @@ simuladas neste produto acadêmico. Validar esse rótulo com o responsável do p
 | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | POST /ingestion/csv                    | multipart/form-data com campo file (File); resposta receiptSchema.                                 |
 | POST /ingestion/transactions           | transactionSchema com as 10 colunas transacionais; resposta receiptSchema.                         |
-| POST /ingestion/connections            | connectionSchema: {name, type: "postgres", connection_string, ssl}; resposta dataSourceSchema.     |
-| GET /ingestion/connections             | dataSourcesSchema: {items: DataSource[]}.                                                          |
-| POST /ingestion/connections/{id}/sync  | **Endpoint adicional assumido** para a ação de sincronização. Pedido {}; resposta dataSourceSchema.|
+| GET /ingestion/connections             | connectionsSchema: {items: Connection[]}; nunca traz senha (só host e banco mascarados).           |
+| POST /ingestion/connections            | connectionFormSchema: {name, host, port, database, user, password, table, control_column}; 201 com connectionSchema. 422 host fora de EXTERNAL_DB_ALLOWED_HOSTS ou identificador inválido; 503 sem CONNECTIONS_SECRET_KEY. |
+| DELETE /ingestion/connections/{id}     | 204; 409 durante a importação. A tela ainda não chama (lib/api.ts não tem apiDelete).              |
+| POST /ingestion/connections/{id}/test  | Pedido {}; resposta compatibilityReportSchema (itens passou/falhou, gabarito, linhas, datas, amostra, sobreposição com o conjunto de `X-Dataset` e sugestão). |
+| POST /ingestion/connections/{id}/import | importRequestSchema: {relation: extend \| new_dataset, new_dataset?: {name, slug}, mode: history \| follow \| both, control_column}; 202 com {dataset, job}. 422 datas que cruzam semanas fechadas; 409 conexão já ligada ou importando. Acompanhar por GET /jobs/{id}. |
 | POST /chat                             | chatRequestSchema; resposta chatResponseSchema.                                                    |
 
 `receiptSchema`: {id, status: received | processing | completed, message}.

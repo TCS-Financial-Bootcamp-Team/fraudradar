@@ -1,14 +1,9 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { notify } from "@/lib/notify";
-import { useResource } from "@/hooks/use-resource";
 import { getErrorMessage } from "@/lib/format";
 import * as ingestionService from "../services/ingestion-service";
-import type {
-  ConnectionRequest,
-  CsvPreview,
-  TransactionRequest,
-} from "../schemas/ingestion";
+import type { CsvPreview, TransactionRequest } from "../schemas/ingestion";
 
 export function useCsvUpload() {
   const [preview, setPreview] = useState<CsvPreview>();
@@ -81,38 +76,6 @@ export function useCsvUpload() {
       setBusy(false);
       setProgress(0);
     },
-  };
-}
-export function useDataSources() {
-  const resource = useResource(ingestionService.listDataSources);
-  const [busy, setBusy] = useState(false);
-  async function runAction(action: () => Promise<unknown>, message: string) {
-    setBusy(true);
-    try {
-      await action();
-      notify.success(message);
-      resource.reload();
-      return true;
-    } catch (error) {
-      notify.error(getErrorMessage(error));
-      return false;
-    } finally {
-      setBusy(false);
-    }
-  }
-  return {
-    ...resource,
-    busy,
-    register: (data: ConnectionRequest) =>
-      runAction(
-        () => ingestionService.registerDataSource(data),
-        "Fonte registrada.",
-      ),
-    sync: (id: string) =>
-      runAction(
-        () => ingestionService.syncDataSource(id),
-        "Sincronização solicitada.",
-      ),
   };
 }
 export function useManualTransaction() {
