@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobSchema } from "@/features/jobs/schemas/jobs";
 
 export const currencies = [
   "BRL",
@@ -223,17 +224,6 @@ export const importRequestSchema = z
     message: "Informe nome e slug só quando for outro dataset.",
     path: ["new_dataset"],
   });
-export const jobSchema = z.object({
-  id: z.string(),
-  kind: z.enum(["import", "process", "train"]),
-  dataset: z.string(),
-  status: z.enum(["queued", "running", "done", "failed"]),
-  progress: z.number(),
-  message: z.string().nullable(),
-  created_at: z.string(),
-  started_at: z.string().nullable(),
-  finished_at: z.string().nullable(),
-});
 export const importResponseSchema = z.object({
   dataset: z.string(),
   job: jobSchema,
@@ -252,7 +242,6 @@ export type CompatibilityReport = z.infer<typeof compatibilityReportSchema>;
 export type ImportMode = z.infer<typeof importModeSchema>;
 export type ImportRequest = z.input<typeof importRequestSchema>;
 export type ImportResponse = z.infer<typeof importResponseSchema>;
-export type Job = z.infer<typeof jobSchema>;
 export type Receipt = z.infer<typeof receiptSchema>;
 export type CsvPreview = {
   headers: string[];

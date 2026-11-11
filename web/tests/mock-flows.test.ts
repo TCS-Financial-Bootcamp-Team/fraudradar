@@ -82,12 +82,43 @@ test("mock: conexão, teste, importação e acompanhamento do trabalho nunca dev
     control_column: "id",
   });
   assert.equal(started.job.kind, "import");
+  const jobs = await import("../src/features/jobs/services/jobs-service");
   let job = started.job;
   for (let i = 0; i < 5 && job.status !== "done"; i++)
-    job = await s.fetchJob(job.id);
+    job = await jobs.fetchJob(job.id);
   assert.equal(job.status, "done");
   assert.ok(
     (await s.listConnections()).items.find((item) => item.id === connection.id)
       ?.last_synced_at,
   );
+});
+
+test("mock: remover a conexão tira da lista e recusa durante a importação", async () => {
+  process.env.NEXT_PUBLIC_USE_MOCKS = "true";
+  const s =
+    await import("../src/features/ingestion/services/ingestion-service");
+  const created = await s.createConnection({
+    name: "Para remover",
+    host: "financeiro.example.test",
+    port: 5432,
+    database: "operacoes",
+    user: "leitura",
+    password: "segredo",
+    table: "public.transactions",
+    control_column: "id",
+  });
+  await s.testConnection(created.id);
+  const started = await s.startImport(created.id, {
+    relation: "extend",
+    mode: "history",
+    control_column: "id",
+  });
+  await assert.rejects(() => s.deleteConnection(created.id), /em andamento/);
+  const jobs = await import("../src/features/jobs/services/jobs-service");
+  await jobs.pollJob(started.job.id, { intervalMs: 0 });
+  await s.deleteConnection(created.id);
+  assert.ok(
+    !(await s.listConnections()).items.some((item) => item.id === created.id),
+  );
+  await assert.rejects(() => s.deleteConnection(created.id), /não encontrada/);
 });

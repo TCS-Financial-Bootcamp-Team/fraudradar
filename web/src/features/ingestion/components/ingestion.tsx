@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { FileUp, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { ProcessingControls } from "@/features/processing/components/processing-controls";
 import { ConnectionsCard } from "./connections-card";
 import { useCsvUpload, useManualTransaction } from "../hooks/use-ingestion";
 import {
@@ -84,13 +85,17 @@ export function Ingestion() {
 
   return (
     <div className="flex flex-col gap-7">
-      <div className="flex flex-col gap-1.5">
-        <p className="m-0 text-[13px] text-muted-foreground">
-          Entrada de transações
-        </p>
-        <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
-          Fontes de dados
-        </h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1.5">
+          <p className="m-0 text-[13px] text-muted-foreground">
+            Entrada de transações
+          </p>
+          <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
+            Fontes de dados
+          </h1>
+        </div>
+        {/* Processar agora e, com o modo demonstração ligado, o simulador. */}
+        <ProcessingControls />
       </div>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">

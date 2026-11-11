@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { useAppContext } from "@/components/app-context";
 import { useResource } from "@/hooks/use-resource";
+import { useJob } from "@/features/jobs/hooks/use-job";
+import * as jobsService from "@/features/jobs/services/jobs-service";
+import { jobIsOpen, type Job } from "@/features/jobs/schemas/jobs";
 import { getErrorMessage } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import type {
-  Job,
   ProcessingSettingsUpdate,
   SimulationRequest,
 } from "../schemas/processing";
@@ -20,50 +22,29 @@ export function useProcessing() {
         void revision;
         const [settings, jobs] = await Promise.all([
           service.fetchProcessingSettings(signal),
-          service.fetchJobs(dataset, signal),
+          jobsService.fetchJobs(dataset, signal),
         ]);
         return { settings, jobs };
       },
       [dataset, revision],
     ),
   );
-  const [job, setJob] = useState<Job | null>(null);
-  const [pollingId, setPollingId] = useState<string | null>(null);
-  const running = resource.data?.jobs.find(
-    (item) => item.status === "queued" || item.status === "running",
-  );
-  const activeJobId = pollingId ?? running?.id ?? null;
   const reload = resource.reload;
-
-  useEffect(() => {
-    if (!activeJobId) return;
-    const controller = new AbortController();
-    service
-      .pollJob(activeJobId, {
-        signal: controller.signal,
-        onUpdate: setJob,
-      })
-      .then((finished) => {
-        if (finished.status === "done") notify.success(finished.message ?? "Trabalho concluído.");
-        else notify.error(finished.message ?? "O trabalho falhou.");
-        setPollingId((current) => (current === activeJobId ? null : current));
-        refresh();
-        reload();
-      })
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) {
-          notify.error(getErrorMessage(error));
-          setPollingId(null);
-        }
-      });
-    return () => controller.abort();
-  }, [activeJobId, refresh, reload]);
+  const running = resource.data?.jobs.find(jobIsOpen) ?? null;
+  const tracking = useJob({
+    resume: running,
+    onFinished: (finished) => {
+      if (finished.status === "done")
+        notify.success(finished.message ?? "Trabalho concluído.");
+      else notify.error(finished.message ?? "O trabalho falhou.");
+      refresh();
+      reload();
+    },
+  });
 
   async function start(action: () => Promise<Job>) {
     try {
-      const created = await action();
-      setJob(created);
-      setPollingId(created.id);
+      tracking.track(await action());
     } catch (error) {
       notify.error(getErrorMessage(error));
     }
@@ -71,8 +52,8 @@ export function useProcessing() {
 
   return {
     ...resource,
-    job: job ?? running ?? null,
-    busy: activeJobId !== null,
+    job: tracking.job,
+    busy: tracking.open,
     processNow: () => start(() => service.enqueueProcess(dataset)),
     simulate: (request: SimulationRequest) =>
       start(() => service.enqueueSimulation(dataset, request)),

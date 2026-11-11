@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { apiGet, apiMultipart, apiPost, USE_MOCKS } from "@/lib/api";
+import { apiDelete, apiGet, apiMultipart, apiPost, USE_MOCKS } from "@/lib/api";
 import {
   compatibilityReportSchema,
   connectionFormSchema,
@@ -8,7 +8,6 @@ import {
   csvHeaders,
   importRequestSchema,
   importResponseSchema,
-  jobSchema,
   receiptSchema,
   transactionSchema,
   type ConnectionForm,
@@ -193,9 +192,7 @@ export async function startImport(id: string, request: ImportRequest) {
     ),
   );
 }
-export async function fetchJob(id: string, signal?: AbortSignal) {
-  if (USE_MOCKS) return (await import("./mocks")).fetchJobMock(id);
-  return jobSchema.parse(
-    await apiGet("/jobs/" + encodeURIComponent(id), { signal }),
-  );
+export async function deleteConnection(id: string) {
+  if (USE_MOCKS) return (await import("./mocks")).deleteConnectionMock(id);
+  await apiDelete<void>("/ingestion/connections/" + encodeURIComponent(id));
 }

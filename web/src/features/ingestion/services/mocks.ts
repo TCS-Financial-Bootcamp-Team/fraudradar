@@ -1,9 +1,9 @@
+import { createJobMock } from "@/features/jobs/services/mocks";
 import type {
   CompatibilityReport,
   Connection,
   ImportRequest,
   ImportResponse,
-  Job,
   Receipt,
 } from "../schemas/ingestion";
 
@@ -103,6 +103,14 @@ export function reportMock(): CompatibilityReport {
   };
 }
 
+export async function deleteConnectionMock(id: string) {
+  const index = connectionsMock.findIndex((item) => item.id === id);
+  if (index < 0) throw new Error("Conexão não encontrada.");
+  if (connectionsMock[index].status === "syncing")
+    throw new Error("Há uma importação em andamento nesta conexão.");
+  connectionsMock.splice(index, 1);
+}
+
 export async function testConnectionMock(id: string) {
   const connection = connectionsMock.find((item) => item.id === id);
   if (!connection) throw new Error("Conexão não encontrada.");
@@ -111,8 +119,6 @@ export async function testConnectionMock(id: string) {
   connection.status = "connected";
   return report;
 }
-
-const jobsMock = new Map<string, { job: Job; polls: number }>();
 
 export async function startImportMock(
   id: string,
@@ -128,44 +134,12 @@ export async function startImportMock(
   connection.mode = request.mode;
   connection.control_column = request.control_column;
   connection.status = "syncing";
-  const job: Job = {
-    id: crypto.randomUUID(),
-    kind: request.mode === "follow" ? "process" : "import",
+  const job = createJobMock(request.mode === "follow" ? "process" : "import", {
     dataset,
-    status: "queued",
-    progress: 0,
-    message: null,
-    created_at: new Date().toISOString(),
-    started_at: null,
-    finished_at: null,
-  };
-  jobsMock.set(job.id, { job, polls: 0 });
-  return { dataset, job };
-}
-
-export async function fetchJobMock(id: string): Promise<Job> {
-  const entry = jobsMock.get(id);
-  if (!entry) throw new Error("Trabalho não encontrado.");
-  entry.polls += 1;
-  const progress = Math.min(100, entry.polls * 35);
-  const done = progress >= 100;
-  entry.job = {
-    ...entry.job,
-    status: done ? "done" : "running",
-    progress,
-    message: done
-      ? "Trabalho concluído."
-      : `${progress * 482} linha(s) importadas de 48.210.`,
-    finished_at: done ? new Date().toISOString() : null,
-  };
-  if (done) {
-    const connection = connectionsMock.find(
-      (item) => item.status === "syncing",
-    );
-    if (connection) {
+    onDone: () => {
       connection.status = "connected";
       connection.last_synced_at = new Date().toISOString();
-    }
-  }
-  return entry.job;
+    },
+  });
+  return { dataset, job };
 }

@@ -1,18 +1,5 @@
 import { z } from "zod";
 
-export const jobSchema = z.object({
-  id: z.string(),
-  kind: z.enum(["import", "process", "simulate", "train"]),
-  dataset: z.string(),
-  status: z.enum(["queued", "running", "done", "failed"]),
-  progress: z.number().int().min(0).max(100),
-  message: z.string().nullable(),
-  created_at: z.string().datetime({ offset: true }),
-  started_at: z.string().datetime({ offset: true }).nullable(),
-  finished_at: z.string().datetime({ offset: true }).nullable(),
-});
-export const jobsSchema = z.array(jobSchema);
-
 export const processingSettingsUpdateSchema = z.object({
   interval_minutes: z.number().int().min(5).max(1440),
   enabled: z.boolean(),
@@ -29,7 +16,6 @@ export const simulationRequestSchema = z.object({
   inject_pattern: z.boolean(),
 });
 
-export type Job = z.infer<typeof jobSchema>;
 export type ProcessingSettings = z.infer<typeof processingSettingsSchema>;
 export type ProcessingSettingsUpdate = z.infer<
   typeof processingSettingsUpdateSchema

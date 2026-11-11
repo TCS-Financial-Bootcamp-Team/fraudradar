@@ -8,7 +8,6 @@ import {
   buildImportRequest,
   canImport,
   dateRange,
-  explainApiError,
   groundTruthText,
   overlapSummary,
   reportChecks,
@@ -135,28 +134,4 @@ test("status da conexão: só erro e incompatível usam o destaque", () => {
   assert.equal(statusTone("incompatible"), "fail");
   assert.equal(statusTone("syncing"), "info");
   assert.equal(statusTone("untested"), "info");
-});
-
-test("erros da API viram explicação útil sem expor detalhes", () => {
-  assert.match(
-    explainApiError(
-      new Error(
-        "Não foi possível concluir a solicitação (422). Tente novamente.",
-      ),
-    ),
-    /EXTERNAL_DB_ALLOWED_HOSTS/,
-  );
-  assert.match(
-    explainApiError(
-      new Error(
-        "Não foi possível concluir a solicitação (503). Tente novamente.",
-      ),
-    ),
-    /CONNECTIONS_SECRET_KEY/,
-  );
-  assert.equal(
-    explainApiError(new Error("Sua sessão expirou. Entre novamente.")),
-    "Sua sessão expirou. Entre novamente.",
-  );
-  assert.match(explainApiError("x"), /Não foi possível/);
 });

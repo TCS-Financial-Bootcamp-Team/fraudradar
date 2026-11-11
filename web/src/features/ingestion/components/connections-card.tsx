@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, FlaskConical } from "lucide-react";
+import { Plus, FlaskConical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatShortDate } from "@/lib/format";
 import { getCurrentDataset } from "@/lib/dataset";
@@ -37,6 +37,7 @@ export function ConnectionsCard() {
   const connections = useConnections();
   const [showForm, setShowForm] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<Connection | null>(null);
   const test = useConnectionTest(connections.reload);
   const importJob = useImportJob(connections.reload);
 
@@ -48,6 +49,15 @@ export function ConnectionsCard() {
     setActiveId(connection.id);
     importJob.reset();
     void test.run(connection.id);
+  }
+
+  async function confirmRemoval(connection: Connection) {
+    setRemoving(null);
+    if (await connections.remove(connection) && connection.id === activeId) {
+      setActiveId(null);
+      test.reset();
+      importJob.reset();
+    }
   }
 
   async function saveConnection(
@@ -132,11 +142,56 @@ export function ConnectionsCard() {
                     <FlaskConical className="size-3" strokeWidth={1.5} />
                     Testar
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label={`Remover ${connection.name}`}
+                    disabled={
+                      connections.busy || connection.status === "syncing"
+                    }
+                    onClick={() => setRemoving(connection)}
+                  >
+                    <Trash2 className="size-3" strokeWidth={1.5} />
+                    Remover
+                  </Button>
                 </div>
               </li>
             );
           })}
         </ul>
+      )}
+
+      {removing && (
+        <div
+          role="alertdialog"
+          aria-label={`Remover ${removing.name}`}
+          className="flex flex-col gap-3 rounded-lg border border-border bg-muted p-4"
+        >
+          <p className="m-0 text-sm text-foreground">
+            Remover a conexão “{removing.name}”?
+          </p>
+          <p className="m-0 text-xs text-muted-foreground">
+            A conexão e a senha cifrada deixam de existir e o acompanhamento
+            desta fonte para. As transações que já entraram no conjunto de dados
+            continuam lá. A remoção fica registrada na auditoria.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              size="sm"
+              disabled={connections.busy}
+              onClick={() => void confirmRemoval(removing)}
+            >
+              Confirmar remoção
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRemoving(null)}
+            >
+              Cancelar
+            </Button>
+          </div>
+        </div>
       )}
 
       {active && test.testing && (

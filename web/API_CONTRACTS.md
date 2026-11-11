@@ -152,6 +152,13 @@ Implementado em POST /ingestion/csv e /ingestion/transactions; as regras ficam e
 | `POST /datasets/{slug}/process` | sem corpo; enfileira o processamento e responde `jobSchema` com 202 |
 | `GET /jobs?dataset=` | até 20 trabalhos mais recentes; filtro por slug opcional |
 | `GET /jobs/{id}` | um `jobSchema`; 404 quando não existe |
+| `GET /datasets/{slug}/models` | `modelsSchema`: `{dataset, active_version, versions[], can_train, train_blocked_reason, training_job}`. Cada versão: `{version, source: "official" \| "dataset", created_at, trees, history_start, train_end, metrics{pr_auc, recall_at_fpr, f1, queue_recall, queue_precision, innocents_per_week}, active}`. `can_train`/`train_blocked_reason` vêm do resumo do gabarito que o worker grava em `public.datasets` (a API não lê `ground_truth`). 404 conjunto inexistente |
+| `POST /datasets/{slug}/train` | sem corpo; enfileira o treino e responde `jobSchema` (`kind: "train"`) com 202. 409 com o motivo em português: sem gabarito, menos de 6 semanas rotuladas, sem lavagem ou treino já na fila |
+| `POST /datasets/{slug}/models/{version}/promote` | sem corpo; torna a versão a ativa do conjunto e responde `modelsSchema` com 200. `{version}` é `lightgbm_vN` (oficial: volta a seguir o oficial mais novo) ou `<slug>/vN` (retreino do conjunto; a barra vai codificada, `%2F`). 404 versão inexistente ou de outro conjunto; 409 já é a ativa |
+
+**Nome das versões**: o modelo oficial é `lightgbm_vN`; o retreino de um conjunto é `<slug>/vN`
+(`models/<slug>/lightgbm_vN.*` no disco). É assim em `active_model_version`, em
+`model_versions` e nas respostas, para os dois nunca colidirem.
 
 `datasetSchema`: `{slug, name, origin: "saml-d" | "external",
 active_model_version: string | null, created_at}`. O slug aceita somente
@@ -160,8 +167,8 @@ seguro para `saml-d`; a troca limpa a semana selecionada e recarrega os recursos
 
 `jobSchema`: `{id, kind: "import" | "process" | "simulate" | "train", dataset, status:
 "queued" | "running" | "done" | "failed", progress, message, created_at,
-started_at, finished_at}`. `process` e `simulate` executam trabalho real;
-`import` e `train` dependem das frentes B2 e C.
+started_at, finished_at}`. `process`, `simulate`, `import` e `train` executam trabalho real. O front tem um só
+tipo de trabalho e um só acompanhamento (`web/src/features/jobs`).
 
 ## Chat e privacidade
 

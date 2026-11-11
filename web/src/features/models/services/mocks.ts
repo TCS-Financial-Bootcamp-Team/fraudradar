@@ -1,4 +1,4 @@
-import type { Job, Models } from "../schemas/models";
+import type { Models } from "../schemas/models";
 
 export const modelsMock: Models = {
   dataset: "saml-d",
@@ -8,7 +8,7 @@ export const modelsMock: Models = {
   training_job: null,
   versions: [
     {
-      version: "lightgbm_v2",
+      version: "saml-d/v2",
       source: "dataset",
       created_at: "2026-11-11T10:00:00",
       trees: 310,
@@ -42,16 +42,4 @@ export const modelsMock: Models = {
       },
     },
   ],
-};
-
-export const jobMock: Job = {
-  id: "1",
-  kind: "train",
-  dataset: "saml-d",
-  status: "done",
-  progress: 100,
-  message: "Trabalho concluído.",
-  created_at: "2026-11-11T10:00:00Z",
-  started_at: "2026-11-11T10:00:01Z",
-  finished_at: "2026-11-11T10:04:00Z",
 };

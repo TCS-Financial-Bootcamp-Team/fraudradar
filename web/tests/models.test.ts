@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { metricDelta } from "../src/features/models/components/model-section";
-import { jobIsOpen, modelsSchema } from "../src/features/models/schemas/models";
+import { jobIsOpen } from "../src/features/jobs/schemas/jobs";
+import { modelsSchema } from "../src/features/models/schemas/models";
 import { modelsMock } from "../src/features/models/services/mocks";
 import {
   fetchModels,
@@ -44,7 +45,7 @@ test("serviços chamam as rotas do conjunto no caminho", async () => {
   try {
     await fetchModels("saml-d");
     const started = await startTraining("saml-d");
-    await promoteModel("saml-d", "lightgbm_v2");
+    await promoteModel("saml-d", "saml-d/v2");
     assert.equal(jobIsOpen(started), true);
   } finally {
     globalThis.fetch = previousFetch;
@@ -54,9 +55,20 @@ test("serviços chamam as rotas do conjunto no caminho", async () => {
     [
       "GET /datasets/saml-d/models",
       "POST /datasets/saml-d/train",
-      "POST /datasets/saml-d/models/lightgbm_v2/promote",
+      "POST /datasets/saml-d/models/saml-d%2Fv2/promote",
     ],
   );
+});
+
+test("versão de retreino se chama <conjunto>/vN e não colide com a oficial", () => {
+  const [retrain, official] = modelsMock.versions;
+  assert.equal(retrain.version, "saml-d/v2");
+  assert.equal(official.version, "lightgbm_v1");
+  const withBadName = {
+    ...modelsMock,
+    versions: [{ ...retrain, version: "../x" }],
+  };
+  assert.equal(modelsSchema.safeParse(withBadName).success, false);
 });
 
 test("diferença para a versão ativa", () => {

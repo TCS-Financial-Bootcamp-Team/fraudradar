@@ -1,19 +1,20 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useResource } from "@/hooks/use-resource";
+import { useJob } from "@/features/jobs/hooks/use-job";
+import { getErrorMessage } from "@/lib/format";
 import { notify } from "@/lib/notify";
-import { explainApiError } from "../services/connection-model";
 import * as ingestionService from "../services/ingestion-service";
 import type {
   CompatibilityReport,
   Connection,
   ConnectionForm,
   ImportRequest,
-  Job,
 } from "../schemas/ingestion";
 
 const POLL_MS = 1500;
 
+// Os erros da API já chegam explicados em português (campo `detail`): a tela só os mostra.
 export function useConnections() {
   const resource = useResource(
     useCallback(
@@ -32,13 +33,27 @@ export function useConnections() {
       resource.reload();
       return created;
     } catch (e) {
-      setError(explainApiError(e));
+      setError(getErrorMessage(e));
       return null;
     } finally {
       setBusy(false);
     }
   }
-  return { ...resource, busy, createError: error, create };
+  async function remove(connection: Connection): Promise<boolean> {
+    setBusy(true);
+    try {
+      await ingestionService.deleteConnection(connection.id);
+      notify.success(`Conexão “${connection.name}” removida.`);
+      resource.reload();
+      return true;
+    } catch (e) {
+      notify.error(getErrorMessage(e));
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { ...resource, busy, createError: error, create, remove };
 }
 
 export function useConnectionTest(onTested: () => void) {
@@ -53,7 +68,7 @@ export function useConnectionTest(onTested: () => void) {
       setReport(await ingestionService.testConnection(id));
       onTested();
     } catch (e) {
-      setError(explainApiError(e));
+      setError(getErrorMessage(e));
     } finally {
       setTesting(false);
     }
@@ -65,63 +80,49 @@ export function useConnectionTest(onTested: () => void) {
   return { report, testing, error, run, reset };
 }
 
-// Acompanha o trabalho de importação pelo GET /jobs/{id} até terminar.
+// Acompanha o trabalho de importação (GET /jobs/{id}, hook compartilhado) até terminar.
 export function useImportJob(onFinished: () => void) {
-  const [job, setJob] = useState<Job | null>(null);
   const [starting, setStarting] = useState(false);
-  const [error, setError] = useState("");
-  const finishedRef = useRef(onFinished);
-  useEffect(() => {
-    finishedRef.current = onFinished;
+  const [startError, setStartError] = useState("");
+  const [failure, setFailure] = useState("");
+  const tracking = useJob({
+    intervalMs: POLL_MS,
+    onFinished: (finished) => {
+      if (finished.status === "done")
+        notify.success(
+          "Importação concluída. O processamento foi enfileirado.",
+        );
+      else setFailure(finished.message ?? "A importação falhou.");
+      onFinished();
+    },
   });
-  useEffect(() => {
-    // Cada resposta é um objeto novo, então o efeito reagenda a próxima consulta.
-    if (!job || (job.status !== "queued" && job.status !== "running")) return;
-    const jobId = job.id;
-    const controller = new AbortController();
-    const timer = setTimeout(() => {
-      ingestionService
-        .fetchJob(jobId, controller.signal)
-        .then((next) => {
-          if (controller.signal.aborted) return;
-          setJob(next);
-          if (next.status === "done") {
-            notify.success(
-              "Importação concluída. O processamento foi enfileirado.",
-            );
-            finishedRef.current();
-          } else if (next.status === "failed") {
-            setError(next.message ?? "A importação falhou.");
-            finishedRef.current();
-          }
-        })
-        .catch((e: unknown) => {
-          if (!controller.signal.aborted) setError(explainApiError(e));
-        });
-    }, POLL_MS);
-    return () => {
-      clearTimeout(timer);
-      controller.abort();
-    };
-  }, [job]);
+  const { track, reset: resetTracking } = tracking;
   async function start(id: string, request: ImportRequest) {
     setStarting(true);
-    setError("");
+    setStartError("");
+    setFailure("");
     try {
       const response = await ingestionService.startImport(id, request);
-      setJob(response.job);
-      finishedRef.current();
+      track(response.job);
+      onFinished();
       return true;
     } catch (e) {
-      setError(explainApiError(e));
+      setStartError(getErrorMessage(e));
       return false;
     } finally {
       setStarting(false);
     }
   }
   function reset() {
-    setJob(null);
-    setError("");
+    resetTracking();
+    setStartError("");
+    setFailure("");
   }
-  return { job, starting, error, start, reset };
+  return {
+    job: tracking.job,
+    starting,
+    error: startError || failure || tracking.error,
+    start,
+    reset,
+  };
 }

@@ -157,19 +157,3 @@ export function statusTone(status: Connection["status"]): Tone {
 export function modeLabel(mode: ImportMode | null) {
   return modeOptions.find((option) => option.value === mode)?.label ?? "";
 }
-
-// lib/api.ts só devolve o código HTTP; aqui ele vira uma explicação útil.
-const statusHints: Record<string, string> = {
-  "409":
-    "A conexão já está em uso (importação em andamento ou já ligada a um conjunto), ou o slug já existe.",
-  "422":
-    "A API recusou os dados: confira se o host está liberado (EXTERNAL_DB_ALLOWED_HOSTS), o nome da tabela e da coluna, e se as datas não cruzam semanas já fechadas.",
-  "503":
-    "A API não tem a chave de cifra das conexões (CONNECTIONS_SECRET_KEY) configurada.",
-};
-
-export function explainApiError(error: unknown) {
-  const message = error instanceof Error ? error.message : "";
-  const code = /\((\d{3})\)/.exec(message)?.[1];
-  return (code && statusHints[code]) || message || "Não foi possível concluir.";
-}

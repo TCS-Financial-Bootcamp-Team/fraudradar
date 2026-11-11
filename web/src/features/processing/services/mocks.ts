@@ -1,14 +1,12 @@
 import { getCurrentDataset } from "@/lib/dataset";
+import { createJobMock } from "@/features/jobs/services/mocks";
 import type {
-  Job,
   ProcessingSettings,
   ProcessingSettingsUpdate,
   SimulationRequest,
 } from "../schemas/processing";
 
 const settings = new Map<string, ProcessingSettings>();
-const jobs = new Map<string, Job & { checks: number }>();
-let nextJobId = 1;
 
 export function processingSettingsMock(): ProcessingSettings {
   const dataset = getCurrentDataset();
@@ -38,56 +36,11 @@ export function saveProcessingSettingsMock(
   return value;
 }
 
-function createJob(kind: Job["kind"]): Job {
-  const now = new Date().toISOString();
-  const job: Job & { checks: number } = {
-    id: String(nextJobId++),
-    kind,
-    dataset: getCurrentDataset(),
-    status: "queued",
-    progress: 0,
-    message: "Trabalho enfileirado.",
-    created_at: now,
-    started_at: null,
-    finished_at: null,
-    checks: 0,
-  };
-  jobs.set(job.id, job);
-  return job;
-}
-
 export function enqueueProcessMock() {
-  return createJob("process");
+  return createJobMock("process");
 }
 
 export function enqueueSimulationMock(request: SimulationRequest) {
   void request;
-  return createJob("simulate");
-}
-
-export function listJobsMock(): Job[] {
-  return [...jobs.values()]
-    .filter((job) => job.dataset === getCurrentDataset())
-    .sort((a, b) => Number(b.id) - Number(a.id));
-}
-
-export function jobMock(id: string): Job {
-  const job = jobs.get(id);
-  if (!job) throw new Error("Trabalho não encontrado.");
-  job.checks += 1;
-  if (job.checks === 1) {
-    job.status = "running";
-    job.progress = 35;
-    job.message = "Processando transações.";
-    job.started_at = new Date().toISOString();
-  } else if (job.checks === 2) {
-    job.progress = 80;
-    job.message = "Atualizando os alertas.";
-  } else {
-    job.status = "done";
-    job.progress = 100;
-    job.message = "Trabalho concluído.";
-    job.finished_at = new Date().toISOString();
-  }
-  return { ...job };
+  return createJobMock("simulate");
 }

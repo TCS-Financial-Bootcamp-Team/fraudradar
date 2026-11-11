@@ -1,8 +1,9 @@
-import type { Job } from "../schemas/ingestion";
+import type { Job } from "@/features/jobs/schemas/jobs";
 
 const kindLabel: Record<Job["kind"], string> = {
   import: "Importação",
   process: "Processamento",
+  simulate: "Simulação",
   train: "Treino",
 };
 const statusLabel: Record<Job["status"], string> = {

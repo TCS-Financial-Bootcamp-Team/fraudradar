@@ -5,12 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ResourceError } from "@/components/ui/states";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { useModels } from "../hooks/use-models";
-import {
-  jobIsOpen,
-  type Job,
-  type ModelMetrics,
-  type ModelVersion,
-} from "../schemas/models";
+import { jobIsOpen, type Job } from "@/features/jobs/schemas/jobs";
+import type { ModelMetrics, ModelVersion } from "../schemas/models";
 
 type MetricKey = keyof ModelMetrics;
 
