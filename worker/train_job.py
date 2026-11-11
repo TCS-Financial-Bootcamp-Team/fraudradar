@@ -74,6 +74,8 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> None:
             # Numera depois do modelo oficial: o nome da versão é chave em model_versions.
             first_version=_official_latest(root) + 1,
             progress=stage,
+            # Vai na ficha: só neste conjunto o worker recusa as semanas que o modelo já viu.
+            dataset=dataset.slug,
         )
     except ValueError as exc:
         raise WorkerError(f"Não foi possível treinar: {exc}.") from exc

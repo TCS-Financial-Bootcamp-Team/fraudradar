@@ -9,6 +9,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import pytest
+from sqlalchemy import text
 
 pytest.importorskip("lightgbm")
 
@@ -19,8 +20,10 @@ from worker_helpers import (  # noqa: E402
     rows,
     scalar,
     week_bounds,
+    write_saml_d_csv,
 )
 
+from fraudradar.datasets import create_dataset, use_dataset  # noqa: E402
 from fraudradar.features.history import (  # noqa: E402
     CASH_ACCOUNT,
     compute_features,
@@ -31,6 +34,7 @@ from fraudradar.model.evaluation import account_weeks  # noqa: E402
 from fraudradar.model.training import load_model  # noqa: E402
 from worker.batch import run_batch, run_continuous  # noqa: E402
 from worker.errors import WorkerError  # noqa: E402
+from worker.load import load_saml_d  # noqa: E402
 
 SIGNALS = {
     "sent_count",
@@ -407,3 +411,36 @@ def test_continuous_recompute_preserves_decisions_and_never_changes_closed_weeks
         )
         == closed_before
     )
+
+
+def test_training_period_is_refused_only_in_the_dataset_the_model_trained_on(
+    db, saml_d, model_dir, no_rules, tmp_path
+):
+    """O mesmo dado, com datas antes do treino e do `history_start` da ficha, no SAML-D (onde o
+    modelo treinou) e num conjunto externo: no SAML-D nada é processado; no externo, tudo."""
+    transactions, ground_truth = saml_d
+    old = transactions.assign(occurred_at=transactions["occurred_at"] - pd.Timedelta(weeks=52))
+    csv = write_saml_d_csv(old, ground_truth, tmp_path / "outra-epoca.csv")
+    with db.begin() as conn:
+        external = create_dataset(conn, name="Outra época", slug="outra-epoca")
+    load_saml_d(db, csv)
+    load_saml_d(db, csv, dataset=external)
+    weeks = sorted(week_start(old["occurred_at"]).dt.date.unique())
+    options = {"model_dir": model_dir, "rules_dir": no_rules}
+
+    same = run_continuous(db, **options)
+    assert same.processed == []
+    assert same.notes == ["nada novo: não há período posterior ao treino do modelo para processar"]
+    with pytest.raises(WorkerError, match="período de treino do modelo"):
+        run_batch(db, weeks[0], **options)
+    assert scalar(db, "SELECT count(*) FROM weekly_batches") == 0
+
+    first = run_batch(db, weeks[0], dataset=external, **options)
+    rest = run_continuous(db, dataset=external, **options)
+    processed = first.processed + rest.processed
+    assert [week.week for week in processed] == weeks
+    # O histórico começa na primeira transação do conjunto, não no `history_start` da ficha.
+    assert sum(week.transactions for week in processed) == len(old)
+    with db.connect() as conn:
+        use_dataset(conn, external)
+        assert conn.execute(text("SELECT count(*) FROM weekly_batches")).scalar_one() == len(weeks)

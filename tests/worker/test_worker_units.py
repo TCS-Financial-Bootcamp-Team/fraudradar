@@ -19,7 +19,12 @@ from worker import metrics as metrics_module  # noqa: E402
 from worker.metrics import compute_metrics  # noqa: E402
 from worker.queue import account_scores, model_input, select_queue  # noqa: E402
 from worker.summary import account_summary, countries, payment_types, weekly_signals  # noqa: E402
-from worker.weeks import first_out_of_sample_week, monday  # noqa: E402
+from worker.weeks import (  # noqa: E402
+    first_out_of_sample_week,
+    guards_training_period,
+    monday,
+    training_dataset,
+)
 
 
 def _tx(*rows) -> pd.DataFrame:
@@ -189,6 +194,19 @@ def test_week_helpers():
     assert monday(pd.Timestamp("2023-05-28").date()).isoformat() == "2023-05-22"
 
 
+def test_training_period_guard_is_only_for_the_dataset_the_model_trained_on():
+    official = {"training_dataset": "saml-d", "train_end": "2023-05-21"}
+    legacy = {"train_end": "2023-05-21"}  # ficha de antes do campo: a do oficial
+    retrained = {"training_dataset": "externa", "train_end": "2025-02-09"}
+
+    assert training_dataset(legacy) == "saml-d"
+    assert guards_training_period(official, "saml-d") and guards_training_period(legacy, "saml-d")
+    assert not guards_training_period(official, "externa")
+    assert not guards_training_period(legacy, "externa")
+    assert guards_training_period(retrained, "externa")
+    assert not guards_training_period(retrained, "saml-d")
+
+
 def test_dataset_active_model_uses_its_own_folder(monkeypatch, tmp_path):
     selected = Dataset(
         slug="external-demo",
@@ -205,11 +223,13 @@ def test_dataset_active_model_uses_its_own_folder(monkeypatch, tmp_path):
         return object(), {}
 
     monkeypatch.setattr(batch_module, "load_card", fake_load_card)
-    batch_module._dataset_model(selected, tmp_path)
+    _, card = batch_module._dataset_model(selected, tmp_path)
     assert called == {
         "folder": tmp_path / "external-demo",
         "version": "lightgbm_v2",
     }
+    # Ficha de retreino sem training_dataset (gravada antes do campo): a pasta diz o conjunto.
+    assert card["training_dataset"] == "external-demo"
 
 
 def test_only_metrics_reads_ground_truth():

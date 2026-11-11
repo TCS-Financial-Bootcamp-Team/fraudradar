@@ -185,7 +185,7 @@ todo período processado. Precisa do grupo `ml` e de um modelo treinado em `mode
 |---|---|
 | `python -m worker load [--csv CAMINHO]` | carrega o `data/SAML-D.csv` em `transactions`, `ground_truth` e `accounts`; uma vez, num banco vazio |
 | `python -m worker batch --week AAAA-MM-DD` | processa uma semana (a data é a segunda-feira) |
-| `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` | processa várias semanas, com as variáveis calculadas uma vez só; sem datas, da primeira semana depois do treino do modelo à última com transações |
+| `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` | processa várias semanas, com as variáveis calculadas uma vez só; sem datas, da primeira semana depois do treino do modelo (em outro conjunto, da primeira com transações) à última com transações |
 | `python -m worker replay` | compatibilidade: processa a próxima semana com transações depois da última processada |
 | `python -m worker serve` | atende `public.jobs`, recupera trabalho interrompido e agenda os conjuntos vencidos |
 
@@ -220,9 +220,12 @@ treino, o worker e a suíte de testes ao mesmo tempo.
 
 ### O que o worker garante
 
-- **Só fora do treino**: processa semanas que começam depois de `train_end` da ficha (o
-  período de teste do modelo). Semana do treino é recusada sem `--allow-in-sample`: o modelo
-  já viu esses scores, e a demo pareceria melhor do que é.
+- **Só fora do treino**: no conjunto em que o modelo treinou (`training_dataset` da ficha;
+  ficha sem o campo é a do oficial, `saml-d`), processa semanas que começam depois de
+  `train_end` (o período de teste do modelo). Semana do treino é recusada sem
+  `--allow-in-sample`: o modelo já viu esses scores, e a demo pareceria melhor do que é. Em
+  outro conjunto o modelo nunca viu as transações: toda semana é processada, mesmo com datas
+  anteriores ao treino, e o histórico das variáveis começa na primeira transação dele.
 - **O mesmo modelo**: as variáveis saem de `compute_features` com as transações desde
   `history_start` da ficha (as contagens do histórico dependem desse início), com as
   categorias da ficha, e o score é o do booster. No SAML-D inteiro, os 2,76 milhões de scores

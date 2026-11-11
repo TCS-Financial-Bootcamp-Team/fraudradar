@@ -55,7 +55,10 @@ def _parser() -> argparse.ArgumentParser:
     reprocess.add_argument(
         "--allow-in-sample",
         action="store_true",
-        help="aceita semana do período de treino do modelo (os números ficam otimistas)",
+        help=(
+            "aceita semana do período de treino do modelo no conjunto em que ele treinou (os"
+            " números ficam otimistas); nos outros conjuntos toda semana já é aceita"
+        ),
     )
     batch = sub.add_parser(
         "batch",
@@ -74,7 +77,10 @@ def _parser() -> argparse.ArgumentParser:
         "--from",
         dest="start",
         metavar="AAAA-MM-DD",
-        help="primeira segunda (padrão: a primeira depois do treino do modelo)",
+        help=(
+            "primeira segunda (padrão: a primeira depois do treino do modelo; em outro conjunto,"
+            " a primeira com transações)"
+        ),
     )
     backfill.add_argument(
         "--to",

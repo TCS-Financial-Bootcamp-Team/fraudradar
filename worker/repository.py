@@ -148,7 +148,10 @@ def last_transaction_at(conn: Connection) -> datetime | None:
     return conn.execute(text("SELECT max(occurred_at) FROM transactions")).scalar()
 
 
-def first_transaction_at(conn: Connection, since: datetime) -> datetime | None:
+def first_transaction_at(conn: Connection, since: datetime | None = None) -> datetime | None:
+    """A primeira transação a partir de `since` (sem `since`, a primeira do conjunto)."""
+    if since is None:
+        return conn.execute(text("SELECT min(occurred_at) FROM transactions")).scalar()
     return conn.execute(
         text("SELECT min(occurred_at) FROM transactions WHERE occurred_at >= :since"),
         {"since": since},

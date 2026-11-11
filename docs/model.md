@@ -55,8 +55,10 @@ Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/li
 - **Divisão no tempo** (`training.resolve_split`): no SAML-D (ou em qualquer dado que cubra as datas
   oficiais) vale a oficial (treino até 2023-05-21, validação a partir de 2023-04-24). Em outro
   período, o último quarto das semanas vira teste e as semanas antes dele (15%, no máximo 4)
-  validação. Sempre em semanas inteiras e nunca embaralhado. `train_end` e `validation_start`
-  vão na ficha; o worker só processa semanas depois de `train_end`.
+  validação. Sempre em semanas inteiras e nunca embaralhado. `train_end`, `validation_start` e
+  `training_dataset` (o slug do conjunto do treino) vão na ficha. Só nesse conjunto o worker
+  recusa as semanas até `train_end`, que o modelo já viu; nos outros processa todas (ficha sem
+  `training_dataset` é a do oficial, `saml-d`).
 - **Versões**: no disco, `models/<slug>/lightgbm_vN.*` (a numeração continua depois do oficial).
   Onde a versão é mostrada ou guardada (`model_versions`, `datasets.active_model_version`, API) o
   retreino se chama `<slug>/vN` e o oficial `lightgbm_vN`, então nunca colidem. A ficha tem os

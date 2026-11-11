@@ -42,6 +42,7 @@ def test_train_writes_a_new_version_with_metrics_and_keeps_official_active(
     assert set(card["metrics"]) == set(official_card["metrics"])
     assert card["features"] == official_card["features"]
     assert card["train_end"] == OFFICIAL_SPLIT.train_end  # divisão no tempo oficial
+    assert card["training_dataset"] == "saml-d"  # só nele o worker recusa as semanas do treino
     assert card["validation_start"] == OFFICIAL_SPLIT.validation_start
     assert card["file"] == "lightgbm_v2.txt"
     assert not (own / "lightgbm_model.txt").exists()  # só o oficial alimenta o health
