@@ -25,6 +25,7 @@ from fraudradar.datasets import Dataset, use_dataset
 from fraudradar.features.history import CASH_ACCOUNT
 from worker import repository
 from worker.errors import WorkerError
+from worker.labels import DEFAULT_SLUG, store_label_stats
 
 GROUND_TRUTH_COLUMNS = ["transaction_id", "label", "original_typology", "typology"]
 
@@ -78,6 +79,8 @@ def load_saml_d(
         repository.copy_frame(conn, "ground_truth", ground_truth[GROUND_TRUTH_COLUMNS])
         repository.copy_frame(conn, "accounts", accounts)
         repository.move_identity(conn)
+        # A API decide o retreino por este resumo e não lê o gabarito.
+        store_label_stats(conn, dataset.slug if dataset is not None else DEFAULT_SLUG)
     return LoadResult(
         transactions=len(transactions),
         accounts=len(accounts),

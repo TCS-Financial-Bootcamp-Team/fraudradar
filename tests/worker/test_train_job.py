@@ -12,7 +12,7 @@ from worker_helpers import rows
 from fraudradar.config import get_settings
 from fraudradar.datasets import resolve_dataset
 from fraudradar.model.training import OFFICIAL_SPLIT, resolve_split
-from worker.batch import _dataset_model
+from worker.batch import _dataset_model, model_version
 from worker.jobs import process_next_job
 
 
@@ -49,7 +49,7 @@ def test_train_writes_a_new_version_with_metrics_and_keeps_official_active(
     listing = client.get("/datasets/saml-d/models").json()
     assert listing["active_version"] == "lightgbm_v1"
     assert {v["version"]: v["active"] for v in listing["versions"]} == {
-        "lightgbm_v2": False,
+        "saml-d/v2": False,
         "lightgbm_v1": True,
     }
     new = listing["versions"][0]
@@ -66,19 +66,43 @@ def test_scoring_loads_the_promoted_version(client, loaded, model_dir):
         _, before = _dataset_model(resolve_dataset(conn, "saml-d"), official)
     assert before["version"] == 1  # sem versão fixada: o oficial
 
-    response = client.post("/datasets/saml-d/models/lightgbm_v2/promote")
+    response = client.post("/datasets/saml-d/models/saml-d%2Fv2/promote")
     assert response.status_code == 200
 
     with loaded.connect() as conn:
         dataset = resolve_dataset(conn, "saml-d")
     booster, after = _dataset_model(dataset, official)
-    assert dataset.active_model_version == "lightgbm_v2"
+    assert dataset.active_model_version == "saml-d/v2"
     assert after["version"] == 2
     expected = lgb.Booster(model_file=str(official / "saml-d" / "lightgbm_v2.txt"))
     sample = pd.DataFrame([[0.0] * len(after["features"])], columns=after["features"])
     for column, categories in after["categories"].items():
         sample[column] = pd.Categorical([categories[0]], categories=categories)
     assert booster.predict(sample).tolist() == expected.predict(sample).tolist()
+    # O retreino do conjunto grava o nome com o prefixo: não colide com o oficial (lightgbm_v2).
+    assert after["model_name"] == "saml-d/v2"
+    assert model_version(after) == "saml-d/v2"
+    assert model_version(before) == "lightgbm_v1"
+
+
+def test_load_and_train_fill_the_label_summary_in_the_registry(client, loaded, model_dir):
+    registry = rows(loaded, "SELECT * FROM public.datasets WHERE slug = 'saml-d'")[0]
+    assert registry["labeled_weeks"] >= 4  # a carga mediu o gabarito
+    assert registry["has_laundering"] is True
+    assert registry["labels_checked_at"] is not None
+
+    official = Path(get_settings().model_dir)
+    for path in model_dir.iterdir():
+        shutil.copy(path, official / path.name)
+    with loaded.begin() as conn:  # registro velho: o treino mede de novo
+        conn.execute(
+            text("UPDATE public.datasets SET labeled_weeks = 99, labels_checked_at = NULL")
+        )
+    assert run_train(client, loaded)["status"] == "done"
+
+    after = rows(loaded, "SELECT * FROM public.datasets WHERE slug = 'saml-d'")[0]
+    assert after["labeled_weeks"] == registry["labeled_weeks"]
+    assert after["labels_checked_at"] is not None
 
 
 def test_job_fails_in_portuguese_when_labels_disappear(client, loaded, seed):
@@ -92,6 +116,8 @@ def test_job_fails_in_portuguese_when_labels_disappear(client, loaded, seed):
     job = rows(loaded, "SELECT status, message FROM public.jobs")[0]
     assert job["status"] == "failed"
     assert "não tem gabarito" in job["message"]
+    registry = rows(loaded, "SELECT labeled_weeks, has_laundering FROM public.datasets")[0]
+    assert (registry["labeled_weeks"], registry["has_laundering"]) == (0, False)
 
 
 def test_resolve_split_keeps_official_dates_and_scales_for_other_periods():

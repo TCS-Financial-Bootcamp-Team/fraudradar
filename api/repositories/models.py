@@ -7,7 +7,6 @@ não tem o LightGBM). ``datasets.active_model_version`` vazio = o oficial mais n
 
 import json
 import math
-import re
 from datetime import datetime
 from pathlib import Path
 
@@ -27,8 +26,17 @@ from fraudradar.datasets import (
     use_dataset,
 )
 from fraudradar.model.eligibility import training_block_reason
+from fraudradar.model.naming import (
+    DATASET_PATTERN,
+    OFFICIAL_PATTERN,
+    dataset_version_name,
+)
 
-VERSION_PATTERN = re.compile(r"^lightgbm_v[0-9]{1,6}$")
+VERSION_PATTERN = OFFICIAL_PATTERN  # nome dos arquivos no disco (lightgbm_vN)
+
+
+def _number_of(name: str) -> int:
+    return int(name.rsplit("v", 1)[1])
 
 
 def get_dataset(conn: Connection, slug: str) -> Dataset:
@@ -92,9 +100,12 @@ def _version(name: str, card: dict, source: str, active: bool) -> ModelVersion:
 
 
 def _catalog(dataset: Dataset) -> tuple[dict[str, dict], tuple[str, dict] | None]:
-    """(retreinos do conjunto, o oficial mais novo)."""
+    """(retreinos do conjunto por nome ``<slug>/vN``, o oficial mais novo por ``lightgbm_vN``)."""
     root = Path(get_settings().model_dir)
-    own = _read_cards(root / dataset.slug)
+    own = {
+        dataset_version_name(dataset.slug, int(stem.removeprefix("lightgbm_v"))): card
+        for stem, card in _read_cards(root / dataset.slug).items()
+    }
     official = _read_cards(root)
     latest = max(official, key=lambda name: int(name.removeprefix("lightgbm_v")), default=None)
     return own, (None if latest is None else (latest, official[latest]))
@@ -124,13 +135,13 @@ def list_models(conn: Connection, slug: str) -> ModelsResponse:
         active = official_name
     versions = [
         _version(name, card, "dataset", name == active)
-        for name, card in sorted(own.items(), key=lambda item: -int(item[0][len("lightgbm_v") :]))
+        for name, card in sorted(own.items(), key=lambda item: -_number_of(item[0]))
     ]
-    if official is not None and official_name not in own:
+    if official is not None:
         versions.append(_version(official_name, official[1], "official", official_name == active))
-    use_dataset(conn, dataset)
     job = _running_train(conn, slug)
-    reason = training_block_reason(conn)
+    # Só o registro: a API nunca lê ground_truth (o worker mede e grava o resumo).
+    reason = training_block_reason(conn, dataset.slug)
     if reason is None and job is not None:
         reason = "Já existe um treino em andamento para este conjunto."
     return ModelsResponse(
@@ -165,14 +176,14 @@ def enqueue_train(conn: Connection, slug: str, user: User) -> JobResponse:
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
         {"key": f"fraudradar.train.{dataset.slug}"},
     )
-    use_dataset(conn, dataset)
-    reason = training_block_reason(conn)
+    reason = training_block_reason(conn, dataset.slug)
     if reason is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
     if _running_train(conn, dataset.slug) is not None:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Já existe um treino em andamento para este conjunto."
         )
+    use_dataset(conn, dataset)  # a auditoria é do schema do conjunto
     row = (
         conn.execute(
             text(
@@ -189,7 +200,7 @@ def enqueue_train(conn: Connection, slug: str, user: User) -> JobResponse:
 
 
 def promote(conn: Connection, slug: str, version: str, user: User) -> ModelsResponse:
-    if not VERSION_PATTERN.fullmatch(version):
+    if not (OFFICIAL_PATTERN.fullmatch(version) or DATASET_PATTERN.fullmatch(version)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Versão do modelo não encontrada.")
     dataset = get_dataset(conn, slug)
     own, official = _catalog(dataset)

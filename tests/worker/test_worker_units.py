@@ -195,7 +195,7 @@ def test_dataset_active_model_uses_its_own_folder(monkeypatch, tmp_path):
         name="Externa",
         schema_name="ds_external_demo",
         origin="external",
-        active_model_version="lightgbm_v2",
+        active_model_version="external-demo/v2",
         created_at=datetime.now(UTC),
     )
     called = {}
@@ -213,11 +213,11 @@ def test_dataset_active_model_uses_its_own_folder(monkeypatch, tmp_path):
 
 
 def test_only_metrics_reads_ground_truth():
-    """O gabarito só é lido em worker/metrics.py; a carga grava, ninguém mais toca."""
+    """O gabarito só é lido em worker/metrics.py (notas) e worker/labels.py (resumo do registro)."""
     reads = re.compile(r"\b(FROM|JOIN)\s+ground_truth\b", re.IGNORECASE)
     readers = {
         path.name
         for path in Path(ROOT_DIR, "worker").glob("*.py")
         if reads.search(path.read_text(encoding="utf-8"))
     }
-    assert readers == {"metrics.py"}
+    assert readers == {"metrics.py", "labels.py"}

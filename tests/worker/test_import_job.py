@@ -148,6 +148,31 @@ def test_import_without_truth_never_creates_ground_truth(db, source_env, allow_c
     jobs.process_next_job(db)
     assert _job(db, job_id)["status"] == "done"
     assert _count(db, "transactions") == 12 and _count(db, "ground_truth") == 0
+    assert _registry(db)["labels_checked_at"] is None  # sem gabarito, nada a medir
+
+
+def _registry(db, slug="saml-d") -> dict:
+    with db.connect() as conn:
+        row = conn.execute(text("SELECT * FROM public.datasets WHERE slug = :s"), {"s": slug})
+        return dict(row.mappings().one())
+
+
+def test_import_with_truth_updates_the_label_summary_in_the_registry(
+    db, source_env, allow_connection_source
+):
+    with db.begin() as conn:
+        create_dataset(conn, name="Parceiro", slug="parceiro")
+    before = _registry(db, "parceiro")
+    assert (before["labeled_weeks"], before["has_laundering"]) == (0, False)
+    create_source(db, make_rows(25))
+    job_id = _enqueue_import(db, _connection(db, source_env, dataset="parceiro"), "parceiro")
+    jobs.process_next_job(db)
+    assert _job(db, job_id)["status"] == "done"
+
+    after = _registry(db, "parceiro")
+    assert after["labeled_weeks"] >= 1 and after["has_laundering"] is True
+    assert after["labels_checked_at"] is not None
+    assert _registry(db)["labels_checked_at"] is None  # o outro conjunto não foi tocado
 
 
 def test_import_into_a_new_dataset_leaves_the_current_one_alone(

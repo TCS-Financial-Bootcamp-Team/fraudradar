@@ -24,7 +24,8 @@ def train_dataset(slug: str, conn: PublicDbConnection, user: CurrentUser) -> Job
     return repository.enqueue_train(conn, slug, user)
 
 
-@router.post("/datasets/{slug}/models/{version}/promote", response_model=ModelsResponse)
+# ``path``: a versão de um conjunto tem barra (``saml-d/v2``).
+@router.post("/datasets/{slug}/models/{version:path}/promote", response_model=ModelsResponse)
 def promote_model(
     slug: str, version: str, conn: PublicDbConnection, user: CurrentUser
 ) -> ModelsResponse:

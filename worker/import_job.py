@@ -36,6 +36,7 @@ from fraudradar.sources.connection import (
 )
 from fraudradar.sources.crypto import CannotDecryptError, SecretKeyMissingError, decrypt_password
 from worker.errors import WorkerError
+from worker.labels import store_label_stats
 
 if TYPE_CHECKING:
     from worker.jobs import Job, Progress
@@ -183,6 +184,7 @@ def _ingest(
             total = compatibility.source_row_count(external, source)
         current = compatibility.dataset_range(conn) if guard_closed_weeks else None
         ingestion_id: int | None = None
+        wrote_truth = False
         for batch in reader.read_batches(
             external, source, info, after=position, batch_size=reader.BATCH_SIZE
         ):
@@ -196,6 +198,7 @@ def _ingest(
             if ingestion_id is None:
                 ingestion_id = _create_ingestion(conn, source, total or batch.rows_read, actor)
             _write_batch(conn, batch, ingestion_id)
+            wrote_truth = wrote_truth or batch.truth is not None
             written += batch.rows_read
             position = batch.last_control or position
             if progress is not None:
@@ -226,6 +229,9 @@ def _ingest(
                     ),
                 },
             )
+        if wrote_truth:
+            # Na mesma transação da carga: o resumo do gabarito nunca fica atrás das linhas.
+            store_label_stats(conn, dataset.slug)
         conn.execute(
             text(
                 "UPDATE public.external_connections SET last_position = :position, "

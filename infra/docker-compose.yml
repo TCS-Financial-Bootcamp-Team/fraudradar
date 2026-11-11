@@ -28,6 +28,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fraudradar}:${POSTGRES_PASSWORD:-fraudradar}@db:5432/${POSTGRES_DB:-fraudradar}
       MODEL_DIR: /app/models
+      CONNECTIONS_SECRET_KEY: ${CONNECTIONS_SECRET_KEY:-}
+      EXTERNAL_DB_ALLOWED_HOSTS: ${EXTERNAL_DB_ALLOWED_HOSTS:-}
     volumes:
       - ../models:/app/models:ro
     ports:
@@ -71,6 +73,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-fraudradar}:${POSTGRES_PASSWORD:-fraudradar}@db:5432/${POSTGRES_DB:-fraudradar}
       MODEL_DIR: /app/models
+      CONNECTIONS_SECRET_KEY: ${CONNECTIONS_SECRET_KEY:-}
+      EXTERNAL_DB_ALLOWED_HOSTS: ${EXTERNAL_DB_ALLOWED_HOSTS:-}
     volumes:
       - ../models:/app/models
       - ../data:/app/data:ro

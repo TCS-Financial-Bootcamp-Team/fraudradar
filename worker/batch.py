@@ -39,6 +39,7 @@ from fraudradar.features.history import (
     compute_features,
     with_cash_account,
 )
+from fraudradar.model.naming import dataset_version_name, file_stem, parse_dataset_version
 from fraudradar.model.segments import assign_segments
 from fraudradar.model.training import load_model
 from worker import queue, repository, summary
@@ -131,7 +132,19 @@ def _dataset_model(dataset: Dataset | None, model_dir: Path | None) -> tuple[lgb
     if dataset is None or dataset.active_model_version is None:
         return load_card(model_dir)
     root = Path(model_dir or get_settings().model_dir)
-    return load_card(root / dataset.slug, dataset.active_model_version)
+    parsed = parse_dataset_version(dataset.active_model_version)
+    if parsed is None:
+        # Nome antigo, sem o prefixo do conjunto: continua lendo da pasta dele.
+        return load_card(root / dataset.slug, dataset.active_model_version)
+    slug, number = parsed
+    if slug != dataset.slug:
+        raise WorkerError(
+            f"a versão ativa '{dataset.active_model_version}' pertence a outro conjunto de dados"
+        )
+    booster, card = load_card(root / slug, file_stem(number))
+    # Só em memória: o nome gravado em model_versions/alertas não colide com o do modelo oficial.
+    card["model_name"] = dataset_version_name(slug, number)
+    return booster, card
 
 
 def _scope(conn: Connection, dataset: Dataset | None) -> None:
@@ -140,7 +153,8 @@ def _scope(conn: Connection, dataset: Dataset | None) -> None:
 
 
 def model_version(card: dict) -> str:
-    return f"lightgbm_v{card['version']}"
+    """``lightgbm_vN`` (oficial) ou ``<slug>/vN`` (retreino do conjunto, ver ``model_name``)."""
+    return card.get("model_name") or file_stem(card["version"])
 
 
 # --- comandos -------------------------------------------------------------------------------

@@ -46,7 +46,9 @@ Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/li
   `worker serve` executa o trabalho `train` (`worker/train_job.py`), com progresso em
   `GET /jobs/{id}`. A API recusa (409, com o motivo em português) quando o conjunto não tem
   gabarito, tem menos de 6 semanas rotuladas (`MIN_LABELED_WEEKS`), não tem nenhuma lavagem ou já
-  tem um treino na fila. A regra é `fraudradar.model.eligibility`, a mesma na API e no worker.
+  tem um treino na fila. A regra é `fraudradar.model.eligibility`. A API só lê `public.datasets.labeled_weeks` e
+  `has_laundering` (o worker mede e grava depois de `load`, de uma importação com gabarito e de
+  cada treino; a consulta junta o gabarito com as transações e nunca roda na requisição).
 - **Dado**: transações que têm gabarito, lidas do schema do conjunto. As variáveis são as de
   `compute_features`, com a configuração oficial (21 variáveis, mesmos parâmetros). O gabarito
   só vira alvo do treino e régua de teste.
@@ -55,8 +57,10 @@ Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/li
   período, o último quarto das semanas vira teste e as semanas antes dele (15%, no máximo 4)
   validação. Sempre em semanas inteiras e nunca embaralhado. `train_end` e `validation_start`
   vão na ficha; o worker só processa semanas depois de `train_end`.
-- **Versões**: a numeração continua depois do modelo oficial (`models/lightgbm_vN`), porque o
-  nome da versão é chave em `model_versions`. A ficha tem os mesmos campos de métrica da oficial.
+- **Versões**: no disco, `models/<slug>/lightgbm_vN.*` (a numeração continua depois do oficial).
+  Onde a versão é mostrada ou guardada (`model_versions`, `datasets.active_model_version`, API) o
+  retreino se chama `<slug>/vN` e o oficial `lightgbm_vN`, então nunca colidem. A ficha tem os
+  mesmos campos de métrica da oficial.
   O retreino não copia nada para `lightgbm_model.txt`.
 - **Promoção**: a versão nova não é usada sozinha. `POST /datasets/{slug}/models/{versão}/promote`
   grava `datasets.active_model_version` e uma linha em `audit_log` (`model_promoted`, com a versão

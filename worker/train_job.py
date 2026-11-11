@@ -16,8 +16,10 @@ from sqlalchemy import Engine, text
 from fraudradar.config import get_settings
 from fraudradar.datasets import DatasetNotFoundError, resolve_dataset, use_dataset
 from fraudradar.model.dataset_data import read_labeled
-from fraudradar.model.eligibility import training_block_reason
+from fraudradar.model.eligibility import block_reason
+from fraudradar.model.naming import dataset_version_name
 from worker.errors import WorkerError
+from worker.labels import refresh_label_stats
 
 if TYPE_CHECKING:
     from worker.jobs import Job, Progress
@@ -44,10 +46,13 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> None:
             dataset = resolve_dataset(conn, job.dataset)
         except DatasetNotFoundError as exc:
             raise WorkerError(f"conjunto de dados '{job.dataset}' não encontrado") from exc
+    # Mede o gabarito agora (o registro pode estar velho) e grava o resumo para a API.
+    stats = refresh_label_stats(engine, dataset)
+    reason = block_reason(stats.labeled_weeks, stats.has_laundering)
+    if reason is not None:
+        raise WorkerError(reason)
+    with engine.connect() as conn:
         use_dataset(conn, dataset)
-        reason = training_block_reason(conn)
-        if reason is not None:
-            raise WorkerError(reason)
         progress(5, "Lendo transações e gabarito do conjunto.")
         transactions, ground_truth = read_labeled(conn)
         conn.rollback()
@@ -72,6 +77,7 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> None:
         )
     except ValueError as exc:
         raise WorkerError(f"Não foi possível treinar: {exc}.") from exc
+    version = dataset_version_name(dataset.slug, card["version"])
     with engine.begin() as conn:
         use_dataset(conn, dataset)
         conn.execute(
@@ -81,8 +87,9 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> None:
             ),
             {
                 "actor": ACTOR,
-                "version": f"lightgbm_v{card['version']}",
+                "version": version,
                 "details": json.dumps({"dataset": dataset.slug, "job_id": job.id}),
             },
         )
-    progress(95, f"Versão lightgbm_v{card['version']} gravada. Falta promovê-la para usá-la.")
+    refresh_label_stats(engine, dataset)
+    progress(95, f"Versão {version} gravada. Falta promovê-la para usá-la.")

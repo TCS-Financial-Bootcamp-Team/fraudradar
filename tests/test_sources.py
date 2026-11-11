@@ -3,6 +3,7 @@
 from datetime import date, datetime, time
 from decimal import Decimal
 
+import psycopg
 import pytest
 from cryptography.fernet import Fernet
 from external_source import configure, make_rows
@@ -18,6 +19,7 @@ from fraudradar.sources.connection import (
     SourceError,
     check_host,
     check_port,
+    describe_error,
     relation_identifier,
     split_relation,
     validate_identifier,
@@ -63,6 +65,16 @@ def test_changed_key_cannot_decrypt_and_error_hides_the_secret(monkeypatch):
 def test_source_repr_hides_the_password():
     source = ExternalSource("h", 5432, "db", "u", "senha-no-repr", "t")
     assert "senha-no-repr" not in repr(source)
+
+
+@pytest.mark.parametrize("password", ["", "segredo"])
+def test_describe_error_classifies_auth_failures_with_or_without_a_password(password):
+    source = ExternalSource("h", 5432, "db", "u", password, "t")
+    failure = psycopg.OperationalError(
+        f'FATAL: password authentication failed for user "u" ({password})'
+    )
+    # Com senha vazia, ``replace("", "***")`` enfiaria *** entre as letras e escondia a causa.
+    assert describe_error(failure, source) == "Usuário ou senha recusados pelo servidor."
 
 
 # --- hosts e portas ----------------------------------------------------------------------------

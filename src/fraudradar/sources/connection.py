@@ -115,7 +115,10 @@ def describe_error(exc: Exception, source: ExternalSource) -> str:
     if isinstance(exc, psycopg.errors.InsufficientPrivilege):
         return "O usuário não tem permissão de leitura nessa tabela."
     if isinstance(exc, psycopg.OperationalError):
-        detail = " ".join(str(exc).split())[:200].replace(source.password, "***")
+        detail = " ".join(str(exc).split())
+        if source.password:  # ``"".replace("", "***")`` enfiaria *** entre todas as letras
+            detail = detail.replace(source.password, "***")
+        detail = detail[:200]
         if "password authentication failed" in detail:
             return "Usuário ou senha recusados pelo servidor."
         if "does not exist" in detail and "database" in detail:

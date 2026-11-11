@@ -4,10 +4,11 @@ import json
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from sqlalchemy import text
+from sqlalchemy import event, text
 
 from fraudradar.config import get_settings
 from fraudradar.datasets import create_dataset
+from worker.labels import refresh_label_stats
 
 
 def write_card(folder: Path, version: int, *, pr_auc: float = 0.5) -> str:
@@ -33,11 +34,13 @@ def write_card(folder: Path, version: int, *, pr_auc: float = 0.5) -> str:
 
 
 def label_weeks(seed, weeks: int, *, laundering: bool = True) -> None:
+    """Semeia transações rotuladas e roda o que o worker roda: grava o resumo no registro."""
     seed.account(1)
     seed.account(2)
     start = datetime(2023, 1, 2)
     for i in range(weeks):
         seed.transaction(1, 2, start + timedelta(weeks=i), label=1 if laundering and i == 0 else 0)
+    refresh_label_stats(seed.engine)
 
 
 def audit_actions(db) -> list[str]:
@@ -57,13 +60,29 @@ def test_lists_official_and_own_versions_with_active_flag(client, seed):
     by_name = {v["version"]: v for v in body["versions"]}
     assert by_name["lightgbm_v1"]["source"] == "official"
     assert by_name["lightgbm_v1"]["active"] is True
-    assert by_name["lightgbm_v2"]["source"] == "dataset"
-    assert by_name["lightgbm_v2"]["active"] is False
-    assert by_name["lightgbm_v2"]["metrics"]["pr_auc"] == 0.6
-    assert by_name["lightgbm_v2"]["metrics"]["f1"] is None  # NaN não vai para o front
-    assert by_name["lightgbm_v2"]["metrics"]["innocents_per_week"] == 25.5
+    assert by_name["saml-d/v2"]["source"] == "dataset"
+    assert by_name["saml-d/v2"]["active"] is False
+    assert by_name["saml-d/v2"]["metrics"]["pr_auc"] == 0.6
+    assert by_name["saml-d/v2"]["metrics"]["f1"] is None  # NaN não vai para o front
+    assert by_name["saml-d/v2"]["metrics"]["innocents_per_week"] == 25.5
     assert body["can_train"] is True
     assert body["train_blocked_reason"] is None
+
+
+def test_dataset_version_never_shares_a_name_with_an_official_one(client, seed):
+    root = Path(get_settings().model_dir)
+    write_card(root, 1)
+    write_card(root, 2)  # o oficial ganhou a v2 depois do retreino do conjunto
+    write_card(root / "saml-d", 2)
+
+    versions = client.get("/datasets/saml-d/models").json()["versions"]
+
+    names = [v["version"] for v in versions]
+    assert sorted(names) == ["lightgbm_v2", "saml-d/v2"]
+    assert {v["version"]: v["source"] for v in versions} == {
+        "lightgbm_v2": "official",
+        "saml-d/v2": "dataset",
+    }
 
 
 def test_unknown_dataset_is_404(client):
@@ -101,6 +120,43 @@ def test_train_is_refused_without_any_laundering(client, seed):
     assert "nenhuma lavagem" in response.json()["detail"]
 
 
+def test_eligibility_comes_from_the_registry_not_from_ground_truth(client, seed, db):
+    # Gabarito semeado, mas o worker ainda não mediu: o registro manda, e diz "sem gabarito".
+    label_weeks(seed, 8)
+    with db.begin() as conn:
+        conn.execute(text("UPDATE public.datasets SET labeled_weeks = 0, has_laundering = false"))
+    assert client.post("/datasets/saml-d/train").status_code == 409
+
+    # Sem nenhuma linha de gabarito, mas o registro diz que há: a API aceita.
+    with db.begin() as conn:
+        conn.execute(text("DELETE FROM ground_truth"))
+        conn.execute(text("UPDATE public.datasets SET labeled_weeks = 8, has_laundering = true"))
+    assert client.get("/datasets/saml-d/models").json()["can_train"] is True
+    assert client.post("/datasets/saml-d/train").status_code == 202
+
+
+def test_api_never_queries_ground_truth(client, seed, db):
+    root = Path(get_settings().model_dir)
+    write_card(root, 1)
+    write_card(root / "saml-d", 2)
+    label_weeks(seed, 8)
+    statements: list[str] = []
+
+    @event.listens_for(db, "before_cursor_execute")
+    def capture(_conn, _cursor, statement, *_rest):
+        statements.append(statement)
+
+    try:
+        client.get("/datasets/saml-d/models")
+        assert client.post("/datasets/saml-d/models/saml-d%2Fv2/promote").status_code == 200
+        assert client.post("/datasets/saml-d/train").status_code == 202
+    finally:
+        event.remove(db, "before_cursor_execute", capture)
+
+    assert statements
+    assert not [s for s in statements if "ground_truth" in s.lower()]
+
+
 def test_train_enqueues_a_job_and_blocks_a_second_one(client, seed, db):
     label_weeks(seed, 8)
 
@@ -123,21 +179,21 @@ def test_promote_sets_active_version_and_writes_audit(client, seed, db):
     write_card(root, 1)
     write_card(root / "saml-d", 2)
 
-    response = client.post("/datasets/saml-d/models/lightgbm_v2/promote")
+    response = client.post("/datasets/saml-d/models/saml-d%2Fv2/promote")
 
     assert response.status_code == 200
-    assert response.json()["active_version"] == "lightgbm_v2"
+    assert response.json()["active_version"] == "saml-d/v2"
     assert {v["version"]: v["active"] for v in response.json()["versions"]} == {
-        "lightgbm_v2": True,
+        "saml-d/v2": True,
         "lightgbm_v1": False,
     }
     datasets = {d["slug"]: d for d in client.get("/datasets").json()}
-    assert datasets["saml-d"]["active_model_version"] == "lightgbm_v2"
+    assert datasets["saml-d"]["active_model_version"] == "saml-d/v2"
     with db.connect() as conn:
         row = conn.execute(
             text("SELECT actor, entity_id, details FROM audit_log WHERE action = 'model_promoted'")
         ).one()
-    assert row.entity_id == "lightgbm_v2"
+    assert row.entity_id == "saml-d/v2"
     assert row.details["previous"] == "lightgbm_v1"
     assert row.details["dataset"] == "saml-d"
 
@@ -157,5 +213,6 @@ def test_promote_conflicts_and_not_found(client):
     assert client.post("/datasets/saml-d/models/lightgbm_v1/promote").status_code == 409
     assert client.post("/datasets/saml-d/models/lightgbm_v9/promote").status_code == 404
     assert client.post("/datasets/saml-d/models/..%2Fx/promote").status_code == 404
-    assert client.post("/datasets/saml-d/models/lightgbm_v2/promote").status_code == 200
-    assert client.post("/datasets/saml-d/models/lightgbm_v2/promote").status_code == 409
+    assert client.post("/datasets/saml-d/models/other%2Fv2/promote").status_code == 404
+    assert client.post("/datasets/saml-d/models/saml-d%2Fv2/promote").status_code == 200
+    assert client.post("/datasets/saml-d/models/saml-d%2Fv2/promote").status_code == 409

@@ -10,11 +10,17 @@ CREATE TABLE public.datasets (
                          CHECK (schema_name ~ '^[a-z_][a-z0-9_]{0,62}$'),
     origin               TEXT        NOT NULL CHECK (origin IN ('saml-d', 'external')),
     active_model_version TEXT,
+    -- Resumo do gabarito, calculado SÓ pelo worker (depois de load, de importação com gabarito e
+    -- de cada treino). A API decide a elegibilidade do retreino lendo estas colunas e nunca lê
+    -- ground_truth. labels_checked_at vazio = o worker ainda não mediu.
+    labeled_weeks        INTEGER     NOT NULL DEFAULT 0 CHECK (labeled_weeks >= 0),
+    has_laundering       BOOLEAN     NOT NULL DEFAULT false,
+    labels_checked_at    TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-INSERT INTO public.datasets (slug, name, schema_name, origin)
-VALUES ('saml-d', 'SAML-D', 'public', 'saml-d');
+INSERT INTO public.datasets (slug, name, schema_name, origin, labeled_weeks, has_laundering)
+VALUES ('saml-d', 'SAML-D', 'public', 'saml-d', 0, false);
 
 CREATE TABLE public.jobs (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

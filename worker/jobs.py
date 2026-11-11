@@ -32,9 +32,9 @@ class Job:
 Progress = Callable[[int, str | None], None]
 Handler = Callable[[Engine, Job, Progress], str | None]
 
-# Pontos de extensão carregados por integrações externas. Vazio por padrão: a parte B2 registra
-# aqui o sincronizador sem acoplar o executor à implementação da fonte.
-PRE_PROCESS_HOOKS: list[Callable[[Engine, Dataset], None]] = []
+# Ganchos executados antes de cada ``process``: (engine, dataset) -> None. O de fontes externas
+# acrescenta as linhas novas das conexões (worker/import_job.py).
+PRE_PROCESS_HOOKS: list[Callable[[Engine, Dataset], None]] = [pull_new_rows]
 
 
 def claim_next_job(engine: Engine) -> Job | None:
@@ -98,15 +98,6 @@ def _finish(engine: Engine, job_id: int, *, failed: bool, message: str) -> None:
                 "message": message,
             },
         )
-
-
-def _not_implemented(kind: str) -> Handler:
-    label = "Importação" if kind == "import" else "Treino"
-
-    def handler(_engine: Engine, _job: Job, _progress: Progress) -> None:
-        raise WorkerError(f"{label} ainda não implementado nesta fase.")
-
-    return handler
 
 
 def _resolve_dataset(engine: Engine, slug: str) -> Dataset:
@@ -254,9 +245,6 @@ def simulate_handler(engine: Engine, job: Job, progress: Progress) -> str:
     progress(95, "Transações simuladas; processamento enfileirado.")
     return "Transações simuladas; processamento enfileirado."
 
-
-# Ganchos executados antes de cada ``process``: (engine, dataset) -> None.
-PRE_PROCESS_HOOKS.append(pull_new_rows)  # acompanha fontes externas (worker/import_job.py)
 
 DEFAULT_HANDLERS: Mapping[str, Handler] = {
     "import": import_handler,

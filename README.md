@@ -133,6 +133,9 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `GET`, `PUT /processing/settings` | consulta ou altera intervalo, automação e modo demonstração do conjunto atual |
 | `DELETE /ingestions/{id}` | apaga apenas simulação no período aberto, sem decisão afetada, e reprocessa |
 | `GET /jobs?dataset=`, `GET /jobs/{id}` | acompanha os 20 trabalhos mais recentes ou um trabalho |
+| `GET /datasets/{slug}/models` | versões do modelo do conjunto (oficial e retreinos), a ativa e se dá para treinar |
+| `POST /datasets/{slug}/train` | enfileira o retreino do conjunto (409 sem gabarito suficiente) |
+| `POST /datasets/{slug}/models/{version}/promote` | promove a versão (`lightgbm_vN` ou `<slug>/vN`) a ativa do conjunto, com auditoria |
 
 A API não roda o modelo: ela lê o que o worker grava; todo período em
 `weekly_batches` fica visível. Os formatos JSON que o
