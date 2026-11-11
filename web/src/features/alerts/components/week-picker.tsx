@@ -39,7 +39,7 @@ export function WeekPicker({ className = "" }: { className?: string }) {
         <ChevronLeft />
       </Button>
       <Select
-        className="h-8 w-[150px] border-0 bg-muted text-xs"
+        className="h-8 w-auto min-w-0 max-w-full border-0 bg-muted py-0 pl-2.5 pr-7 text-xs"
         aria-label="Semana de referência"
         value={week}
         onChange={(e) => setWeek(e.target.value)}

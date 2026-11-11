@@ -26,7 +26,7 @@ test("sidebar: isNavItemActive reconhece rota exata, sub-rotas e rejeita falsos 
 
   assert.equal(isNavItemActive("/alertsx", "/alerts"), false);
   assert.equal(isNavItemActive("/", "/dashboard"), false);
-  assert.equal(isNavItemActive("/reports", "/alerts"), false);
+  assert.equal(isNavItemActive("/monitoring", "/alerts"), false);
   assert.equal(isNavItemActive("/dashboard", "/"), false);
   assert.equal(isNavItemActive("/", "/"), true);
 });

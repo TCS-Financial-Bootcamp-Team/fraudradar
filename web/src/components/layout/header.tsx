@@ -1,8 +1,7 @@
 "use client";
 
-import { Bell, Menu, Search } from "lucide-react";
+import { Bell, Menu } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { WeekPicker } from "@/features/alerts/components/week-picker";
 import { HeaderAccountMenu } from "./account-menu";
 import { SIDEBAR_ID } from "./sidebar";
 
@@ -50,20 +49,6 @@ export function Header({
               <Menu size={20} />
             </button>
           )}
-        </div>
-
-        <div className="mx-1 hidden h-6 w-px shrink-0 bg-border md:block" />
-
-        <div className="flex items-center gap-2 text-xs">
-          <span className="hidden text-muted-foreground lg:inline whitespace-nowrap">
-            Semana de referência
-          </span>
-          <WeekPicker />
-        </div>
-
-        <div className="hidden items-center gap-2 border-l border-border pl-4 text-xs text-muted-foreground xl:flex">
-          <Search className="size-4 shrink-0" />
-          <span>Busca global em breve</span>
         </div>
       </div>
 

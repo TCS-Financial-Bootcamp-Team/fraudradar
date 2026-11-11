@@ -176,3 +176,81 @@ def test_default_size_is_10(client, seed):
 def test_invalid_paging_returns_422(client, params):
     r = client.get("/alerts", params={"week": WEEK.isoformat(), **params})
     assert r.status_code == 422
+
+
+def test_search_matches_by_id(client, seed):
+    a1 = seed.alert(8001, WEEK, position=1)
+    seed.alert(9002, WEEK, position=2)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": str(a1)})
+    assert r.status_code == 200
+    assert _ids(r) == [str(a1)]
+    assert r.json()["total"] == 1
+
+
+def test_search_matches_by_account_prefix(client, seed):
+    a1 = seed.alert(987654, WEEK, position=1)
+    a2 = seed.alert(987123, WEEK, position=2)
+    seed.alert(123456, WEEK, position=3)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": "987"})
+    assert r.status_code == 200
+    assert sorted(_ids(r)) == sorted([str(a1), str(a2)])
+    assert r.json()["total"] == 2
+
+
+def test_search_no_match_returns_empty_with_zero_total(client, seed):
+    seed.alert(123456, WEEK, countries=("Brazil",), position=1)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": "999999"})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["items"] == []
+    assert data["total"] == 0
+    assert data["countries"] == ["Brazil"]
+
+
+def test_search_combined_with_status_filter(client, seed):
+    a1 = seed.alert(5551, WEEK, status="archived", position=1)
+    seed.alert(5552, WEEK, status="new", position=2)
+    r = client.get(
+        "/alerts",
+        params={"week": WEEK.isoformat(), "search": "555", "status": "archived"},
+    )
+    assert r.status_code == 200
+    assert _ids(r) == [str(a1)]
+    assert r.json()["total"] == 1
+
+
+def test_search_validation_too_long_or_empty_returns_422(client):
+    base = {"week": WEEK.isoformat()}
+    assert client.get("/alerts", params={**base, "search": ""}).status_code == 422
+    assert client.get("/alerts", params={**base, "search": "1" * 41}).status_code == 422
+
+
+def test_search_trimmed_matches(client, seed):
+    a = seed.alert(987654, WEEK, position=1)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": "  987  "})
+    assert r.status_code == 200
+    assert _ids(r) == [str(a)]
+
+
+def test_search_non_digits_matches_account_prefix(client, seed):
+    seed.alert(123456, WEEK, position=1)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": "nonexistent"})
+    assert r.status_code == 200
+    assert r.json()["items"] == []
+    assert r.json()["total"] == 0
+
+
+def test_search_40_digit_numeric_returns_empty_200(client, seed):
+    seed.alert(123456, WEEK, position=1)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": "9" * 40})
+    assert r.status_code == 200
+    assert r.json()["items"] == []
+    assert r.json()["total"] == 0
+
+
+def test_search_non_ascii_digit_returns_empty_200(client, seed):
+    seed.alert(123456, WEEK, position=1)
+    r = client.get("/alerts", params={"week": WEEK.isoformat(), "search": "²"})
+    assert r.status_code == 200
+    assert r.json()["items"] == []
+    assert r.json()["total"] == 0

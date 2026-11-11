@@ -29,6 +29,7 @@ _SORT_SQL: dict[SortOrder, str] = {
 TOP_CONTRIBUTIONS = 6
 MOVEMENT_LIMIT = 200
 EDGE_LIMIT = 30
+MAX_BIGINT = 9_223_372_036_854_775_807
 
 
 def week_window(week: date) -> tuple[datetime, datetime]:
@@ -43,6 +44,7 @@ def list_queue(
     *,
     status: AlertStatus | None,
     country: str | None,
+    search: str | None = None,
     page: int,
     size: int,
     sort: SortOrder,
@@ -56,6 +58,19 @@ def list_queue(
     if country is not None:
         filters.append("a.countries @> CAST(:country AS text[])")
         params["country"] = [country]
+    if search:
+        search_term = search.strip()
+        if search_term:
+            is_numeric = search_term.isascii() and search_term.isdigit()
+            if is_numeric and int(search_term) <= MAX_BIGINT:
+                filters.append(
+                    "(a.id = :search_id OR starts_with(CAST(a.account AS text), :search_prefix))"
+                )
+                params["search_id"] = int(search_term)
+                params["search_prefix"] = search_term
+            else:
+                filters.append("starts_with(CAST(a.account AS text), :search_prefix)")
+                params["search_prefix"] = search_term
     where_clause = " AND ".join(filters)
     total = conn.execute(
         text(f"SELECT count(*) FROM alerts a WHERE {where_clause}"), params

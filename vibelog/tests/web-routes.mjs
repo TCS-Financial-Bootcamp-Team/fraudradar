@@ -70,7 +70,6 @@ const routes = [
   "/dashboard",
   "/alerts",
   "/alerts/11111111-1111-4111-8111-111111111111",
-  "/reports",
   "/monitoring",
   "/ingestion",
   "/settings",
@@ -154,7 +153,7 @@ try {
       `${route}: com sessão ${authenticatedStatus}`,
     );
     if (
-      ["/dashboard", "/alerts", "/reports", "/monitoring", "/ingestion", "/settings"].includes(
+      ["/dashboard", "/alerts", "/monitoring", "/ingestion", "/settings"].includes(
         route,
       )
     )

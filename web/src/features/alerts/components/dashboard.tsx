@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Wallet,
 } from "lucide-react";
+import { useAppContext } from "@/components/app-context";
 import { Button } from "@/components/ui/button";
 import {
   EmptyState,
@@ -27,6 +28,7 @@ import { ChartCard } from "./charts";
 import { AlertsTable } from "./alerts-table";
 
 export function Dashboard() {
+  const { week } = useAppContext();
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
   const replay = useReplay();
@@ -36,6 +38,14 @@ export function Dashboard() {
         <p className="eyebrow !mt-0 mb-2">Centro de operações</p>
         <h1>Visão geral</h1>
         <p>O que precisa da sua atenção, em um só lugar.</p>
+        {week && (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Semana de {formatShortDate(week)} ·{" "}
+            <Link href="/alerts" className="underline hover:text-foreground">
+              trocar na fila de alertas
+            </Link>
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <HealthBadge />

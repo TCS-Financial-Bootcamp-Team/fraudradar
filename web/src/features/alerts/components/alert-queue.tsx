@@ -1,9 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronLeft, ChevronRight, SlidersHorizontal } from "lucide-react";
 import { useAppContext } from "@/components/app-context";
 import { Button } from "@/components/ui/button";
-import { Field, Select } from "@/components/ui/field";
+import { Field, Input, Select } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
 import { useAlertQueue } from "../hooks/use-alerts";
 import { AlertsTable, statusLabels } from "./alerts-table";
@@ -17,8 +17,18 @@ export function AlertQueue() {
 function WeeklyAlertQueue() {
   const [status, setStatus] = useState("");
   const [country, setCountry] = useState("");
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const queue = useAlertQueue(status, country, page);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const queue = useAlertQueue(status, country, page, search);
   return (
     <>
       <div className="page-heading">
@@ -33,6 +43,18 @@ function WeeklyAlertQueue() {
       </div>
       <section className="panel flex flex-wrap items-end gap-4 p-5">
         <SlidersHorizontal className="mb-3 hidden size-4 text-muted-foreground sm:block" />
+        <div className="min-w-44 flex-1">
+          <Field label="Buscar">
+            <Input
+              placeholder="Alerta ou conta"
+              value={searchInput}
+              onChange={(e) => {
+                setSearchInput(e.target.value);
+                setPage(1);
+              }}
+            />
+          </Field>
+        </div>
         <div className="min-w-44 flex-1">
           <Field label="Status">
             <Select
@@ -67,7 +89,7 @@ function WeeklyAlertQueue() {
             </Select>
           </Field>
         </div>
-        <div className="grid min-w-40 flex-1 gap-2 text-sm font-medium">
+        <div className="grid min-w-48 flex-1 gap-2 text-sm font-medium">
           <span>Semana</span>
           <WeekPicker />
         </div>
@@ -76,6 +98,8 @@ function WeeklyAlertQueue() {
           onClick={() => {
             setStatus("");
             setCountry("");
+            setSearchInput("");
+            setSearch("");
             setPage(1);
           }}
         >

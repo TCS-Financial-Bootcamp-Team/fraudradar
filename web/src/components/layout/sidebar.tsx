@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Activity,
   Database,
-  FileCheck2,
   LayoutDashboard,
   type LucideIcon,
   Radar,
@@ -41,7 +40,6 @@ const SIDEBAR_TRANSITION =
 const navigationItems = [
   { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
   { href: "/alerts", label: "Fila de alertas", icon: Radar },
-  { href: "/reports", label: "Comunicações", icon: FileCheck2 },
   { href: "/monitoring", label: "Monitoramento", icon: Activity },
   { href: "/ingestion", label: "Fontes de dados", icon: Database },
 ];

@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { cn } from "@/lib/utils";
 
 export const fieldClassName =
   "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
@@ -7,7 +8,7 @@ export function Input(props: ComponentProps<"input">) {
   return (
     <input
       {...props}
-      className={`${fieldClassName} ${props.className ?? ""}`}
+      className={cn(fieldClassName, props.className)}
     />
   );
 }
@@ -15,7 +16,7 @@ export function Select(props: ComponentProps<"select">) {
   return (
     <select
       {...props}
-      className={`${fieldClassName} ${props.className ?? ""}`}
+      className={cn(fieldClassName, props.className)}
     />
   );
 }
@@ -23,7 +24,7 @@ export function Textarea(props: ComponentProps<"textarea">) {
   return (
     <textarea
       {...props}
-      className={`${fieldClassName} min-h-28 ${props.className ?? ""}`}
+      className={cn(fieldClassName, "min-h-28", props.className)}
     />
   );
 }

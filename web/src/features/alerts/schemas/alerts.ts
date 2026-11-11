@@ -134,5 +134,6 @@ export type AlertFilters = {
   week: string;
   status?: string;
   country?: string;
+  search?: string;
   page?: number;
 };
