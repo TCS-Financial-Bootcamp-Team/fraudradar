@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { getAlertLinkLabel } from "../src/features/alerts/components/alerts-table";
 import { formatWeekPeriod } from "../src/features/alerts/components/dashboard";
 import { generateSparklinePath } from "../src/features/alerts/components/charts";
 import { monitoringMock } from "../src/features/alerts/services/mocks";
@@ -102,4 +104,30 @@ test("dashboard: tratamento de recall nulo para semanas de ingestão sem gabarit
 
   assert.equal(displayValue, "—");
   assert.equal(note, "sem gabarito nesta semana");
+});
+
+test("alertas: linha clicável tem nome acessível e link estendido", () => {
+  assert.equal(
+    getAlertLinkLabel({ id: "A-42", account: "CTA-001" }),
+    "Abrir alerta A-42, conta CTA-001",
+  );
+
+  for (const file of ["alerts-table.tsx", "dashboard.tsx"]) {
+    const source = readFileSync(
+      `src/features/alerts/components/${file}`,
+      "utf8",
+    );
+    assert.match(source, /relative cursor-pointer/);
+    assert.match(source, /aria-label=\{getAlertLinkLabel\(alert\)\}/);
+    assert.match(source, /after:absolute after:inset-0/);
+    assert.match(source, /focus-visible:after:ring-2/);
+  }
+});
+
+test("dashboard: não exibe o estado de saúde do sistema", () => {
+  const source = readFileSync(
+    "src/features/alerts/components/dashboard.tsx",
+    "utf8",
+  );
+  assert.doesNotMatch(source, /HealthBadge|Sistema operacional|Sistema degradado/);
 });
