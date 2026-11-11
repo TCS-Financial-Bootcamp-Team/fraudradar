@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useAppContext } from "@/components/app-context";
 import { formatWeekLabel } from "@/lib/risk";
 
-// Só oferece semanas liberadas pelo replay (as que têm transações processadas). Um campo de
+// Só oferece períodos já processados. Um campo de
 // data livre deixava escolher qualquer dia, inclusive fora do SAML-D ou no meio da semana.
 export function WeekPicker({ className = "" }: { className?: string }) {
   const { week, setWeek, weeks, weeksLoading } = useAppContext();

@@ -22,7 +22,7 @@ export function useAuth() {
     }
   }
   const navigateToDashboard = () => {
-    router.replace("/dashboard");
+    router.replace("/accounts");
     router.refresh();
   };
   return {

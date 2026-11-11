@@ -83,8 +83,8 @@ export const replaySchema = z.object({
   week: z.iso.date(),
   alerts_generated: z.number().int().nonnegative(),
 });
-// Semanas liberadas pelo replay, da mais recente para a mais antiga: as únicas que o
-// seletor deixa escolher. next_release é a que o próximo replay libera (null: nenhuma).
+// Períodos processados, do mais recente para o mais antigo. next_release permanece por
+// compatibilidade com o replay antigo e volta sempre como null.
 export const weeksSchema = z.object({
   current: z.iso.date().nullable(),
   next_release: z.iso.date().nullable(),

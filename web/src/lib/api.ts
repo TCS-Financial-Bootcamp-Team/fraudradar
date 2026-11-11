@@ -56,6 +56,16 @@ export function apiPost<T>(
     signal,
   });
 }
+export function apiPut<T>(path: string, payload: unknown) {
+  return requestJson<T>(path, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+export function apiDelete<T>(path: string) {
+  return requestJson<T>(path, { method: "DELETE" });
+}
 export async function apiMultipart<T>(
   path: string,
   formData: FormData,

@@ -20,10 +20,10 @@ type AppContextValue = {
   dataset: string;
   setDataset: (value: string) => void;
   datasets: Dataset[];
-  /** Semana em exibição (segunda-feira, AAAA-MM-DD); "" quando nenhuma foi liberada. */
+  /** Semana em exibição (segunda-feira, AAAA-MM-DD); "" quando nenhuma foi processada. */
   week: string;
   setWeek: (value: string) => void;
-  /** Semanas liberadas, da mais recente para a mais antiga: as únicas que dá para escolher. */
+  /** Períodos processados, do mais recente para o mais antigo. */
   weeks: string[];
   nextRelease: string | null;
   weeksLoading: boolean;
@@ -47,7 +47,7 @@ const AppContext = createContext<AppContextValue>({
   refresh: () => {},
 });
 
-// A semana escolhida só vale se estiver entre as liberadas; senão vale a mais recente. Assim
+// A semana escolhida só vale se estiver entre as processadas; senão vale a mais recente. Assim
 // o app abre na última semana com dados (não na semana de hoje, que não existe no SAML-D) e
 // nunca mostra uma semana sem transações processadas.
 function pickWeek(selected: string | null, catalog?: Weeks) {
@@ -86,6 +86,7 @@ export function AppContextProvider({
     setSelected(null);
     setRevision((current) => current + 1);
   }, []);
+  const refresh = useCallback(() => setRevision((value) => value + 1), []);
 
   return (
     <AppContext.Provider
@@ -101,7 +102,7 @@ export function AppContextProvider({
         weeksError: catalog.error,
         reloadWeeks: catalog.reload,
         revision,
-        refresh: () => setRevision((v) => v + 1),
+        refresh,
       }}
     >
       {children}

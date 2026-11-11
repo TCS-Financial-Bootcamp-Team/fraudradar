@@ -53,7 +53,7 @@ export async function proxy(request: NextRequest) {
     const { data, error } = await supabase.auth.getClaims();
     if ((!data?.claims || error) && !isPublicRoute) return redirectTo("/login");
     if (data?.claims && !error && ["/login", "/signup"].includes(pathname))
-      return redirectTo("/dashboard");
+      return redirectTo("/accounts");
   } catch {
     if (!isPublicRoute) return redirectTo("/login?error=session");
   }

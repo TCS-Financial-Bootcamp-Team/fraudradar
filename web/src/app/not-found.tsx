@@ -8,7 +8,7 @@ export default function NotFound() {
       <p className="text-muted-foreground">
         Este endereço não existe ou não está mais disponível.
       </p>
-      <Link className="text-primary underline" href="/dashboard">
+      <Link className="text-primary underline" href="/accounts">
         Voltar à visão geral
       </Link>
     </main>

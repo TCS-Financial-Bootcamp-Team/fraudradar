@@ -88,12 +88,9 @@ export function queueMock(filters: AlertFilters) {
 export function weeksMock(): Weeks {
   const alerts = currentAlertsMock();
   const weeks = [...new Set(alerts.map((a) => a.week))].sort().reverse();
-  const next = new Date(weeks[0] + "T00:00:00Z");
-  next.setUTCDate(next.getUTCDate() + 7);
   return {
     current: weeks[0] ?? null,
-    // No modo demonstrativo sempre há uma semana a mais para liberar.
-    next_release: next.toISOString().slice(0, 10),
+    next_release: null,
     items: weeks.map((week) => {
       const ofWeek = alerts.filter((a) => a.week === week);
       return {

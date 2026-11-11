@@ -7,6 +7,7 @@ import { AppearancePanel, ThemePreviewCards, useAppTheme } from "@/components/th
 import { useProfile } from "@/features/auth/hooks/use-profile";
 import { profileSchema, type Profile } from "@/features/auth/schemas/auth";
 import { HealthPanel } from "@/features/health/components/health-panel";
+import { ProcessingSettingsCard } from "@/features/processing/components/processing-settings";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
@@ -132,7 +133,9 @@ export function Settings() {
         )}
       </section>
 
-      {/* Card 3: Sistema */}
+      <ProcessingSettingsCard />
+
+      {/* Card 4: Sistema */}
       <HealthPanel />
     </div>
   );

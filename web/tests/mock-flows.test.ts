@@ -41,14 +41,14 @@ test("mock: decisão, parecer, comunicação e replay preservam consistência na
   );
   const weeksBefore = await s.fetchWeeks();
   assert.equal(weeksBefore.current, week);
-  assert.equal(weeksBefore.next_release, "2026-10-26");
+  assert.equal(weeksBefore.next_release, null);
   const nextBatch = await s.advanceWeek(week);
   assert.equal(nextBatch.week, "2026-10-26");
   assert.equal(
     (await s.fetchAlerts({ week: nextBatch.week })).total,
     nextBatch.alerts_generated,
   );
-  // O seletor só oferece semanas liberadas, da mais recente para a mais antiga.
+  // O seletor oferece todos os períodos processados, do mais recente ao mais antigo.
   const weeksAfter = await s.fetchWeeks();
   assert.equal(weeksAfter.current, "2026-10-26");
   assert.deepEqual(

@@ -25,8 +25,8 @@ A normalização/conversão dos valores é responsabilidade da API.
 | GET /alerts/{id}/report             | reportSchema: alert_id, content, status, updated_at.                                                         |
 | POST /alerts/{id}/report/approve    | approvalSchema: {content}; resposta reportSchema atualizado. A edição é persistida junto da aprovação.       |
 | POST /alerts/{id}/chat              | chatRequestSchema; resposta chatResponseSchema.                                                              |
-| GET /weeks                          | weeksSchema: {current, next_release, items}. Só as semanas liberadas entram no seletor; next_release nulo desliga o replay. |
-| POST /replay/next-week              | Pedido {}; resposta replaySchema: {week, alerts_generated}. A API controla a progressão e a idempotência.    |
+| GET /weeks                          | weeksSchema: {current, next_release, items}. Todos os períodos processados entram; next_release é sempre nulo. |
+| POST /replay/next-week              | Compatibilidade: replaySchema; não controla mais a visibilidade nem é chamado pela UI.                       |
 | GET /monitoring?week=               | monitoringSchema, usado pelo dashboard e pela tela de qualidade.                                             |
 | GET /health                         | healthSchema, compatível com o contrato anterior.                                                            |
 
@@ -41,6 +41,25 @@ A API deve ordenar por score antes de paginar.
 
 O detalhe contém contas pseudonimizadas, dados financeiros, regras e
 contribuições já calculadas. O frontend não calcula features ou score.
+
+## Contas suspeitas e processamento
+
+| Requisição | Pedido / resposta |
+| --- | --- |
+| `GET /accounts/suspicious` | Query `from`, `to`, `status`, `search`, `page`, `size`, `sort`; resposta `suspiciousAccountsSchema`. |
+| `GET /accounts/{account}/alerts` | resposta `{items: alertSchema[]}`, do período mais recente ao mais antigo. |
+| `GET /processing/settings` | `processingSettingsSchema` do conjunto indicado por `X-Dataset`. |
+| `PUT /processing/settings` | `{interval_minutes: 5..1440, enabled, demo_mode}`; resposta atualizada. |
+| `POST /datasets/{slug}/simulate` | `{transactions: 50..5000, days: 1..7, inject_pattern}`; `jobSchema` com 202. |
+| `DELETE /ingestions/{id}` | somente `source=simulation`; `jobSchema` de recomputação com 202. |
+
+`suspiciousAccountSchema`: `{account, max_score, latest_score, alert_weeks,
+first_week, last_week, total_flagged_amount, country, status, latest_alert_id}`.
+Ordenação padrão: maior nota; empate pela posição do alerta do período mais recente.
+
+`processingSettingsSchema` acrescenta `{dataset, last_run_at, next_run_at}` ao pedido.
+O front consulta `GET /jobs/{id}` a cada 2 s enquanto o status for `queued` ou `running`,
+para em `done`/`failed`, notifica e recarrega o contexto do app.
 
 Monitoramento retorna:
 
@@ -137,10 +156,10 @@ active_model_version: string | null, created_at}`. O slug aceita somente
 `[a-z0-9-]{1,40}`. A tela guarda o slug atual no `localStorage`, com fallback
 seguro para `saml-d`; a troca limpa a semana selecionada e recarrega os recursos.
 
-`jobSchema`: `{id, kind: "import" | "process" | "train", dataset, status:
+`jobSchema`: `{id, kind: "import" | "process" | "simulate" | "train", dataset, status:
 "queued" | "running" | "done" | "failed", progress, message, created_at,
-started_at, finished_at}`. Nesta fase, só `process` executa trabalho real;
-`import` e `train` falham com mensagem explícita de que ainda não foram implementados.
+started_at, finished_at}`. `process` e `simulate` executam trabalho real;
+`import` e `train` dependem das frentes B2 e C.
 
 ## Chat e privacidade
 
@@ -158,7 +177,7 @@ Chaves do LLM não fazem parte do ambiente do Next.
 
 Com NEXT_PUBLIC_USE_MOCKS=true, cada serviço usa seu arquivo services/mocks.ts.
 Não há fallback silencioso no modo real. Fixtures começam na semana 2026-10-19,
-com dados também em 2026-10-12; o replay gera a próxima semana. Alterações de
+com dados também em 2026-10-12; todos os períodos mockados ficam visíveis. Alterações de
 decisão, parecer e aprovação vivem na memória da aba e reiniciam ao recarregar.
 As taxas de qualidade são exemplos, não resultados de treinamento.
 

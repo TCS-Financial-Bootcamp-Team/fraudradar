@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { notify } from "@/lib/notify";
 import { useAppContext } from "@/components/app-context";
 import { useResource } from "@/hooks/use-resource";
+import { fetchAccountAlerts } from "@/features/accounts/services/accounts-service";
 import { getErrorMessage } from "@/lib/format";
 import * as alertsService from "../services/alerts-service";
 import type { DecisionRequest, Report } from "../schemas/alerts";
@@ -18,7 +19,7 @@ export function useAlertQueue(
   const loader = useCallback(
     (signal: AbortSignal) => {
       void revision;
-      // Sem semana liberada não há fila (a API exige a semana).
+      // Sem período processado não há fila (a API exige a semana).
       if (!week)
         return Promise.resolve({ items: [], total: 0, countries: [] });
       return alertsService.fetchAlerts(
@@ -53,11 +54,18 @@ export function useAlertDetail(id: string) {
           alertsService.fetchAlertDetail(id, signal),
           alertsService.fetchAlertGraph(id, signal),
         ]);
-        const report: Report | null =
+        const [report, accountAlerts] = await Promise.all([
           detail.status === "reported"
-            ? await alertsService.fetchReport(id, signal)
-            : null;
-        return { detail, graph, report };
+            ? alertsService.fetchReport(id, signal)
+            : Promise.resolve<Report | null>(null),
+          fetchAccountAlerts(detail.account, signal),
+        ]);
+        return {
+          detail,
+          graph,
+          report,
+          otherAlerts: accountAlerts.items.filter((item) => item.id !== id),
+        };
       },
       [id, revision],
     ),
