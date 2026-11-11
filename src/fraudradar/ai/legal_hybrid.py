@@ -21,6 +21,13 @@ CONCEPTS = {
     "suspicion": ("suspeit", "indici"),
     "obligations": ("obrigac",),
     "prevention": ("prevenc",),
+    "sanctions": (
+        "penalid",
+        "sanc",
+        "multa",
+        "advert",
+        "inabilit",
+    ),
 }
 
 
