@@ -26,6 +26,9 @@ SAMPLE_SIZE = 1000
 MAX_REPORTED_ERRORS = 5
 # Até este intervalo entre o fim dos dados atuais e o começo da fonte ainda é "continua".
 CONTINUE_GAP_DAYS = 31
+# Com quase todas as contas da amostra já no conjunto e as datas cruzando as dele, a fonte é,
+# muito provavelmente, uma cópia do que já está carregado.
+SAME_BASE_KNOWN_PCT = 99.0
 
 DatesRelation = Literal["continue", "overlap", "other_era", "empty_dataset", "unknown"]
 
@@ -369,6 +372,17 @@ def suggest(
             "message": (
                 f"{pct:g}% das contas da amostra já existem e as datas vêm logo depois dos "
                 "dados atuais: parece continuar o conjunto atual."
+            ),
+        }
+    if pct is not None and pct >= SAME_BASE_KNOWN_PCT and dates == "overlap":
+        # Pré-seleciona o conjunto separado (continuar é recusado com datas que cruzam), mas
+        # avisa que, se for a mesma base, o melhor pode ser não importar.
+        return {
+            "relation": "new_dataset",
+            "message": (
+                f"{pct:g}% das contas da amostra já existem e as datas cruzam as do conjunto "
+                "atual: parece ser a mesma base já carregada, e importar duplicaria transações. "
+                "Confira a origem; se for mesmo outra base, importe como conjunto separado."
             ),
         }
     if pct is not None and pct >= 50 and dates == "overlap":

@@ -162,6 +162,19 @@ def test_report_suggests_a_new_dataset_for_other_accounts_and_era(client, source
     assert report["suggestion"]["relation"] == "new_dataset"
 
 
+def test_report_says_when_the_source_looks_like_the_loaded_base(client, source_env, seed, db):
+    # As mesmas contas e datas dentro das do conjunto atual: uma cópia do que já está carregado.
+    create_source(db, make_rows(30, start=datetime(2023, 3, 6, 8, 0)))
+    _seed_current_dataset(seed)
+    connection = _create(client, source_env)
+    report = client.post(f"/ingestion/connections/{connection['id']}/test").json()
+    assert report["overlap"]["known_accounts_pct"] == 100.0
+    assert report["overlap"]["dates"] == "overlap"
+    assert report["suggestion"]["relation"] == "new_dataset"
+    assert "parece ser a mesma base já carregada" in report["suggestion"]["message"]
+    assert "importar duplicaria transações" in report["suggestion"]["message"]
+
+
 def test_report_flags_missing_columns_and_wrong_types(client, source_env, db):
     # tabela vazia: só o catálogo importa (boolean/date não aceitariam os valores de teste)
     create_source(

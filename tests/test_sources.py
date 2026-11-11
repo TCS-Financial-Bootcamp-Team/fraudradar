@@ -249,3 +249,16 @@ def test_suggestions_never_decide_and_follow_the_signals():
     assert compatibility.suggest(True, _overlap(40.0, "continue"), True)["relation"] is None
     assert compatibility.suggest(False, None, False)["relation"] is None
     assert compatibility.suggest(True, _overlap(None, "empty_dataset"), True)["relation"] is None
+
+
+def test_a_copy_of_the_loaded_base_is_called_out_as_a_suggestion():
+    copy = compatibility.suggest(True, _overlap(100.0, "overlap"), True)
+    # Só pré-seleciona (continuar seria recusado): quem decide é a pessoa.
+    assert copy["relation"] == "new_dataset"
+    assert "parece ser a mesma base já carregada" in copy["message"]
+    assert "importar duplicaria transações" in copy["message"]
+    assert "mesma base" in compatibility.suggest(True, _overlap(99.5, "overlap"), True)["message"]
+    # Contas em comum, mas não quase todas, ou datas que continuam: não é uma cópia.
+    partial = compatibility.suggest(True, _overlap(80.0, "overlap"), True)
+    assert "mesma base" not in partial["message"]
+    assert compatibility.suggest(True, _overlap(100.0, "continue"), True)["relation"] == "extend"
