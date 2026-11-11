@@ -3,7 +3,6 @@ próprio banco de teste (nome terminado em ``_test``). Nada aqui toca o banco re
 """
 
 import os
-import re
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -12,7 +11,6 @@ from cryptography.fernet import Fernet
 from sqlalchemy import Engine, text
 from sqlalchemy.engine import make_url
 
-from fraudradar import datasets
 from fraudradar.config import get_settings
 
 SOURCE_SCHEMA = "fake_source"
@@ -128,28 +126,11 @@ def configure(monkeypatch, hosts: str = "127.0.0.1,localhost") -> str:
 
 
 @pytest.fixture
-def allow_connection_source(db, monkeypatch) -> None:
-    """Aceita ``source = 'connection'`` em ``ingestions`` (public e conjuntos novos).
+def allow_connection_source() -> None:
+    """Sem efeito: db/init/002_tables.sql já aceita ``source = 'connection'`` em ``ingestions``.
 
-    O CHECK vive em db/init/002_tables.sql, que não é desta frente; este fixture cobre o
-    intervalo até a lista de origens ser unificada. Idempotente se o DDL já aceitar.
+    Ficou só para não mexer na assinatura dos testes que o pedem.
     """
-    with db.begin() as conn:
-        conn.exec_driver_sql(
-            "ALTER TABLE public.ingestions DROP CONSTRAINT IF EXISTS ingestions_source_check"
-        )
-        conn.exec_driver_sql(
-            "ALTER TABLE public.ingestions ADD CONSTRAINT ingestions_source_check "
-            "CHECK (source IN ('csv', 'manual', 'simulation', 'connection'))"
-        )
-    original = datasets._data_ddl()
-    patched = re.sub(
-        r"CHECK \(source IN \([^)]*\)\)",
-        "CHECK (source IN ('csv', 'manual', 'simulation', 'connection'))",
-        original,
-        count=1,
-    )
-    monkeypatch.setattr(datasets, "_data_ddl", lambda: patched)
 
 
 @pytest.fixture
