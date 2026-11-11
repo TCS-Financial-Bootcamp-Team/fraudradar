@@ -100,6 +100,12 @@ export const seriesSchema = z.object({
   name: z.string(),
   value: z.number().nonnegative(),
 });
+export const statusCountsSchema = z.object({
+  pending: z.number().int().nonnegative(),
+  escalated: z.number().int().nonnegative(),
+  archived: z.number().int().nonnegative(),
+  reported: z.number().int().nonnegative(),
+});
 export const monitoringSchema = z.object({
   week: z.iso.date(),
   indicators: z.object({
@@ -108,14 +114,17 @@ export const monitoringSchema = z.object({
     reported: z.number(),
     alert_rate: z.number().min(0).max(1),
     flagged_amount: z.number(),
-    recall: z.number().min(0).max(1),
-    typology_accuracy: z.number().min(0).max(1),
+    recall: z.number().min(0).max(1).nullable(),
+    typology_accuracy: z.number().min(0).max(1).nullable(),
   }),
   weeks: z.array(seriesSchema),
   typologies: z.array(seriesSchema),
   countries: z.array(seriesSchema),
   country_rates: z.array(seriesSchema),
   payment_type_rates: z.array(seriesSchema),
+  recall_series: z.array(seriesSchema),
+  score_histogram: z.array(seriesSchema),
+  status_counts: statusCountsSchema,
 });
 export type AlertStatus = z.infer<typeof statusSchema>;
 export type Alert = z.infer<typeof alertSchema>;
@@ -128,6 +137,7 @@ export type Report = z.infer<typeof reportSchema>;
 export type ApprovalRequest = z.infer<typeof approvalSchema>;
 export type Replay = z.infer<typeof replaySchema>;
 export type Weeks = z.infer<typeof weeksSchema>;
+export type StatusCounts = z.infer<typeof statusCountsSchema>;
 export type Monitoring = z.infer<typeof monitoringSchema>;
 export type Series = z.infer<typeof seriesSchema>;
 export type AlertFilters = {

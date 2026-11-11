@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export const fieldClassName =
-  "w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+  "h-10 w-full rounded-lg border border-border bg-card px-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50";
 
 export function Input(props: ComponentProps<"input">) {
   return (
@@ -12,6 +12,7 @@ export function Input(props: ComponentProps<"input">) {
     />
   );
 }
+
 export function Select(props: ComponentProps<"select">) {
   return (
     <select
@@ -20,14 +21,16 @@ export function Select(props: ComponentProps<"select">) {
     />
   );
 }
+
 export function Textarea(props: ComponentProps<"textarea">) {
   return (
     <textarea
       {...props}
-      className={cn(fieldClassName, "min-h-28", props.className)}
+      className={cn(fieldClassName, "h-auto min-h-28 py-2.5", props.className)}
     />
   );
 }
+
 export function Field({
   label,
   error,
@@ -38,11 +41,11 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium">
+    <label className="grid gap-1.5 text-[13px] font-medium text-foreground">
       <span>{label}</span>
       {children}
       {error && (
-        <span role="alert" className="text-xs text-destructive">
+        <span role="alert" className="text-xs text-signal font-normal">
           {error}
         </span>
       )}

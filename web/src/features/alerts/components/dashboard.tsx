@@ -1,14 +1,8 @@
 "use client";
+
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  CircleCheck,
-  FileCheck2,
-  Radar,
-  RefreshCw,
-  Wallet,
-} from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,55 +17,125 @@ import {
   formatPercent,
   formatShortDate,
 } from "@/lib/format";
+import { formatScore } from "@/lib/risk";
 import { useAlertQueue, useMonitoring, useReplay } from "../hooks/use-alerts";
-import { ChartCard } from "./charts";
-import { AlertsTable } from "./alerts-table";
+import type { AlertStatus } from "../schemas/alerts";
+import {
+  HorizontalBarList,
+  QueueRecallChart,
+  ReviewProgressCard,
+  ScoreHistogramChart,
+  Sparkline,
+  WeeklyAlertsChart,
+} from "./charts";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+export function formatWeekPeriod(weekStr: string): string {
+  const parts = weekStr.split("-").map(Number);
+  if (parts.length < 3 || parts.some(isNaN)) return `Semana de ${weekStr}`;
+  const [year, month, day] = parts;
+  const start = new Date(Date.UTC(year, month - 1, day));
+  const end = new Date(start.getTime() + 6 * 86400000);
+  const months = [
+    "jan",
+    "fev",
+    "mar",
+    "abr",
+    "mai",
+    "jun",
+    "jul",
+    "ago",
+    "set",
+    "out",
+    "nov",
+    "dez",
+  ];
+  const startDay = String(start.getUTCDate()).padStart(2, "0");
+  const startMonth = months[start.getUTCMonth()];
+  const endDay = String(end.getUTCDate()).padStart(2, "0");
+  const endMonth = months[end.getUTCMonth()];
+  const endYear = end.getUTCFullYear();
+
+  return `Semana de ${startDay} ${startMonth} a ${endDay} ${endMonth} ${endYear}`;
+}
+
+const STATUS_CONFIG: Record<
+  AlertStatus,
+  { label: string; dotClass: string }
+> = {
+  pending: {
+    label: "Pendente",
+    dotClass: "bg-track ring-1 ring-inset ring-muted-foreground/60",
+  },
+  escalated: {
+    label: "Em investigação",
+    dotClass: "bg-warning",
+  },
+  archived: {
+    label: "Arquivado",
+    dotClass: "bg-foreground",
+  },
+  reported: {
+    label: "Para comunicação",
+    dotClass: "bg-signal",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Dashboard Component
+// ---------------------------------------------------------------------------
 
 export function Dashboard() {
   const { week } = useAppContext();
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
   const replay = useReplay();
+
+  const weekRangeText = week ? formatWeekPeriod(week) : "";
+  const releaseHint = replay.nextRelease
+    ? `Próxima: semana de ${formatShortDate(replay.nextRelease)}`
+    : "Nenhuma semana processada aguardando";
+
   const heading = (
-    <div className="page-heading">
-      <div>
-        <p className="eyebrow !mt-0 mb-2">Centro de operações</p>
-        <h1>Visão geral</h1>
-        <p>O que precisa da sua atenção, em um só lugar.</p>
-        {week && (
-          <p className="mt-1 text-xs text-muted-foreground">
-            Semana de {formatShortDate(week)} ·{" "}
-            <Link href="/alerts" className="underline hover:text-foreground">
-              trocar na fila de alertas
-            </Link>
-          </p>
-        )}
+    <div className="flex flex-wrap items-end justify-between gap-5">
+      <div className="flex flex-col gap-1.5">
+        <p className="m-0 text-[13px] text-muted-foreground">
+          {weekRangeText ? `${weekRangeText} · ` : ""}
+          <Link
+            href="/alerts"
+            className="text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
+          >
+            trocar na fila
+          </Link>
+        </p>
+        <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
+          Visão geral
+        </h1>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <HealthBadge />
-        <div className="grid justify-items-end gap-1">
-          <Button
-            disabled={replay.busy || !replay.nextRelease}
-            onClick={() => void replay.advance()}
-          >
-            <RefreshCw className={replay.busy ? "animate-spin" : ""} />
-            {replay.busy ? "Liberando…" : "Liberar próxima semana"}
-          </Button>
-          <p className="text-[11px] text-muted-foreground">
-            {replay.nextRelease
-              ? "Próxima: semana de " + formatShortDate(replay.nextRelease)
-              : "Nenhuma semana processada aguardando. Rode o worker."}
-          </p>
-        </div>
+        <span className="text-[13px] text-muted-foreground">{releaseHint}</span>
+        <Button
+          disabled={replay.busy || !replay.nextRelease}
+          onClick={() => void replay.advance()}
+        >
+          <RefreshCw className={cn("size-4", replay.busy && "animate-spin")} />
+          {replay.busy ? "Liberando…" : "Liberar próxima semana"}
+        </Button>
       </div>
     </div>
   );
+
   if (monitoring.loading) return <LoadingState />;
-  if (monitoring.data === null)
+
+  if (monitoring.data === null) {
     return (
-      <>
+      <div className="flex flex-col gap-9 max-w-[1320px] w-full">
         {heading}
-        <section className="panel">
+        <section className="rounded-[14px] border border-border bg-card p-6">
           <EmptyState
             title="Nenhuma semana liberada"
             description={
@@ -81,114 +145,316 @@ export function Dashboard() {
             }
           />
         </section>
-      </>
+      </div>
     );
-  if (monitoring.error || !monitoring.data)
+  }
+
+  if (monitoring.error || !monitoring.data) {
     return (
-      <ResourceError
-        message={monitoring.error ?? "Dados indisponíveis."}
-        onRetry={monitoring.reload}
-      />
+      <div className="flex flex-col gap-9 max-w-[1320px] w-full">
+        {heading}
+        <ResourceError
+          message={monitoring.error ?? "Dados indisponíveis."}
+          onRetry={monitoring.reload}
+        />
+      </div>
     );
+  }
+
   const data = monitoring.data;
+
+  // Compute week alerts difference for sparkline note
+  const alertDiffNote = (() => {
+    if (data.weeks.length >= 2) {
+      const cur = data.weeks[data.weeks.length - 1].value;
+      const prev = data.weeks[data.weeks.length - 2].value;
+      const diff = cur - prev;
+      if (diff > 0) return `+${diff} vs. semana anterior`;
+      if (diff < 0) return `${diff} vs. semana anterior`;
+      return "= vs. semana anterior";
+    }
+    return "casos para análise";
+  })();
+
+  const weekValues = data.weeks.map((w) => w.value);
+  const recallValues =
+    data.recall_series?.map((s) => (s.value <= 1 ? s.value * 100 : s.value)) ??
+    [];
+
   const kpis = [
     {
-      label: "Alertas da semana",
+      label: "Alertas na semana",
       value: formatNumber(data.indicators.alerts),
-      hint: "Casos para análise",
-      icon: Radar,
-    },
-    {
-      label: "Alertas revisados",
-      value: formatNumber(data.indicators.reviewed),
-      hint: "Com decisão registrada",
-      icon: CircleCheck,
-    },
-    {
-      label: "Comunicados ao COAF",
-      value: formatNumber(data.indicators.reported),
-      hint: "Aprovações simuladas",
-      icon: FileCheck2,
+      note: alertDiffNote,
+      spark: weekValues,
+      sparkLabel: "Alertas na semana: evolução nas últimas semanas",
     },
     {
       label: "Taxa de alerta",
       value: formatPercent(data.indicators.alert_rate),
-      hint: "Das transações processadas",
-      icon: ArrowUpRight,
+      note: "das transações processadas",
+      spark: weekValues,
+      sparkLabel: "Taxa de alerta: evolução nas últimas semanas",
+    },
+    {
+      label: "Valor sinalizado",
+      value: formatCurrency(data.indicators.flagged_amount),
+      note: "volume financeiro",
+      spark: weekValues,
+      sparkLabel: "Valor sinalizado: evolução nas últimas semanas",
+    },
+    {
+      label: "Recall da fila",
+      value:
+        data.indicators.recall !== null
+          ? formatPercent(data.indicators.recall)
+          : "—",
+      note:
+        data.indicators.recall !== null
+          ? "meta de 95%"
+          : "sem gabarito nesta semana",
+      spark: recallValues,
+      sparkLabel: "Recall da fila: evolução nas últimas semanas",
     },
   ];
+
+  const topAlerts = queue.data?.items.slice(0, 5) ?? [];
+
   return (
-    <>
+    <div className="flex flex-col gap-9 max-w-[1320px] w-full">
       {heading}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {kpis.map(({ label, value, hint, icon: IconComponent }) => (
-          <article key={label} className="panel p-5">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-xs font-medium text-muted-foreground">
-                {label}
-              </h2>
-              <IconComponent className="size-4 text-muted-foreground" />
+
+      {/* KPI Strip */}
+      <section
+        aria-label="Indicadores da semana"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden"
+      >
+        {kpis.map((k) => (
+          <div
+            key={k.label}
+            className="bg-card p-[18px_20px_16px] flex flex-col gap-1 min-w-0"
+          >
+            <span className="text-[13px] text-muted-foreground">{k.label}</span>
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="text-[32px] font-medium tracking-[-0.03em] leading-[1.1] tabular-nums text-foreground">
+                {k.value}
+              </span>
+              <Sparkline values={k.spark} label={k.sparkLabel} />
             </div>
-            <p className="mt-5 text-3xl font-semibold tracking-tight">
-              {value}
-            </p>
-            <p className="mt-2 text-[11px] text-muted-foreground">{hint}</p>
-          </article>
+            <span className="font-mono text-xs text-muted-foreground truncate">
+              {k.note}
+            </span>
+          </div>
         ))}
-      </div>
-      <section className="panel flex flex-wrap items-center justify-between gap-5 border-l-[3px] border-l-primary p-5">
-        <div className="flex items-center gap-4">
-          <span className="rounded-xl bg-accent p-3 text-primary">
-            <Wallet className="size-5" />
-          </span>
-          <div>
-            <h2 className="text-xs text-muted-foreground">
-              Valor total sinalizado
-            </h2>
-            <p className="mt-1 text-2xl font-semibold tracking-tight">
-              {formatCurrency(data.indicators.flagged_amount)}
-            </p>
-          </div>
-        </div>
-        <p className="max-w-xs text-xs leading-relaxed text-muted-foreground">
-          Volume financeiro vinculado aos alertas. Um sinal para investigação,
-          sem presunção de ilícito.
-        </p>
       </section>
-      <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-        <ChartCard
-          title="Evolução de alertas · últimas semanas"
-          data={data.weeks}
-          type="area"
-        />
-        <ChartCard
-          title="Distribuição por tipologia"
-          data={data.typologies}
-          type="donut"
-        />
-      </div>
-      <div className="grid items-start gap-6 xl:grid-cols-[1fr_2fr]">
-        <ChartCard title="Países com mais alertas" data={data.countries} />
-        <section className="panel overflow-hidden">
-          <div className="panel-title">
-            <h2>Alertas recentes</h2>
-            <Link
-              className="flex items-center gap-2 text-xs text-primary"
-              href="/alerts"
-            >
-              Ver fila
-              <ArrowRight className="size-3" />
-            </Link>
+
+      {/* Charts Grid */}
+      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Card 1: Alertas por semana */}
+        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
+          <header className="flex justify-between items-baseline gap-3">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Alertas por semana
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              últimas {data.weeks.length} semanas
+            </span>
+          </header>
+          <WeeklyAlertsChart data={data.weeks} />
+        </article>
+
+        {/* Card 2: Recall da fila */}
+        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
+          <header className="flex justify-between items-baseline gap-3">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Recall da fila
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              lavadoras que entraram na fila
+            </span>
+          </header>
+          <QueueRecallChart
+            data={data.recall_series}
+            currentWeekRecall={data.indicators.recall}
+          />
+        </article>
+
+        {/* Card 3: Distribuição da nota de risco */}
+        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
+          <header className="flex justify-between items-baseline gap-3">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Distribuição da nota de risco
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {data.indicators.alerts} alertas da semana
+            </span>
+          </header>
+          <ScoreHistogramChart
+            data={data.score_histogram}
+            totalAlerts={data.indicators.alerts}
+          />
+        </article>
+
+        {/* Card 4: Andamento da revisão */}
+        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-5">
+          <header className="flex justify-between items-baseline gap-3">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Andamento da revisão
+            </h2>
+            <span className="text-xs text-muted-foreground">esta semana</span>
+          </header>
+          <ReviewProgressCard
+            reviewed={data.indicators.reviewed}
+            total={data.indicators.alerts}
+            statusCounts={data.status_counts}
+          />
+        </article>
+
+        {/* Card 5: Meio de pagamento */}
+        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-4">
+          <header className="flex justify-between items-baseline gap-3">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              Meio de pagamento
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              alertas por meio predominante
+            </span>
+          </header>
+          <HorizontalBarList items={data.payment_type_rates} isRate={true} />
+        </article>
+
+        {/* Card 6: País */}
+        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-4">
+          <header className="flex justify-between items-baseline gap-3">
+            <h2 className="m-0 text-sm font-semibold text-foreground">
+              País
+            </h2>
+            <span className="text-xs text-muted-foreground">
+              {formatCurrency(data.indicators.flagged_amount)} sinalizados
+            </span>
+          </header>
+          <HorizontalBarList items={data.countries} unit="alertas" />
+        </article>
+      </section>
+
+      {/* Comece por aqui: Top 5 da fila */}
+      <section className="rounded-[14px] border border-border bg-card p-[20px_22px_12px] flex flex-col gap-3">
+        <header className="flex justify-between items-baseline">
+          <h2 className="m-0 text-sm font-semibold text-foreground">
+            Comece por aqui
+          </h2>
+          <Link
+            href="/alerts"
+            className="text-[13px] text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
+          >
+            Ver fila completa →
+          </Link>
+        </header>
+
+        {queue.loading ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Carregando alertas…
+          </p>
+        ) : queue.error ? (
+          <ResourceError message={queue.error} onRetry={queue.reload} />
+        ) : topAlerts.length === 0 ? (
+          <p className="py-8 text-center text-sm text-muted-foreground">
+            Nenhum alerta nesta semana.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] border-collapse tabular-nums text-left text-sm">
+              <thead>
+                <tr className="text-xs text-muted-foreground border-b border-border">
+                  <th scope="col" className="font-normal py-2.5 pr-3">
+                    Pos.
+                  </th>
+                  <th scope="col" className="font-normal py-2.5 px-3">
+                    Alerta
+                  </th>
+                  <th scope="col" className="font-normal py-2.5 px-3">
+                    Conta
+                  </th>
+                  <th scope="col" className="font-normal py-2.5 px-3">
+                    Nota de risco
+                  </th>
+                  <th scope="col" className="font-normal py-2.5 px-3">
+                    País
+                  </th>
+                  <th scope="col" className="font-normal py-2.5 px-3 text-right">
+                    Valor
+                  </th>
+                  <th scope="col" className="font-normal py-2.5 pl-3">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {topAlerts.map((alert) => {
+                  const cfg = STATUS_CONFIG[alert.status] ?? {
+                    label: alert.status,
+                    dotClass: "bg-muted-foreground",
+                  };
+                  return (
+                    <tr
+                      key={alert.id}
+                      className="border-b border-soft hover:bg-soft/40 transition-colors"
+                    >
+                      <td className="py-3.5 pr-3 font-mono text-xs text-muted-foreground">
+                        {alert.queue_position}º
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <Link
+                          href={`/alerts/${alert.id}`}
+                          className="font-medium text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
+                        >
+                          {alert.id}
+                        </Link>
+                      </td>
+                      <td className="py-3.5 px-3 font-mono text-[13px] text-foreground">
+                        {alert.account}
+                      </td>
+                      <td className="py-3.5 px-3">
+                        <div className="inline-flex items-center gap-2.5">
+                          <span className="w-8 font-medium tabular-nums">
+                            {formatScore(alert.score)}
+                          </span>
+                          <div className="w-[72px] h-1 rounded-sm bg-track overflow-hidden shrink-0">
+                            <div
+                              className={cn(
+                                "h-full rounded-sm transition-all",
+                                alert.score >= 98 ? "bg-signal" : "bg-primary",
+                              )}
+                              style={{ width: `${alert.score}%` }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-3 text-[13px] text-foreground">
+                        {alert.country}
+                      </td>
+                      <td className="py-3.5 px-3 text-right tabular-nums text-[13px] text-foreground">
+                        {formatCurrency(alert.amount)}
+                      </td>
+                      <td className="py-3.5 pl-3">
+                        <span className="inline-flex items-center gap-2 whitespace-nowrap text-[13px]">
+                          <span
+                            className={cn(
+                              "size-2 rounded-full shrink-0",
+                              cfg.dotClass,
+                            )}
+                          />
+                          <span>{cfg.label}</span>
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-          {queue.loading ? (
-            <p className="p-6 text-sm">Carregando alertas…</p>
-          ) : queue.error ? (
-            <ResourceError message={queue.error} onRetry={queue.reload} />
-          ) : (
-            <AlertsTable items={queue.data?.items.slice(0, 5) ?? []} />
-          )}
-        </section>
-      </div>
-    </>
+        )}
+      </section>
+    </div>
   );
 }

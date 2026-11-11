@@ -2,8 +2,12 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   RISK_LABELS,
+  formatAlertPlural,
+  formatDayMonth,
   formatQueuePosition,
   formatScore,
+  formatWeekLabel,
+  isHighRisk,
   riskLevel,
 } from "../src/lib/risk";
 
@@ -26,4 +30,25 @@ test("nota de risco: sempre uma casa decimal com vírgula, e posição ordinal",
   assert.equal(formatScore(42), "42,0");
   assert.equal(formatQueuePosition(1), "1º na fila");
   assert.equal(formatQueuePosition(300), "300º na fila");
+});
+
+test("isHighRisk: verdadeiro para nota >= 98 (destaque em signal)", () => {
+  assert.equal(isHighRisk(98), true);
+  assert.equal(isHighRisk(99.9), true);
+  assert.equal(isHighRisk(100), true);
+  assert.equal(isHighRisk(97.9), false);
+  assert.equal(isHighRisk(50), false);
+});
+
+test("formatWeekLabel e formatDayMonth: formatação consistente em português", () => {
+  assert.equal(formatWeekLabel("2026-10-19"), "19 out 2026");
+  assert.equal(formatWeekLabel("2023-08-28"), "28 ago 2023");
+  assert.equal(formatDayMonth("2026-10-19"), "19 out");
+  assert.equal(formatDayMonth("2023-08-30"), "30 ago");
+});
+
+test("formatAlertPlural: singular e plural corretos", () => {
+  assert.equal(formatAlertPlural(1), "1 alerta encontrado");
+  assert.equal(formatAlertPlural(0), "0 alertas encontrados");
+  assert.equal(formatAlertPlural(24), "24 alertas encontrados");
 });

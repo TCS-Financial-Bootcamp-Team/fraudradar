@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from api.dependencies import DbConnection
 from api.domain import week_start
 from api.repositories import monitoring as repo
-from api.schemas.monitoring import Indicators, Monitoring, Series
+from api.schemas.monitoring import Indicators, Monitoring, Series, StatusCounts
 
 router = APIRouter(tags=["monitoring"])
 
@@ -17,9 +17,9 @@ def _rate_series(mapping: object) -> list[Series]:
     if not isinstance(mapping, dict):
         return []
     series = [
-        Series(name=str(name), value=repo.clamp_rate(value))
+        Series(name=str(name), value=clamped)
         for name, value in mapping.items()
-        if isinstance(value, int | float) and not isinstance(value, bool)
+        if (clamped := repo.clamp_rate(value)) is not None
     ]
     return sorted(series, key=lambda s: (-s.value, s.name))
 
@@ -38,7 +38,7 @@ def get_monitoring(week: date, conn: DbConnection) -> Monitoring:
             alerts=counts["alerts"],
             reviewed=counts["reviewed"],
             reported=counts["reported"],
-            alert_rate=repo.clamp_rate(alert_rate),
+            alert_rate=repo.clamp_rate(alert_rate) or 0.0,
             flagged_amount=float(counts["flagged_amount"]),
             recall=repo.clamp_rate(metrics.get("recall")),
             typology_accuracy=repo.clamp_rate(metrics.get("typology_accuracy")),
@@ -51,4 +51,7 @@ def get_monitoring(week: date, conn: DbConnection) -> Monitoring:
         countries=[Series(**row) for row in repo.distribution(conn, week, "country")],
         country_rates=_rate_series(metrics.get("country_rates")),
         payment_type_rates=_rate_series(metrics.get("payment_type_rates")),
+        recall_series=[Series(**item) for item in repo.recall_series(conn, week)],
+        score_histogram=[Series(**item) for item in repo.score_histogram(conn, week)],
+        status_counts=StatusCounts(**repo.status_counts(conn, week)),
     )

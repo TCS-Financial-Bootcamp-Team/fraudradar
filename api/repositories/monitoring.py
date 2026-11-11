@@ -16,10 +16,13 @@ WEEKS_IN_SERIES = 12
 _MONTHS = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
 
 
-def clamp_rate(value: object) -> float:
-    """Número entre 0 e 1 vindo do JSON do worker; qualquer outra coisa vira 0."""
+SCORE_HISTOGRAM_BINS = ("40", "50", "60", "70", "80", "90", "95", "100")
+
+
+def clamp_rate(value: object) -> float | None:
+    """Número entre 0 e 1 vindo do JSON do worker; qualquer outra coisa vira None."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(value):
-        return 0.0
+        return None
     return min(max(float(value), 0.0), 1.0)
 
 
@@ -77,3 +80,56 @@ def distribution(conn: Connection, week: date, by: str) -> list[RowMapping]:
         ORDER BY value DESC, name
     """
     return list(conn.execute(text(sql), {"week": week, "undefined": undefined}).mappings())
+
+
+def recall_series(conn: Connection, week: date) -> list[dict[str, object]]:
+    """Série do recall das semanas liberadas até `week`, omitindo semanas sem a métrica."""
+    sql = """
+        SELECT week, metrics
+        FROM weekly_batches
+        WHERE released_at IS NOT NULL
+          AND week <= :week
+        ORDER BY week ASC
+    """
+    rows = conn.execute(text(sql), {"week": week}).mappings()
+    series: list[dict[str, object]] = []
+    for row in rows:
+        metrics = row["metrics"]
+        if isinstance(metrics, dict):
+            recall = clamp_rate(metrics.get("recall"))
+            if recall is not None:
+                series.append({"name": week_label(row["week"]), "value": recall})
+    return series
+
+
+def score_histogram(conn: Connection, week: date) -> list[dict[str, object]]:
+    """Distribuição dos alertas da semana por faixas de score (em escala 0-100)."""
+    sql = """
+        SELECT
+            count(*) FILTER (WHERE score < 0.5::real) AS "40",
+            count(*) FILTER (WHERE score >= 0.5::real AND score < 0.6::real) AS "50",
+            count(*) FILTER (WHERE score >= 0.6::real AND score < 0.7::real) AS "60",
+            count(*) FILTER (WHERE score >= 0.7::real AND score < 0.8::real) AS "70",
+            count(*) FILTER (WHERE score >= 0.8::real AND score < 0.9::real) AS "80",
+            count(*) FILTER (WHERE score >= 0.9::real AND score < 0.95::real) AS "90",
+            count(*) FILTER (WHERE score >= 0.95::real AND score < 0.9995::real) AS "95",
+            count(*) FILTER (WHERE score >= 0.9995::real) AS "100"
+        FROM alerts
+        WHERE week = :week
+    """
+    row = conn.execute(text(sql), {"week": week}).mappings().one()
+    return [{"name": b, "value": int(row[b])} for b in SCORE_HISTOGRAM_BINS]
+
+
+def status_counts(conn: Connection, week: date) -> RowMapping:
+    """Contagem dos alertas da semana de referência agrupados por status do front."""
+    sql = """
+        SELECT
+            count(*) FILTER (WHERE status IN ('new', 'in_review')) AS pending,
+            count(*) FILTER (WHERE status = 'escalated') AS escalated,
+            count(*) FILTER (WHERE status = 'archived') AS archived,
+            count(*) FILTER (WHERE status = 'reported') AS reported
+        FROM alerts
+        WHERE week = :week
+    """
+    return conn.execute(text(sql), {"week": week}).mappings().one()

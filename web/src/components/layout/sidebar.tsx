@@ -7,14 +7,18 @@ import {
   Activity,
   Database,
   LayoutDashboard,
+  ListFilter,
   type LucideIcon,
-  Radar,
-  Settings2,
   X,
 } from "lucide-react";
 import { cn } from "cn";
 import { CollapsedTooltip, TooltipProvider } from "@/components/ui/tooltip";
-import { isNavItemActive } from "@/lib/sidebar";
+import {
+  SIDEBAR_NAV_GROUPS,
+  isNavItemActive,
+  type SidebarHref,
+} from "@/lib/sidebar";
+import { SidebarAccountMenu } from "./account-menu";
 
 export const SIDEBAR_ID = "app-sidebar";
 
@@ -23,79 +27,84 @@ interface SidebarProps {
   isOpen: boolean;
   isMobileOpen?: boolean;
   onMobileClose?: () => void;
+  pendingCount?: number;
 }
 
 interface SidebarNavItemProps {
-  href: string;
+  href: SidebarHref;
   label: string;
   icon: LucideIcon;
   pathname: string;
   isExpanded: boolean;
+  count?: number;
   onClick?: () => void;
 }
 
 const SIDEBAR_TRANSITION =
-  "duration-300 ease-[cubic-bezier(0.25,1,0.5,1)] motion-reduce:transition-none";
+  "duration-200 ease-out motion-reduce:transition-none";
 
-const navigationItems = [
-  { href: "/dashboard", label: "Visão geral", icon: LayoutDashboard },
-  { href: "/alerts", label: "Fila de alertas", icon: Radar },
-  { href: "/monitoring", label: "Monitoramento", icon: Activity },
-  { href: "/ingestion", label: "Fontes de dados", icon: Database },
-];
+const NAV_ICONS: Record<SidebarHref, LucideIcon> = {
+  "/dashboard": LayoutDashboard,
+  "/alerts": ListFilter,
+  "/monitoring": Activity,
+  "/ingestion": Database,
+};
+
+function BrandMark() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="size-[22px] shrink-0"
+      fill="none"
+    >
+      <circle cx="10" cy="10" r="8.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M10 10V1.75a8.25 8.25 0 0 1 7.6 5.05Z" fill="currentColor" />
+      <circle cx="13.6" cy="12.4" r="1.6" className="fill-signal" />
+    </svg>
+  );
+}
 
 export function SidebarNavItem({
   href,
   label,
-  icon: IconComponent,
+  icon: Icon,
   pathname,
   isExpanded,
+  count,
   onClick,
 }: SidebarNavItemProps) {
   const isActive = isNavItemActive(pathname, href);
+  const hasCount = typeof count === "number" && count > 0;
+  const accessibleLabel = hasCount ? `${label}, ${count} pendentes` : label;
 
   return (
-    <CollapsedTooltip label={label} enabled={!isExpanded}>
+    <CollapsedTooltip label={accessibleLabel} enabled={!isExpanded}>
       <Link
         href={href}
         onClick={onClick}
-        className="block rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
+        aria-label={accessibleLabel}
         aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "flex h-10 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring",
+          SIDEBAR_TRANSITION,
+          isExpanded ? "px-3" : "justify-center px-0",
+          isActive
+            ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+            : "text-sidebar-muted hover:bg-sidebar-accent hover:text-sidebar-foreground",
+        )}
       >
-        <div
-          className={cn(
-            "flex items-center rounded-md transition-all",
-            SIDEBAR_TRANSITION,
-            isExpanded
-              ? "justify-start px-3 py-2.5"
-              : "mx-auto h-10 w-10 justify-center",
-            isActive
-              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-          )}
-        >
-          <IconComponent
-            size={20}
-            strokeWidth={isActive ? 2.5 : 2}
-            className={cn(
-              "shrink-0",
-              isActive ? "text-[var(--brand-accent)]" : ""
+        <Icon className="size-[18px] shrink-0" strokeWidth={1.5} />
+        {isExpanded && (
+          <>
+            <span className="min-w-0 flex-1 truncate text-sm">{label}</span>
+            {hasCount && (
+              <span className="shrink-0 font-mono text-xs font-normal tabular-nums text-sidebar-muted">
+                {count}
+              </span>
             )}
-          />
-          <span
-            className={cn(
-              "ml-3 overflow-hidden transition-all",
-              SIDEBAR_TRANSITION,
-              isExpanded
-                ? "max-w-[150px] opacity-100"
-                : "ml-0 max-w-0 opacity-0"
-            )}
-          >
-            <span className="block w-[150px] text-left text-sm leading-tight whitespace-nowrap">
-              {label}
-            </span>
-          </span>
-        </div>
+          </>
+        )}
       </Link>
     </CollapsedTooltip>
   );
@@ -104,128 +113,116 @@ export function SidebarNavItem({
 export function Sidebar({
   id = SIDEBAR_ID,
   isOpen,
-  isMobileOpen,
+  isMobileOpen = false,
   onMobileClose,
+  pendingCount = 0,
 }: SidebarProps) {
   const pathname = usePathname();
-  const isExpanded = isOpen || Boolean(isMobileOpen);
+  const isExpanded = isOpen || isMobileOpen;
 
   useEffect(() => {
     if (!isMobileOpen || !onMobileClose) return;
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onMobileClose();
-      }
+      if (event.key === "Escape") onMobileClose();
     };
     document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown);
-    };
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, [isMobileOpen, onMobileClose]);
 
   return (
     <>
       {isMobileOpen && (
-        <div
-          className="fixed inset-0 z-[60] bg-background/80 backdrop-blur-sm md:hidden"
+        <button
+          type="button"
+          aria-label="Fechar menu lateral"
           onClick={onMobileClose}
-          aria-hidden="true"
+          className="fixed inset-0 z-50 cursor-default bg-background/80 backdrop-blur-sm md:hidden"
         />
       )}
 
       <aside
         id={id}
+        aria-label="Menu lateral"
         className={cn(
-          "relative z-[70] flex h-full flex-col select-none border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width]",
+          "fixed inset-y-0 left-0 z-[60] flex h-dvh w-[248px] shrink-0 select-none flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,transform] md:sticky md:top-0 md:h-screen md:translate-x-0",
           SIDEBAR_TRANSITION,
-          "hidden md:flex",
-          isOpen ? "md:w-64" : "md:w-20",
-          isMobileOpen
-            ? "fixed inset-y-0 left-0 flex w-64 translate-x-0"
-            : "fixed inset-y-0 left-0 w-64 -translate-x-full md:relative md:translate-x-0"
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+          isOpen ? "md:w-[248px]" : "md:w-[68px]",
         )}
       >
         <div
           className={cn(
-            "relative flex h-16 shrink-0 items-center border-b border-sidebar-border/50 px-4 transition-all",
-            SIDEBAR_TRANSITION,
-            isExpanded ? "justify-start" : "justify-center"
+            "relative flex h-[72px] shrink-0 items-center overflow-hidden border-b border-sidebar-divider",
+            isExpanded ? "px-[23px]" : "justify-center px-0",
           )}
         >
+          <Link
+            href="/dashboard"
+            onClick={onMobileClose}
+            aria-label="FraudRadar — visão geral"
+            className="flex items-center gap-2.5 whitespace-nowrap rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+          >
+            <BrandMark />
+            {isExpanded && (
+              <span className="text-base font-semibold tracking-[-0.015em]">
+                FraudRadar
+              </span>
+            )}
+          </Link>
           {isMobileOpen && (
             <button
               type="button"
               onClick={onMobileClose}
-              className="absolute right-4 rounded-md p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar md:hidden"
               aria-label="Fechar menu"
+              className="absolute right-3 grid size-10 place-items-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring md:hidden"
             >
-              <X size={20} />
+              <X className="size-[18px]" strokeWidth={1.5} />
             </button>
           )}
-
-          <Link
-            href="/dashboard"
-            onClick={onMobileClose}
-            className="flex items-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:ring-offset-2 focus-visible:ring-offset-sidebar"
-          >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-              <Radar className="size-7 text-[var(--brand-accent)]" />
-            </div>
-            <div
-              className={cn(
-                "ml-3 flex flex-col justify-center overflow-hidden whitespace-nowrap transition-all",
-                SIDEBAR_TRANSITION,
-                isExpanded ? "max-w-full opacity-100" : "ml-0 max-w-0 opacity-0"
-              )}
-            >
-              <span className="text-lg font-semibold tracking-tight text-white">
-                FraudRadar{" "}
-                <span className="text-[10px] font-normal opacity-60">PLD</span>
-              </span>
-            </div>
-          </Link>
         </div>
 
-        <TooltipProvider delay={200}>
+        <TooltipProvider delay={150}>
           <nav
             aria-label="Navegação principal"
-            className="flex flex-1 flex-col space-y-4 overflow-x-hidden overflow-y-auto px-4 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto overflow-x-hidden px-3 py-[18px] [scrollbar-width:thin]"
           >
-            <div className="space-y-1.5">
+            {SIDEBAR_NAV_GROUPS.map((group) => (
               <div
-                className={cn(
-                  "overflow-hidden px-3 transition-all",
-                  SIDEBAR_TRANSITION,
-                  isExpanded ? "max-h-8 pb-1 pt-2 opacity-100" : "max-h-0 p-0 opacity-0"
-                )}
+                key={group.label}
+                role="group"
+                aria-label={group.label}
+                className="flex flex-col gap-0.5"
               >
-                <p className="whitespace-nowrap text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/60">
-                  Espaço de análise
-                </p>
+                {isExpanded ? (
+                  <p className="mb-1.5 px-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-sidebar-muted">
+                    {group.label}
+                  </p>
+                ) : (
+                  <span
+                    aria-hidden="true"
+                    className="mx-3 mb-2 block h-px bg-sidebar-divider"
+                  />
+                )}
+                {group.items.map((item) => (
+                  <SidebarNavItem
+                    key={item.href}
+                    href={item.href}
+                    label={item.label}
+                    icon={NAV_ICONS[item.href]}
+                    pathname={pathname}
+                    isExpanded={isExpanded}
+                    count={item.href === "/alerts" ? pendingCount : undefined}
+                    onClick={onMobileClose}
+                  />
+                ))}
               </div>
-
-              {navigationItems.map(({ href, label, icon }) => (
-                <SidebarNavItem
-                  key={href}
-                  href={href}
-                  label={label}
-                  icon={icon}
-                  pathname={pathname}
-                  isExpanded={isExpanded}
-                  onClick={onMobileClose}
-                />
-              ))}
-            </div>
+            ))}
           </nav>
 
-          <div className="shrink-0 border-t border-sidebar-border/50 p-4">
-            <SidebarNavItem
-              href="/settings"
-              label="Configurações"
-              icon={Settings2}
-              pathname={pathname}
+          <div className="relative shrink-0 border-t border-sidebar-divider p-3">
+            <SidebarAccountMenu
               isExpanded={isExpanded}
-              onClick={onMobileClose}
+              onNavigate={onMobileClose}
             />
           </div>
         </TooltipProvider>

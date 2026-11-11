@@ -14,11 +14,13 @@ export function SidePanel({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+
   useEffect(() => {
     const dialog = ref.current;
     dialog?.showModal();
     return () => dialog?.close();
   }, []);
+
   return (
     <dialog
       ref={ref}
@@ -27,21 +29,21 @@ export function SidePanel({
       onClick={(e) => {
         if (e.target === ref.current) onClose();
       }}
-      className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-dvh w-full max-w-md border-l border-border bg-card p-0 text-foreground backdrop:bg-foreground/30"
+      className="fixed inset-y-0 left-auto right-0 m-0 h-dvh max-h-dvh w-[400px] max-w-full border-l border-border bg-card p-0 text-foreground shadow-none backdrop:bg-black/30"
     >
       <div className="flex h-full flex-col">
-        <header className="flex items-center justify-between border-b p-5">
-          <h2 className="font-semibold">{title}</h2>
+        <header className="flex h-14 items-center justify-between border-b border-border px-5">
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
           <Button
             variant="ghost"
-            size="icon"
+            size="icon-sm"
             aria-label="Fechar painel"
             onClick={onClose}
           >
-            <X />
+            <X className="size-4" strokeWidth={1.5} />
           </Button>
         </header>
-        {children}
+        <div className="flex-1 overflow-y-auto">{children}</div>
       </div>
     </dialog>
   );

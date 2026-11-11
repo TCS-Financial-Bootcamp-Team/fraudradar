@@ -18,6 +18,8 @@ export function riskLevel(score: number): RiskLevel {
   return "medium";
 }
 
+export const isHighRisk = (score: number): boolean => score >= 98;
+
 export const formatScore = (score: number) =>
   new Intl.NumberFormat("pt-BR", {
     minimumFractionDigits: 1,
@@ -25,3 +27,53 @@ export const formatScore = (score: number) =>
   }).format(score);
 
 export const formatQueuePosition = (position: number) => `${position}º na fila`;
+
+const MONTHS_PT = [
+  "jan",
+  "fev",
+  "mar",
+  "abr",
+  "mai",
+  "jun",
+  "jul",
+  "ago",
+  "set",
+  "out",
+  "nov",
+  "dez",
+];
+
+export function formatWeekLabel(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) {
+    const year = parts[0];
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parts[2].padStart(2, "0");
+    if (month >= 0 && month < 12) {
+      return `${day} ${MONTHS_PT[month]} ${year}`;
+    }
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${String(d.getUTCDate()).padStart(2, "0")} ${MONTHS_PT[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+export function formatDayMonth(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length >= 3) {
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parts[2].slice(0, 2).padStart(2, "0");
+    if (month >= 0 && month < 12) {
+      return `${day} ${MONTHS_PT[month]}`;
+    }
+  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${String(d.getUTCDate()).padStart(2, "0")} ${MONTHS_PT[d.getUTCMonth()]}`;
+}
+
+export function formatAlertPlural(count: number): string {
+  return count === 1 ? "1 alerta encontrado" : `${count} alertas encontrados`;
+}

@@ -1,5 +1,5 @@
 "use client";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { useState } from "react";
 import { useResource } from "@/hooks/use-resource";
 import { getErrorMessage } from "@/lib/format";
@@ -15,10 +15,10 @@ export function useProfile() {
       setBusy(true);
       try {
         await saveProfile({ name });
-        toast.success("Perfil atualizado.");
+        notify.success("Perfil atualizado.");
         resource.reload();
       } catch (error) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
       } finally {
         setBusy(false);
       }

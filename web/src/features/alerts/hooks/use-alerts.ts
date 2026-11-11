@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { useAppContext } from "@/components/app-context";
 import { useResource } from "@/hooks/use-resource";
 import { getErrorMessage } from "@/lib/format";
@@ -67,11 +67,11 @@ export function useAlertDetail(id: string) {
     setBusy(true);
     try {
       await action();
-      toast.success(message);
+      notify.success(message);
       refresh();
       resource.reload();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -109,9 +109,9 @@ export function useReplay() {
         const result = await alertsService.advanceWeek(week);
         setWeek(result.week);
         refresh();
-        toast.success(result.alerts_generated + " alertas na nova semana.");
+        notify.success(result.alerts_generated + " alertas na nova semana.");
       } catch (error) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
       } finally {
         setBusy(false);
       }

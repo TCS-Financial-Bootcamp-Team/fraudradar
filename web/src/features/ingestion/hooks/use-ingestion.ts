@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { useResource } from "@/hooks/use-resource";
 import { getErrorMessage } from "@/lib/format";
 import * as ingestionService from "../services/ingestion-service";
@@ -58,7 +58,7 @@ export function useCsvUpload() {
         controller.signal,
       );
       if (!controller.signal.aborted) {
-        toast.success(receipt.message);
+        notify.success(receipt.message);
         setCompleted(true);
       }
     } catch (e) {
@@ -90,11 +90,11 @@ export function useDataSources() {
     setBusy(true);
     try {
       await action();
-      toast.success(message);
+      notify.success(message);
       resource.reload();
       return true;
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
       return false;
     } finally {
       setBusy(false);
@@ -143,10 +143,10 @@ export function useManualTransaction() {
           },
           ...current,
         ]);
-        toast.success(receipt.message);
+        notify.success(receipt.message);
         return true;
       } catch (error) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
         return false;
       } finally {
         setBusy(false);
