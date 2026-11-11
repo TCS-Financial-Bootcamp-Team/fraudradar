@@ -28,7 +28,13 @@ from fraudradar.features.history import (
     week_start,
     with_cash_account,
 )
-from fraudradar.model import QUEUE_SIZE, QUEUE_TARGET, TRAIN_END, VALIDATION_START
+from fraudradar.model import (
+    OFFICIAL_DATASET,
+    QUEUE_SIZE,
+    QUEUE_TARGET,
+    TRAIN_END,
+    VALIDATION_START,
+)
 from fraudradar.model.evaluation import evaluate, find_shortcuts, queue_with_cut, recall_at_fpr
 from fraudradar.model.segments import fit_segments
 
@@ -208,14 +214,16 @@ def train_version(
     official: bool = False,
     first_version: int = 1,
     progress: Callable[[int, str], None] | None = None,
+    dataset: str = OFFICIAL_DATASET,
 ) -> dict:
     """O treino de `save_model` com a divisão e a numeração escolhidas por quem chama.
 
     `split`: padrão, a de `resolve_split` (a oficial no SAML-D). `first_version`: a versão nova
     nunca é menor que ele (um conjunto numera depois do modelo oficial, para o nome da versão
     ser único no banco). `official`: copia o modelo para MODEL_FILE. `progress(0..100, texto)`
-    é chamado a cada etapa. O gabarito só treina e mede; o score de cada transação usa só as
-    variáveis.
+    é chamado a cada etapa. `dataset`: o slug do conjunto de onde vêm as transações, gravado na
+    ficha (`training_dataset`): o worker só recusa as semanas do treino nesse conjunto. O
+    gabarito só treina e mede; o score de cada transação usa só as variáveis.
     """
     report = progress or (lambda _percent, _message: None)
     folder = Path(folder or get_settings().model_dir)
@@ -254,6 +262,7 @@ def train_version(
         "excluded_features": list(EXCLUDED_FEATURES),
         "params": LIGHTGBM_PARAMS,
         "trees": int(model.best_iteration_),
+        "training_dataset": dataset,
         "history_start": transactions["occurred_at"].min().date().isoformat(),
         "validation_start": split.validation_start,
         "train_end": split.train_end,
@@ -286,6 +295,8 @@ def train_version(
             "máximo queue_size contas por semana",
             "As contagens do histórico (ex.: sender_sent_count) começam em history_start: o "
             "worker precisa do mesmo início",
+            "training_dataset: o conjunto de dados do treino; só nele o worker recusa as semanas "
+            "até train_end (o modelo já viu esses scores)",
             "O CAIXA (conta -1) é o outro lado de todo saque e depósito em espécie e não entra "
             "na fila",
             "Explicação de um alerta: training.explain(booster, x) com a transação de maior "

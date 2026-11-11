@@ -101,6 +101,7 @@ def test_saved_model_reproduces_the_metrics(tmp_path):
     booster, read = load_model(tmp_path)
     assert read["version"] == card["version"] == 1 and read["queue_cut"] == card["queue_cut"]
     assert read["week_start"] == "monday" and (tmp_path / "lightgbm_model.txt").is_file()
+    assert read["training_dataset"] == "saml-d"  # o oficial treina no SAML-D
     data, truth = build_training_data(transactions, ground_truth, compute_features(transactions))
     metrics, _ = evaluate(booster.predict(data.x[read["features"]]), data, truth)
     assert metrics["pr_auc"] == pytest.approx(read["metrics"]["pr_auc"])
