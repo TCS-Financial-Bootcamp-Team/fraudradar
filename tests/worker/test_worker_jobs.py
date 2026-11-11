@@ -178,3 +178,29 @@ def test_simulator_job_creates_one_flagged_ingestion_without_ground_truth(loaded
             ).scalar_one()
             == 1
         )
+
+
+def test_simulator_job_without_the_pattern_only_repeats_existing_pairs(loaded):
+    with loaded.begin() as conn:
+        last_id = conn.execute(text("SELECT max(id) FROM transactions")).scalar_one()
+        conn.execute(
+            text(
+                "INSERT INTO public.jobs (kind, dataset, payload, created_by)"
+                " VALUES ('simulate', 'saml-d',"
+                ' \'{"transactions": 300, "days": 3, "inject_pattern": false}\'::jsonb,'
+                " 'Teste')"
+            )
+        )
+
+    assert process_next_job(loaded) is True
+    with loaded.connect() as conn:
+        simulated, new_pairs = conn.execute(
+            text(
+                "SELECT count(*), count(*) FILTER (WHERE NOT EXISTS ("
+                "   SELECT 1 FROM transactions old WHERE old.id <= :last"
+                "   AND old.sender = sim.sender AND old.receiver = sim.receiver))"
+                " FROM transactions sim WHERE sim.id > :last"
+            ),
+            {"last": last_id},
+        ).one()
+    assert (simulated, new_pairs) == (300, 0)

@@ -1,7 +1,15 @@
 """Geração de transações sintéticas para a demonstração contínua.
 
-O simulador reaproveita somente a distribuição transacional do próprio conjunto. Ele não
-consulta nem produz gabarito e sempre escolhe contas que já existem no conjunto.
+O tráfego normal reamostra **ligações reais**: pares (quem envia, quem recebe) que já
+transacionaram no histórico recente do conjunto, com o meio de pagamento, as moedas e os países
+de uma transação real do par, e um valor perto do que o par já movimentou. O sorteio é por
+transação, então um par frequente aparece mais. Sortear os pares ao acaso entre as contas
+existentes fazia quase toda transação simulada ser a "primeira transação entre as duas contas",
+a variável que mais pesa no modelo: no teste de ponta a ponta (registro 104), 500 transações
+simuladas puseram 30% das contas da semana na fila, contra uns 0,3% no dado real.
+
+Só o padrão opcional de fan-out cria pares novos: uma conta recebe e espalha para muitas contas
+que já existem, mas que são novas para ela. O simulador não consulta nem produz gabarito.
 """
 
 from collections.abc import Sequence
@@ -22,6 +30,11 @@ SIMULATION_COLUMNS = [
     "payment_type",
 ]
 
+# O valor simulado é o de uma transação real do par vezes um fator log-normal: cerca de 10% para
+# cima ou para baixo, sem fugir do padrão do par (a razão com a média de quem envia fica perto
+# de 1, como no tráfego normal).
+AMOUNT_SPREAD = 0.1
+
 
 class SimulationError(ValueError):
     """O conjunto não tem dados suficientes para uma simulação coerente."""
@@ -37,10 +50,13 @@ def simulate_transactions(
     seed: int | None = None,
     last_occurred_at: datetime | pd.Timestamp | None = None,
 ) -> pd.DataFrame:
-    """Reamostra atributos e cria transações após a última data observada.
+    """Transações depois da última data observada, sobre ligações reais de ``sample``.
 
-    ``transactions`` é a quantidade total, inclusive as linhas do padrão opcional. O fan-out
-    usa contrapartes já existentes, mas novas para a conta central dentro da simulação.
+    ``sample`` é o histórico recente do conjunto: cada linha simulada copia o par, o meio de
+    pagamento, as moedas e os países de uma linha sorteada dele e varia o valor em torno do
+    dela. ``accounts`` são as contas existentes, usadas só pelo fan-out. ``transactions`` é a
+    quantidade total, inclusive as linhas do padrão opcional, que troca as contas das primeiras
+    linhas pelas do fan-out.
     """
     if transactions <= 0:
         raise SimulationError("A quantidade de transações deve ser positiva.")
@@ -56,8 +72,14 @@ def simulate_transactions(
         raise SimulationError("O conjunto precisa ter ao menos duas contas para simular.")
 
     rng = np.random.default_rng(seed)
+    # Uma linha real por transação simulada: o par, o meio, as moedas e os países vêm juntos,
+    # e o par que aparece mais no histórico sai mais.
     chosen = rng.integers(0, len(sample), size=transactions)
     result = sample.iloc[chosen][SIMULATION_COLUMNS].copy().reset_index(drop=True)
+    factor = np.exp(rng.normal(0.0, AMOUNT_SPREAD, size=transactions))
+    result["amount"] = np.maximum(
+        (result["amount"].astype("float64").to_numpy() * factor).round(2), 0.01
+    )
 
     last_at = (
         pd.Timestamp(last_occurred_at)
@@ -73,13 +95,6 @@ def simulate_transactions(
     result["occurred_at"] = (
         first_day + pd.to_timedelta(offsets, unit="D") + pd.to_timedelta(seconds, unit="s")
     )
-
-    result["sender"] = rng.choice(account_values, size=transactions)
-    result["receiver"] = rng.choice(account_values, size=transactions)
-    same = result["sender"].to_numpy() == result["receiver"].to_numpy()
-    while same.any():
-        result.loc[same, "receiver"] = rng.choice(account_values, size=int(same.sum()))
-        same = result["sender"].to_numpy() == result["receiver"].to_numpy()
 
     if inject_pattern and transactions >= 3:
         central = int(rng.choice(account_values))

@@ -62,10 +62,14 @@ do Claude (reversíveis).
 
 - `POST /datasets/{slug}/simulate` com `{ transactions: 50–5000, days: 1–7, inject_pattern: bool }`
   enfileira `simulate` e, ao terminar, um `process`.
-- O worker gera transações **depois da última data** do conjunto, reamostrando transações reais
-  (valores, meios, moedas e países pela distribuição do próprio conjunto) entre contas existentes.
+- O worker gera transações **depois da última data** do conjunto, repetindo ligações reais: pares
+  de contas que já transacionaram no histórico recente (o par frequente sai mais), com o meio, as
+  moedas e os países de uma transação do par e um valor perto do histórico dele. Par sorteado ao
+  acaso seria quase sempre a "primeira transação entre as duas contas", a variável que mais pesa
+  no modelo, e punha 30% das contas da semana na fila (registro 104).
   Com `inject_pattern`, acrescenta um padrão de fan-out conhecido (uma conta recebe e espalha para
-  muitas contas novas em poucos dias), para a demonstração ter alerta.
+  muitas contas novas em poucos dias), o único que cria pares novos, para a demonstração ter
+  alerta.
 - Tudo entra como uma ingestão com `source = 'simulation'` (em `ingestions`), para identificar e
   apagar (`DELETE /ingestions/{id}`, que só aceita simulações e reabre o período afetado). Nunca grava
   gabarito.
