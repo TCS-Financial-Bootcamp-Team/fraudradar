@@ -98,6 +98,13 @@ recebem uma cópia do DDL de dados em um schema próprio. Mudou qualquer SQL de 
 Avise o time: para aplicar na base local é preciso recriar o volume com
 `docker compose down -v` e subir novamente — esse comando apaga os dados locais.
 
+Atualizou um banco que já existia sem recriá-lo (aplicando o SQL novo à mão)? Rode
+`uv run python -m worker labels` (ou `docker compose run --rm worker labels`). Ele mede o
+gabarito de cada conjunto registrado e preenche `public.datasets.labeled_weeks` e
+`has_laundering`, que só são calculados sozinhos depois de `load`, de uma importação com
+gabarito e de cada treino. Sem eles, a API recusa o retreino como se o conjunto não tivesse
+gabarito. `--dataset SLUG` mede um conjunto só.
+
 Os testes da API e do worker criam e apagam o banco `fraudradar_test` no Postgres do
 Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
 `TEST_DATABASE_URL` (o nome do banco precisa terminar em `_test`). Os do modelo e do
@@ -188,6 +195,7 @@ todo período processado. Precisa do grupo `ml` e de um modelo treinado em `mode
 | `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` | processa várias semanas, com as variáveis calculadas uma vez só; sem datas, da primeira semana depois do treino do modelo (em outro conjunto, da primeira com transações) à última com transações |
 | `python -m worker replay` | compatibilidade: processa a próxima semana com transações depois da última processada |
 | `python -m worker serve` | atende `public.jobs`, recupera trabalho interrompido e agenda os conjuntos vencidos |
+| `python -m worker labels [--dataset SLUG]` | mede de novo o gabarito (semanas rotuladas e se há lavagem) e grava em `public.datasets`, que a API usa para liberar o retreino; sem `--dataset`, todos os conjuntos registrados. Para um banco que já existia (seção "Como rodar") |
 
 `batch` e `backfill` aceitam `--force` (refaz uma semana já processada) e `--allow-in-sample`
 (aceita uma semana do período de treino do modelo). O worker sai com 0 quando dá certo ou não

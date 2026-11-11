@@ -4,10 +4,11 @@ python -m worker load [--csv CAMINHO]                     # carrega o SAML-D no 
 python -m worker batch --week 2023-05-22 [--force] [--allow-in-sample]
 python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--force] [--allow-in-sample]
 python -m worker replay                         # compatibilidade: processa a próxima semana
+python -m worker labels [--dataset SLUG]        # mede o gabarito e grava no registro dos conjuntos
 
-Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py` e
-`worker/batch.py`. Sai com 0 quando dá certo ou não há nada a fazer, e com 1 em erro, com uma
-mensagem que diz o que rodar.
+Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py`,
+`worker/batch.py` e `worker/labels.py`. Sai com 0 quando dá certo ou não há nada a fazer, e com
+1 em erro, com uma mensagem que diz o que rodar.
 """
 
 import argparse
@@ -94,6 +95,16 @@ def _parser() -> argparse.ArgumentParser:
         help="compatibilidade: processa a próxima semana ainda não processada",
     )
     sub.add_parser("serve", help="executa os trabalhos em segundo plano")
+    labels = sub.add_parser(
+        "labels",
+        help=(
+            "mede de novo o gabarito (semanas rotuladas e se há lavagem) e grava no registro"
+            " dos conjuntos, que a API usa para liberar o retreino"
+        ),
+    )
+    labels.add_argument(
+        "--dataset", metavar="SLUG", help="só este conjunto (padrão: todos os registrados)"
+    )
     return p
 
 
@@ -147,6 +158,24 @@ def _load(args) -> int:
     return 0
 
 
+def _labels(args) -> int:
+    from worker.labels import refresh_registry
+
+    _require_database()
+    datasets = None if args.dataset is None else [_dataset(args.dataset)]
+    measured = refresh_registry(get_engine(), datasets)
+    if not measured:
+        log.info("nenhum conjunto de dados registrado: nada a medir")
+    for slug, stats in measured.items():
+        log.info(
+            "%s: %d semana(s) com gabarito, %s",
+            slug,
+            stats.labeled_weeks,
+            "com lavagem" if stats.has_laundering else "sem lavagem marcada",
+        )
+    return 0
+
+
 def _batch(args) -> int:
     # Os argumentos são conferidos antes de tudo: data errada não espera o banco nem o modelo.
     dates = {
@@ -191,6 +220,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "load":
             return _load(args)
+        if args.command == "labels":
+            return _labels(args)
         if args.command == "serve":
             _require_database()
             from worker.jobs import serve

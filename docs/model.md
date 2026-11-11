@@ -48,7 +48,8 @@ Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/li
   gabarito, tem menos de 6 semanas rotuladas (`MIN_LABELED_WEEKS`), não tem nenhuma lavagem ou já
   tem um treino na fila. A regra é `fraudradar.model.eligibility`. A API só lê `public.datasets.labeled_weeks` e
   `has_laundering` (o worker mede e grava depois de `load`, de uma importação com gabarito e de
-  cada treino; a consulta junta o gabarito com as transações e nunca roda na requisição).
+  cada treino, ou com `python -m worker labels` num banco que já existia; a consulta junta o
+  gabarito com as transações e nunca roda na requisição).
 - **Dado**: transações que têm gabarito, lidas do schema do conjunto. As variáveis são as de
   `compute_features`, com a configuração oficial (21 variáveis, mesmos parâmetros). O gabarito
   só vira alvo do treino e régua de teste.
