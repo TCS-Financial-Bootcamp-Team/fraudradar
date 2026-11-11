@@ -10,7 +10,6 @@ import {
   LoadingState,
   ResourceError,
 } from "@/components/ui/states";
-import { HealthBadge } from "@/features/health/components/health-badge";
 import {
   formatCurrency,
   formatNumber,
@@ -28,6 +27,7 @@ import {
   Sparkline,
   WeeklyAlertsChart,
 } from "./charts";
+import { getAlertLinkLabel } from "./alerts-table";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -116,7 +116,6 @@ export function Dashboard() {
         </h1>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <HealthBadge />
         <span className="text-[13px] text-muted-foreground">{releaseHint}</span>
         <Button
           disabled={replay.busy || !replay.nextRelease}
@@ -398,7 +397,7 @@ export function Dashboard() {
                   return (
                     <tr
                       key={alert.id}
-                      className="border-b border-soft hover:bg-soft/40 transition-colors"
+                      className="relative cursor-pointer border-b border-soft transition-colors hover:bg-soft/40 focus-within:bg-soft/40"
                     >
                       <td className="py-3.5 pr-3 font-mono text-xs text-muted-foreground">
                         {alert.queue_position}º
@@ -406,7 +405,8 @@ export function Dashboard() {
                       <td className="py-3.5 px-3">
                         <Link
                           href={`/alerts/${alert.id}`}
-                          className="font-medium text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
+                          aria-label={getAlertLinkLabel(alert)}
+                          className="font-medium text-foreground underline underline-offset-[3px] decoration-border after:absolute after:inset-0 after:z-10 after:content-[''] hover:decoration-foreground focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
                         >
                           {alert.id}
                         </Link>
