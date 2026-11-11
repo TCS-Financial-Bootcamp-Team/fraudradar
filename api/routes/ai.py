@@ -71,10 +71,20 @@ def chat(request: ChatRequest) -> ChatResponse:
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "Nenhuma fonte juridica revisada esta disponivel.",
         ) from error
-    except errors.ClientError as error:
+    except errors.APIError as error:
         if error.code == 429:
             raise HTTPException(
                 status.HTTP_429_TOO_MANY_REQUESTS,
                 "Limite temporario do provedor de IA atingido.",
             ) from error
-        raise
+
+        if error.code == 503:
+            raise HTTPException(
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                "O provedor de IA esta temporariamente indisponivel.",
+            ) from error
+
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            "Nao foi possivel obter uma resposta do provedor de IA.",
+        ) from error
