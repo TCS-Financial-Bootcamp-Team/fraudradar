@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowRight, Radar, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { PasswordField } from "@/components/ui/password-field";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { getSupabaseConfig, supabaseConfigMessage } from "@/lib/supabase/config";
+import {
+  getSupabaseConfig,
+  supabaseConfigMessage,
+} from "@/lib/supabase/config";
 import { useAuth } from "../hooks/use-auth";
 import {
   signupSchema,
@@ -21,95 +21,266 @@ import {
 } from "../schemas/auth";
 
 type AuthMode = "login" | "signup" | "reset" | "update";
+
+function PasswordStrengthMeter({ password }: { password: string }) {
+  const score =
+    password.length === 0
+      ? 0
+      : [
+          password.length >= 8,
+          /[A-Z]/.test(password) && /[a-z]/.test(password),
+          /\d/.test(password),
+          /[^A-Za-z0-9]/.test(password),
+        ].filter(Boolean).length;
+
+  const hints = [
+    "Mínimo de 8 caracteres.",
+    "Fraca: misture letras, números e símbolos.",
+    "Razoável.",
+    "Boa.",
+    "Forte.",
+  ];
+
+  return (
+    <div className="flex flex-col gap-1 mt-1">
+      <div
+        className="grid grid-cols-4 gap-1"
+        aria-hidden="true"
+      >
+        {[0, 1, 2, 3].map((i) => (
+          <span
+            key={i}
+            className={`h-[3px] rounded-[2px] transition-colors ${
+              i < score
+                ? score <= 1
+                  ? "bg-signal"
+                  : "bg-primary"
+                : "bg-track"
+            }`}
+          />
+        ))}
+      </div>
+      <span id="pw-hint" className="text-xs text-muted-foreground">
+        {hints[score]}
+      </span>
+    </div>
+  );
+}
+
 function LoginForm() {
   const auth = useAuth();
   const [keepSignedIn, setKeepSignedIn] = useState(true);
+  const [showPw, setShowPw] = useState(false);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<LoginInput>({ resolver: zodResolver(loginSchema) });
+
   return (
     <form
-      className="grid gap-5"
+      className="flex flex-col gap-5 w-full"
       onSubmit={handleSubmit((data) =>
-        auth.signIn({ ...data, keepSignedIn }),
+        auth.signIn({ ...data, keepSignedIn })
       )}
     >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
+          Entrar
+        </h2>
+        <p className="m-0 text-sm text-muted-foreground">
+          Use a conta da sua equipe de PLD.
+        </p>
+      </div>
+
       <Field label="E-mail" error={errors.email?.message}>
-        <Input type="email" autoComplete="email" {...register("email")} />
-      </Field>
-      <Field label="Senha" error={errors.password?.message}>
-        <PasswordField
-          autoComplete="current-password"
-          {...register("password")}
+        <Input
+          type="email"
+          autoComplete="username"
+          placeholder="voce@banco.com"
+          {...register("email")}
         />
       </Field>
-      <label className="flex items-center gap-2 text-sm">
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex justify-between items-baseline">
+          <label className="text-[13px] font-medium text-foreground">
+            Senha
+          </label>
+          <Link
+            href="/reset-password"
+            className="text-xs text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
+          >
+            Esqueci a senha
+          </Link>
+        </div>
+        <div className="relative flex">
+          <Input
+            type={showPw ? "text" : "password"}
+            autoComplete="current-password"
+            className="pr-16"
+            {...register("password")}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw(!showPw)}
+            className="absolute right-1.5 top-1.5 h-8 px-2.5 border-0 rounded-md bg-transparent text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            {showPw ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
+        {errors.password?.message && (
+          <span className="text-xs text-signal">
+            {errors.password.message}
+          </span>
+        )}
+      </div>
+
+      <label className="flex items-center gap-2.5 text-[13px] text-foreground cursor-pointer">
         <input
           type="checkbox"
           checked={keepSignedIn}
           onChange={(e) => setKeepSignedIn(e.target.checked)}
-        />{" "}
-        Manter conectado
+          className="size-4 rounded border-border accent-primary"
+        />
+        Manter conectado neste navegador
       </label>
-      <p className="text-xs text-muted-foreground">
-        Seu navegador pode oferecer salvar a senha. Sem manter conectado, a
-        sessão dura até fechar o navegador.
-      </p>
-      <Link
-        className="text-right text-sm text-primary hover:underline"
-        href="/reset-password"
-      >
-        Esqueci a senha
-      </Link>
-      <Button type="submit" className="h-11" disabled={auth.busy}>
-        {auth.busy ? "Entrando…" : "Acessar plataforma"}
-        <ArrowRight />
+
+      <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
+        {auth.busy ? "Entrando…" : "Entrar"}
       </Button>
+
+      <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
+        Ainda não tem conta?{" "}
+        <Link
+          href="/signup"
+          className="font-medium text-foreground underline underline-offset-[3px]"
+        >
+          Criar conta
+        </Link>
+      </p>
     </form>
   );
 }
+
 function SignupForm() {
   const auth = useAuth();
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+
   const {
     register,
     handleSubmit,
     formState: { errors },
   } = useForm<SignupInput>({ resolver: zodResolver(signupSchema) });
-  if (auth.message)
+
+  if (auth.message) {
     return (
-      <p role="status" className="notice">
+      <div role="status" className="notice">
         {auth.message}
-      </p>
+      </div>
     );
+  }
+
   return (
-    <form className="grid gap-4" onSubmit={handleSubmit(auth.signUp)}>
-      <Field label="Nome completo" error={errors.name?.message}>
-        <Input autoComplete="name" {...register("name")} />
+    <form
+      className="flex flex-col gap-4.5 w-full"
+      onSubmit={handleSubmit(auth.signUp)}
+    >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
+          Criar conta
+        </h2>
+        <p className="m-0 text-sm text-muted-foreground">
+          Leva menos de um minuto.
+        </p>
+      </div>
+
+      <Field label="Nome" error={errors.name?.message}>
+        <Input
+          type="text"
+          autoComplete="name"
+          placeholder="Como aparece na auditoria"
+          {...register("name")}
+        />
       </Field>
+
       <Field label="E-mail" error={errors.email?.message}>
-        <Input type="email" autoComplete="email" {...register("email")} />
+        <Input
+          type="email"
+          autoComplete="email"
+          placeholder="voce@banco.com"
+          {...register("email")}
+        />
       </Field>
-      <Field label="Senha" error={errors.password?.message}>
-        <PasswordField autoComplete="new-password" {...register("password")} />
-      </Field>
-      <p className="text-xs text-muted-foreground">
-        Use 8 ou mais caracteres, incluindo letras e números. Prefira uma frase
-        longa e única.
-      </p>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">
+          Senha
+        </label>
+        <div className="relative flex">
+          <Input
+            type={showPw ? "text" : "password"}
+            autoComplete="new-password"
+            className="pr-16"
+            aria-describedby="pw-hint"
+            {...register("password", {
+              onChange: (e) => setPassword(e.target.value),
+            })}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw(!showPw)}
+            className="absolute right-1.5 top-1.5 h-8 px-2.5 border-0 rounded-md bg-transparent text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            {showPw ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
+        <PasswordStrengthMeter password={password} />
+        {errors.password?.message && (
+          <span className="text-xs text-signal">
+            {errors.password.message}
+          </span>
+        )}
+      </div>
+
       <Field label="Confirmar senha" error={errors.confirmation?.message}>
-        <PasswordField
+        <Input
+          type={showPw ? "text" : "password"}
           autoComplete="new-password"
           {...register("confirmation")}
         />
       </Field>
-      <Button type="submit" className="h-11" disabled={auth.busy}>
+
+      <label className="flex items-start gap-2.5 text-[13px] text-muted-foreground cursor-pointer">
+        <input
+          type="checkbox"
+          className="size-4 mt-0.5 rounded border-border accent-primary shrink-0"
+        />
+        <span>
+          Entendo que é um ambiente acadêmico e que nada é comunicado ao COAF de
+          verdade.
+        </span>
+      </label>
+
+      <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
         {auth.busy ? "Criando conta…" : "Criar conta"}
       </Button>
+
+      <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
+        Já tem conta?{" "}
+        <Link
+          href="/login"
+          className="font-medium text-foreground underline underline-offset-[3px]"
+        >
+          Entrar
+        </Link>
+      </p>
     </form>
   );
 }
+
 function ResetPasswordForm() {
   const auth = useAuth();
   const {
@@ -119,26 +290,67 @@ function ResetPasswordForm() {
   } = useForm<{ email: string }>({
     resolver: zodResolver(resetRequestSchema),
   });
-  return auth.message ? (
-    <p role="status" className="notice">
-      {auth.message}
-    </p>
-  ) : (
+
+  if (auth.message) {
+    return (
+      <div className="flex flex-col gap-4 w-full">
+        <div role="status" className="notice">
+          {auth.message}
+        </div>
+        <Link
+          href="/login"
+          className="text-[13px] text-foreground underline underline-offset-[3px] text-center"
+        >
+          Voltar para o login
+        </Link>
+      </div>
+    );
+  }
+
+  return (
     <form
-      className="grid gap-5"
+      className="flex flex-col gap-5 w-full"
       onSubmit={handleSubmit(auth.requestPasswordReset)}
     >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
+          Recuperar senha
+        </h2>
+        <p className="m-0 text-sm text-muted-foreground">
+          Digite seu e-mail para receber as instruções.
+        </p>
+      </div>
+
       <Field label="E-mail da conta" error={errors.email?.message}>
-        <Input type="email" autoComplete="email" {...register("email")} />
+        <Input
+          type="email"
+          autoComplete="email"
+          placeholder="voce@banco.com"
+          {...register("email")}
+        />
       </Field>
-      <Button type="submit" disabled={auth.busy}>
+
+      <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
         {auth.busy ? "Enviando…" : "Enviar link de recuperação"}
       </Button>
+
+      <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
+        <Link
+          href="/login"
+          className="text-foreground underline underline-offset-[3px]"
+        >
+          Voltar para o login
+        </Link>
+      </p>
     </form>
   );
 }
+
 function UpdatePasswordForm() {
   const auth = useAuth();
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -146,29 +358,78 @@ function UpdatePasswordForm() {
   } = useForm<{ password: string; confirmation: string }>({
     resolver: zodResolver(passwordUpdateSchema),
   });
+
   return (
-    <form className="grid gap-5" onSubmit={handleSubmit(auth.updatePassword)}>
-      <Field label="Nova senha" error={errors.password?.message}>
-        <PasswordField autoComplete="new-password" {...register("password")} />
-      </Field>
-      <Field label="Confirmar nova senha" error={errors.confirmation?.message}>
-        <PasswordField
+    <form
+      className="flex flex-col gap-5 w-full"
+      onSubmit={handleSubmit(auth.updatePassword)}
+    >
+      <div className="flex flex-col gap-1.5">
+        <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
+          Nova senha
+        </h2>
+        <p className="m-0 text-sm text-muted-foreground">
+          Defina sua nova senha de acesso.
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">
+          Nova senha
+        </label>
+        <div className="relative flex">
+          <Input
+            type={showPw ? "text" : "password"}
+            autoComplete="new-password"
+            className="pr-16"
+            aria-describedby="pw-hint"
+            {...register("password", {
+              onChange: (e) => setPassword(e.target.value),
+            })}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPw(!showPw)}
+            className="absolute right-1.5 top-1.5 h-8 px-2.5 border-0 rounded-md bg-transparent text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+          >
+            {showPw ? "Ocultar" : "Mostrar"}
+          </button>
+        </div>
+        <PasswordStrengthMeter password={password} />
+        {errors.password?.message && (
+          <span className="text-xs text-signal">
+            {errors.password.message}
+          </span>
+        )}
+      </div>
+
+      <Field
+        label="Confirmar nova senha"
+        error={errors.confirmation?.message}
+      >
+        <Input
+          type={showPw ? "text" : "password"}
           autoComplete="new-password"
           {...register("confirmation")}
         />
       </Field>
-      <Button type="submit" disabled={auth.busy}>
+
+      <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
         {auth.busy ? "Salvando…" : "Atualizar senha"}
       </Button>
+
+      <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
+        <Link
+          href="/login"
+          className="text-foreground underline underline-offset-[3px]"
+        >
+          Voltar para o login
+        </Link>
+      </p>
     </form>
   );
 }
-const modeHeadings: Record<AuthMode, string> = {
-  login: "Bem-vindo ao seu radar.",
-  signup: "Comece uma análise melhor.",
-  reset: "Recupere seu acesso.",
-  update: "Defina uma nova senha.",
-};
+
 export function AuthScreen({
   mode,
   error,
@@ -177,61 +438,131 @@ export function AuthScreen({
   error?: string;
 }) {
   return (
-    <main className="auth-layout">
-      <section className="auth-brand">
-        <Link
-          href="/login"
-          className="flex items-center gap-3 text-xl font-semibold"
-        >
-          <Radar className="size-8" />
-          FraudRadar<span className="text-xs opacity-60">PLD</span>
-        </Link>
-        <div className="relative z-10 max-w-lg">
-          <p className="eyebrow mb-6 text-inherit opacity-60">
-            Inteligência para a integridade financeira
-          </p>
-          <h1 className="text-4xl font-medium leading-tight tracking-tight xl:text-5xl">
-            Encontre o sinal.
-            <br />
-            <span className="text-[var(--brand-accent)]">Entenda o risco.</span>
-          </h1>
-          <p className="mt-6 max-w-sm leading-relaxed opacity-70">
-            De transações a decisões fundamentadas. Um espaço para investigar
-            conexões e agir com confiança.
-          </p>
-          <div className="radar-art" aria-hidden="true">
-            <Radar />
-          </div>
+    <div className="auth-layout font-sans">
+      {/* Brand Panel: segue a cor da barra lateral e os tokens salvos */}
+      <section aria-label="FraudRadar" className="auth-brand">
+        <div className="flex items-center gap-2.5 font-semibold text-base tracking-[-0.015em] text-sidebar-foreground">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 20 20"
+            fill="none"
+            aria-hidden="true"
+          >
+            <circle
+              cx="10"
+              cy="10"
+              r="8.25"
+              stroke="currentColor"
+              strokeWidth="1.5"
+            />
+            <path
+              d="M10 10 L10 1.75 A8.25 8.25 0 0 1 17.6 6.8 Z"
+              fill="currentColor"
+            />
+            <circle cx="13.6" cy="12.4" r="1.6" className="fill-signal" />
+          </svg>
+          FraudRadar
         </div>
-        <p className="flex items-center gap-2 text-xs opacity-60">
-          <ShieldCheck className="size-4" />
-          Ambiente de pesquisa · SAML-D
-        </p>
+
+        <div className="flex flex-col gap-4 max-w-[460px]">
+          {mode === "login" ? (
+            <>
+              <h1 className="m-0 text-[clamp(28px,3.2vw,40px)] font-semibold tracking-[-0.03em] leading-[1.1] text-sidebar-foreground">
+                Monitoramento antilavagem, uma semana por vez.
+              </h1>
+              <p className="m-0 text-[15px] text-sidebar-muted">
+                O modelo ordena a fila, a IA ajuda a ler as evidências e o
+                analista decide.
+              </p>
+            </>
+          ) : mode === "signup" ? (
+            <>
+              <h1 className="m-0 text-[clamp(28px,3.2vw,40px)] font-semibold tracking-[-0.03em] leading-[1.1] text-sidebar-foreground">
+                Cada decisão fica registrada com o seu nome.
+              </h1>
+              <p className="m-0 text-[15px] text-sidebar-muted">
+                Crie sua conta de analista. O nome aparece na auditoria e nas
+                comunicações que você aprovar.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="m-0 text-[clamp(28px,3.2vw,40px)] font-semibold tracking-[-0.03em] leading-[1.1] text-sidebar-foreground">
+                Recupere o acesso à sua conta de análise.
+              </h1>
+              <p className="m-0 text-[15px] text-sidebar-muted">
+                Enviaremos instruções seguras para redefinir sua senha de
+                acesso.
+              </p>
+            </>
+          )}
+        </div>
+
+        {mode === "login" ? (
+          <dl className="m-0 grid grid-cols-3 gap-4 pt-5 border-t border-[var(--sidebar-divider)] tabular-nums">
+            <div>
+              <dt className="text-xs text-sidebar-muted">Transações</dt>
+              <dd className="m-0 text-xl font-medium text-sidebar-foreground">
+                9,5 mi
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-sidebar-muted">Semanas de teste</dt>
+              <dd className="m-0 text-xl font-medium text-sidebar-foreground">
+                14
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-sidebar-muted">Recall da fila</dt>
+              <dd className="m-0 text-xl font-medium text-sidebar-foreground">
+                95,1%
+              </dd>
+            </div>
+          </dl>
+        ) : mode === "signup" ? (
+          <ol className="m-0 p-0 list-none flex flex-col gap-2.5 pt-5 border-t border-[var(--sidebar-divider)] text-[13px] text-sidebar-foreground">
+            <li className="flex gap-3">
+              <span className="font-mono text-sidebar-muted">01</span>
+              <span>Leia a fila da semana, da maior nota para a menor</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-mono text-sidebar-muted">02</span>
+              <span>Confira as evidências e o parecer da IA</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-mono text-sidebar-muted">03</span>
+              <span>Arquive, aprofunde ou prepare a comunicação ao COAF</span>
+            </li>
+          </ol>
+        ) : (
+          <ol className="m-0 p-0 list-none flex flex-col gap-2.5 pt-5 border-t border-[var(--sidebar-divider)] text-[13px] text-sidebar-foreground">
+            <li className="flex gap-3">
+              <span className="font-mono text-sidebar-muted">01</span>
+              <span>Informe o e-mail cadastrado na equipe</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-mono text-sidebar-muted">02</span>
+              <span>Abra o link de confirmação recebido</span>
+            </li>
+            <li className="flex gap-3">
+              <span className="font-mono text-sidebar-muted">03</span>
+              <span>Escolha uma nova senha forte</span>
+            </li>
+          </ol>
+        )}
       </section>
-      <section className="relative flex min-h-dvh items-center justify-center p-6 sm:p-12">
-        <div className="absolute right-6 top-6">
-          <ThemeToggle />
-        </div>
-        <div className="w-full max-w-sm py-12">
-          <div className="mb-10 flex items-center gap-2 font-semibold lg:hidden">
-            <Radar className="text-primary" />
-            FraudRadar PLD
-          </div>
-          <p className="eyebrow mb-3">Monitoramento antilavagem</p>
-          <h2 className="mb-3 text-3xl font-semibold tracking-tight">
-            {modeHeadings[mode]}
-          </h2>
-          <p className="mb-8 text-sm text-muted-foreground">
-            {mode === "login"
-              ? "Acesse sua fila de análise e acompanhe cada decisão."
-              : "Sua conta conecta você ao ambiente de análise."}
-          </p>
+
+      {/* Form Section */}
+      <main className="flex-1 flex items-center justify-center p-8 sm:p-12 lg:p-16 min-w-0">
+        <div className="w-full max-w-[380px] flex flex-col gap-5">
           {error && (
-            <p role="alert" className="notice mb-6">
+            <div role="alert" className="notice text-xs text-signal">
               O link expirou ou a sessão não pôde ser validada. Tente entrar ou
               solicite um novo e-mail.
-            </p>
+            </div>
           )}
+
           {!getSupabaseConfig() ? (
             <div role="status" className="notice">
               <strong className="mb-2 block">Configure a autenticação</strong>
@@ -246,25 +577,8 @@ export function AuthScreen({
           ) : (
             <UpdatePasswordForm />
           )}
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            {mode === "login" ? (
-              <>
-                Ainda não tem conta?{" "}
-                <Link
-                  className="font-medium text-primary hover:underline"
-                  href="/signup"
-                >
-                  Cadastre-se
-                </Link>
-              </>
-            ) : (
-              <Link className="text-primary hover:underline" href="/login">
-                Voltar para o login
-              </Link>
-            )}
-          </p>
         </div>
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }

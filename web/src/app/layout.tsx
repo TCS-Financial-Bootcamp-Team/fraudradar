@@ -29,6 +29,32 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){
+  try {
+    var raw = localStorage.getItem('fraudradar-theme');
+    if (!raw) return;
+    var data = JSON.parse(raw);
+    var tokens = data.tokens;
+    var isDark = data.dark;
+    var el = document.documentElement;
+    if (tokens && typeof tokens === 'object') {
+      for (var k in tokens) {
+        el.style.setProperty(k, tokens[k]);
+      }
+    }
+    if (isDark) {
+      el.classList.add('dark');
+    } else if (isDark === false) {
+      el.classList.remove('dark');
+    }
+  } catch (e) {}
+})()`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col">
         <Providers>
           <Suspense

@@ -41,12 +41,21 @@ export const alertsMock: Alert[] = Array.from({ length: 36 }, (_, i) => ({
 export const reportsMock = new Map<string, Report>();
 export const assessmentsMock = new Map<string, AlertDetail["assessment"]>();
 export function queueMock(filters: AlertFilters) {
+  const searchTerm = filters.search?.trim();
+  const isDigits = searchTerm ? /^\d+$/.test(searchTerm) : false;
   const items = alertsMock
     .filter(
       (a) =>
         (!filters.week || a.week === filters.week) &&
         (!filters.status || a.status === filters.status) &&
-        (!filters.country || a.country === filters.country),
+        (!filters.country || a.country === filters.country) &&
+        (!searchTerm ||
+          (isDigits
+            ? a.id === searchTerm ||
+              a.id === "ALT-" + searchTerm ||
+              a.account.startsWith(searchTerm) ||
+              a.account.startsWith("CTA-" + searchTerm)
+            : a.account.startsWith(searchTerm))),
     )
     .sort((a, b) => b.score - a.score);
   const start = ((filters.page ?? 1) - 1) * 10;
@@ -108,19 +117,21 @@ export function alertDetailMock(id: string): AlertDetail {
   };
 }
 export function reportMock(id: string): Report {
-  alertDetailMock(id);
+  const alert = alertDetailMock(id);
   const existing = reportsMock.get(id);
-  return (
-    existing ?? {
-      alert_id: id,
-      status: "draft",
-      updated_at: "2026-10-21T14:30:00Z",
-      content:
-        "RELATO DE OPERAÇÃO ATÍPICA\n\nO monitoramento identificou dispersão de recursos para múltiplas contrapartes em curto intervalo, com movimentação incompatível com o histórico observado.\n\nEvidências: regra R-014 e transferências vinculadas ao alerta " +
-        id +
-        ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Este documento é uma simulação acadêmica.",
-    }
-  );
+  if (existing) return existing;
+  if (alert.status !== "reported") {
+    throw new Error("Este alerta não tem comunicação.");
+  }
+  return {
+    alert_id: id,
+    status: "draft",
+    updated_at: "2026-10-21T14:30:00Z",
+    content:
+      "RELATO DE OPERAÇÃO ATÍPICA\n\nO monitoramento identificou dispersão de recursos para múltiplas contrapartes em curto intervalo, com movimentação incompatível com o histórico observado.\n\nEvidências: regra R-014 e transferências vinculadas ao alerta " +
+      id +
+      ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Este documento é uma simulação acadêmica.",
+  };
 }
 export function monitoringMock(week: string): Monitoring {
   const items = alertsMock.filter((a) => a.week === week);
@@ -143,8 +154,8 @@ export function monitoringMock(week: string): Monitoring {
       ).length,
       alert_rate: items.length ? 0.024 : 0,
       flagged_amount: items.reduce((sum, a) => sum + a.amount, 0),
-      recall: items.length ? 0.924 : 0,
-      typology_accuracy: items.length ? 0.876 : 0,
+      recall: items.length ? 0.924 : null,
+      typology_accuracy: items.length ? 0.876 : null,
     },
     weeks: [
       { name: "14 set", value: 12 },
@@ -165,5 +176,47 @@ export function monitoringMock(week: string): Monitoring {
       "Dinheiro",
       "Pagamento digital",
     ].map((name, i) => ({ name, value: [0.032, 0.014, 0.048, 0.021][i] })),
+    recall_series: [
+      { name: "14 set", value: 0.88 },
+      { name: "21 set", value: 0.91 },
+      { name: "28 set", value: 0.89 },
+      { name: "05 out", value: 0.93 },
+      { name: "12 out", value: 0.9 },
+      { name: "19 out", value: 0.924 },
+    ],
+    score_histogram: [
+      { name: "40", value: items.filter((a) => a.score < 50).length },
+      {
+        name: "50",
+        value: items.filter((a) => a.score >= 50 && a.score < 60).length,
+      },
+      {
+        name: "60",
+        value: items.filter((a) => a.score >= 60 && a.score < 70).length,
+      },
+      {
+        name: "70",
+        value: items.filter((a) => a.score >= 70 && a.score < 80).length,
+      },
+      {
+        name: "80",
+        value: items.filter((a) => a.score >= 80 && a.score < 90).length,
+      },
+      {
+        name: "90",
+        value: items.filter((a) => a.score >= 90 && a.score < 95).length,
+      },
+      {
+        name: "95",
+        value: items.filter((a) => a.score >= 95 && a.score < 99.95).length,
+      },
+      { name: "100", value: items.filter((a) => a.score >= 99.95).length },
+    ],
+    status_counts: {
+      pending: items.filter((a) => a.status === "pending").length,
+      escalated: items.filter((a) => a.status === "escalated").length,
+      archived: items.filter((a) => a.status === "archived").length,
+      reported: items.filter((a) => a.status === "reported").length,
+    },
   };
 }

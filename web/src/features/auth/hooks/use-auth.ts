@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { getErrorMessage } from "@/lib/format";
 import * as authService from "../services/auth-service";
 import type { SignupInput, LoginInput } from "../schemas/auth";
@@ -16,7 +16,7 @@ export function useAuth() {
     try {
       await action();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -51,7 +51,7 @@ export function useAuth() {
     updatePassword: (data: { password: string; confirmation: string }) =>
       runAction(async () => {
         await authService.updatePassword(data);
-        toast.success("Senha atualizada.");
+        notify.success("Senha atualizada.");
         navigateToDashboard();
       }),
     signOut: () =>

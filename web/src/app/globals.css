@@ -40,6 +40,17 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
+  --color-signal: var(--signal);
+  --color-warning: var(--warning);
+  --color-track: var(--track);
+  --color-chart-muted: var(--chart-muted);
+  --color-soft: var(--soft);
+  --color-topbar: var(--topbar);
+  --color-topbar-foreground: var(--topbar-foreground);
+  --color-topbar-muted: var(--topbar-muted);
+  --color-topbar-border: var(--topbar-border);
+  --color-sidebar-muted: var(--sidebar-muted);
+  --color-sidebar-divider: var(--sidebar-divider);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);

@@ -7,6 +7,10 @@ test("mock: decisão, parecer, comunicação e replay preservam consistência na
   const week = "2026-10-19";
   const queue = await s.fetchAlerts({ week, status: "pending" });
   const id = queue.items[0].id;
+  await assert.rejects(
+    () => s.fetchReport(id),
+    /Este alerta não tem comunicação/,
+  );
   const before = await s.fetchMonitoring(week);
   await s.generateAssessment(id);
   assert.ok((await s.fetchAlertDetail(id)).assessment?.sources.length);
@@ -16,11 +20,12 @@ test("mock: decisão, parecer, comunicação e replay preservam consistência na
       "Movimentações atípicas confirmadas para diligência e revisão.",
   });
   assert.equal((await s.fetchAlertDetail(id)).status, "reported");
-  assert.ok((await s.listReports(week)).some((r) => r.alert_id === id));
+  assert.equal((await s.fetchReport(id)).status, "draft");
   const reportContent =
     "Relato revisado e complementado com as evidências do caso. Comunicação acadêmica sem transmissão externa.";
   await s.approveReport(id, reportContent);
   assert.equal((await s.fetchReport(id)).content, reportContent);
+  assert.equal((await s.fetchReport(id)).status, "approved");
   assert.equal(
     (await s.fetchMonitoring(week)).indicators.reported,
     before.indicators.reported + 1,

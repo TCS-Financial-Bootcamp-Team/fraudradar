@@ -17,6 +17,7 @@ import {
 import {
   decisionSchema,
   approvalSchema,
+  monitoringSchema,
 } from "../src/features/alerts/schemas/alerts";
 import { pseudonymize } from "../src/lib/format";
 
@@ -213,4 +214,47 @@ test("números de contas não apagam valores e durações iguais aos identificad
     ),
     "Contas [conta 1], 10.000, 24 horas e 2026-10-19. Compare conta [conta 2] e R-014; R$ 123 e 123 reais.",
   );
+});
+
+test("monitoringSchema valida novos campos aditivos e aceita recall/acurácia nulos", () => {
+  const payload = {
+    week: "2026-10-19",
+    indicators: {
+      alerts: 10,
+      reviewed: 5,
+      reported: 2,
+      alert_rate: 0.05,
+      flagged_amount: 150000,
+      recall: null,
+      typology_accuracy: null,
+    },
+    weeks: [{ name: "19 out", value: 10 }],
+    typologies: [{ name: "Fan-out", value: 10 }],
+    countries: [{ name: "Brasil", value: 10 }],
+    country_rates: [{ name: "Brasil", value: 0.05 }],
+    payment_type_rates: [{ name: "Transferência", value: 0.05 }],
+    recall_series: [{ name: "19 out", value: 0.92 }],
+    score_histogram: [
+      { name: "40", value: 1 },
+      { name: "50", value: 2 },
+      { name: "60", value: 1 },
+      { name: "70", value: 1 },
+      { name: "80", value: 2 },
+      { name: "90", value: 1 },
+      { name: "95", value: 1 },
+      { name: "100", value: 1 },
+    ],
+    status_counts: {
+      pending: 5,
+      escalated: 2,
+      archived: 1,
+      reported: 2,
+    },
+  };
+  const parsed = monitoringSchema.parse(payload);
+  assert.equal(parsed.indicators.recall, null);
+  assert.equal(parsed.indicators.typology_accuracy, null);
+  assert.equal(parsed.score_histogram.length, 8);
+  assert.equal(parsed.status_counts.pending, 5);
+  assert.equal(parsed.recall_series[0].value, 0.92);
 });

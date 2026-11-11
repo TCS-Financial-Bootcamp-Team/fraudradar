@@ -1,9 +1,10 @@
 "use client";
+
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import { usePathname } from "next/navigation";
 import { useAppContext } from "@/components/app-context";
 import { getErrorMessage, pseudonymize } from "@/lib/format";
+import { notify } from "@/lib/notify";
 import { sendChatMessage } from "../services/assistant-service";
 import type { Message } from "../schemas/assistant";
 
@@ -15,7 +16,9 @@ export function useAssistant(alertId?: string) {
   const accountsRef = useRef(new Map<string, string>());
   const page = usePathname();
   const { week } = useAppContext();
+
   useEffect(() => () => controllerRef.current?.abort(), []);
+
   async function send(input: string) {
     const message = pseudonymize(input.trim(), accountsRef.current);
     if (!message || lockedRef.current) return false;
@@ -24,33 +27,35 @@ export function useAssistant(alertId?: string) {
     controllerRef.current = controller;
     setBusy(true);
     setMessages((m) => [...m, { role: "user", content: message }]);
+
     try {
       const response = await sendChatMessage(
         {
           message,
-          context: { page, week, alert_id: alertId },
-          history: messages.slice(-20),
+          context: { page: page || "/dashboard", week: week ?? "", alert_id: alertId },
+          history: messages.slice(-20).map((m) => ({
+            role: m.role,
+            content: m.content,
+          })),
         },
         controller.signal,
         accountsRef.current,
       );
-      if (!controller.signal.aborted)
+
+      if (!controller.signal.aborted) {
         setMessages((m) => [
           ...m,
           {
             role: "assistant",
-            content:
-              response.answer +
-              (response.sources.length
-                ? "\n\nFontes: " +
-                  response.sources.map((s) => s.title).join("; ")
-                : ""),
+            content: response.answer,
+            sources: response.sources.length > 0 ? response.sources : undefined,
           },
         ]);
+      }
       return true;
     } catch (error) {
       if (!controller.signal.aborted) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
         setMessages((m) => [
           ...m,
           {
@@ -66,5 +71,6 @@ export function useAssistant(alertId?: string) {
       if (!controller.signal.aborted) setBusy(false);
     }
   }
+
   return { messages, busy, send };
 }

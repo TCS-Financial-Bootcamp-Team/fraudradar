@@ -1,14 +1,19 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
+import { notify } from "@/lib/notify";
 import { useAppContext } from "@/components/app-context";
 import { useResource } from "@/hooks/use-resource";
 import { getErrorMessage } from "@/lib/format";
 import * as alertsService from "../services/alerts-service";
-import type { DecisionRequest } from "../schemas/alerts";
+import type { DecisionRequest, Report } from "../schemas/alerts";
 
-export function useAlertQueue(status = "", country = "", page = 1) {
+export function useAlertQueue(
+  status = "",
+  country = "",
+  page = 1,
+  search = "",
+) {
   const { week, revision } = useAppContext();
   const loader = useCallback(
     (signal: AbortSignal) => {
@@ -17,11 +22,11 @@ export function useAlertQueue(status = "", country = "", page = 1) {
       if (!week)
         return Promise.resolve({ items: [], total: 0, countries: [] });
       return alertsService.fetchAlerts(
-        { week, status, country, page },
+        { week, status, country, page, search: search.trim() || undefined },
         signal,
       );
     },
-    [week, status, country, page, revision],
+    [week, status, country, page, search, revision],
   );
   return useResource(loader);
 }
@@ -48,7 +53,11 @@ export function useAlertDetail(id: string) {
           alertsService.fetchAlertDetail(id, signal),
           alertsService.fetchAlertGraph(id, signal),
         ]);
-        return { detail, graph };
+        const report: Report | null =
+          detail.status === "reported"
+            ? await alertsService.fetchReport(id, signal)
+            : null;
+        return { detail, graph, report };
       },
       [id, revision],
     ),
@@ -58,11 +67,11 @@ export function useAlertDetail(id: string) {
     setBusy(true);
     try {
       await action();
-      toast.success(message);
+      notify.success(message);
       refresh();
       resource.reload();
     } catch (error) {
-      toast.error(getErrorMessage(error));
+      notify.error(getErrorMessage(error));
     } finally {
       setBusy(false);
     }
@@ -80,6 +89,11 @@ export function useAlertDetail(id: string) {
         () => alertsService.submitDecision(id, decision),
         "Decisão registrada.",
       ),
+    approveReport: (content: string) =>
+      runAction(
+        () => alertsService.approveReport(id, content),
+        "Rascunho aprovado. Nenhum envio externo foi realizado.",
+      ),
   };
 }
 export function useReplay() {
@@ -95,40 +109,9 @@ export function useReplay() {
         const result = await alertsService.advanceWeek(week);
         setWeek(result.week);
         refresh();
-        toast.success(result.alerts_generated + " alertas na nova semana.");
+        notify.success(result.alerts_generated + " alertas na nova semana.");
       } catch (error) {
-        toast.error(getErrorMessage(error));
-      } finally {
-        setBusy(false);
-      }
-    },
-  };
-}
-export function useReports() {
-  const { week, revision, refresh } = useAppContext();
-  const resource = useResource(
-    useCallback(
-      (signal: AbortSignal) => {
-        void revision;
-        if (!week) return Promise.resolve([]);
-        return alertsService.listReports(week, signal);
-      },
-      [week, revision],
-    ),
-  );
-  const [busy, setBusy] = useState(false);
-  return {
-    ...resource,
-    busy,
-    approve: async (id: string, content: string) => {
-      setBusy(true);
-      try {
-        await alertsService.approveReport(id, content);
-        toast.success("Rascunho aprovado. Nenhum envio externo foi realizado.");
-        refresh();
-        resource.reload();
-      } catch (error) {
-        toast.error(getErrorMessage(error));
+        notify.error(getErrorMessage(error));
       } finally {
         setBusy(false);
       }
