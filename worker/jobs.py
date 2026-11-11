@@ -15,6 +15,7 @@ from fraudradar.data.simulation import SimulationError, simulate_transactions
 from fraudradar.datasets import Dataset, DatasetNotFoundError, resolve_dataset, use_dataset
 from worker.errors import WorkerError
 from worker.import_job import import_handler, pull_new_rows
+from worker.train_job import train_handler
 
 log = logging.getLogger("worker.jobs")
 
@@ -255,14 +256,13 @@ def simulate_handler(engine: Engine, job: Job, progress: Progress) -> str:
 
 
 # Ganchos executados antes de cada ``process``: (engine, dataset) -> None.
-PRE_PROCESS_HOOKS: list = []
 PRE_PROCESS_HOOKS.append(pull_new_rows)  # acompanha fontes externas (worker/import_job.py)
 
 DEFAULT_HANDLERS: Mapping[str, Handler] = {
     "import": import_handler,
     "process": process_handler,
     "simulate": simulate_handler,
-    "train": _not_implemented("train"),
+    "train": train_handler,
 }
 
 

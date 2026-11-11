@@ -15,6 +15,7 @@ from api.routes import (
     replay,
     weeks,
 )
+from api.routes import models as model_routes
 from fraudradar import __version__
 from fraudradar.config import get_settings
 
@@ -43,6 +44,7 @@ def create_app() -> FastAPI:
         processing,
     ):
         app.include_router(module.router, dependencies=protected)
+    app.include_router(model_routes.router, dependencies=protected)
     return app
 
 

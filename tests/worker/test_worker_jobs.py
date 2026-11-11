@@ -49,7 +49,9 @@ def test_failure_is_recorded_without_traceback_in_the_user_message(db):
     process_next_job(db)
     row = _job(db, job_id)
     assert row["status"] == "failed"
-    assert row["message"] == "Treino ainda não implementado nesta fase."
+    assert row["message"] == (
+        "Este conjunto não tem gabarito: o retreino só é possível com transações rotuladas."
+    )
     assert row["finished_at"] is not None
 
 
