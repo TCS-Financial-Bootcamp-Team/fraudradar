@@ -12,10 +12,9 @@ class ProcessedWeek(BaseModel):
 
 
 class Weeks(BaseModel):
-    """Semanas já liberadas pelo replay, da mais recente para a mais antiga.
+    """Períodos processados, do mais recente ao mais antigo.
 
-    `next_release` é a semana que o próximo replay libera (processada pelo worker e ainda
-    escondida); None quando não há nenhuma, e o replay responderia 409.
+    `next_release` permanece no contrato como compatibilidade e sempre volta como None.
     """
 
     current: date | None

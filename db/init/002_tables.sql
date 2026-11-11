@@ -29,7 +29,8 @@ CREATE INDEX transactions_receiver_occurred_at_idx ON transactions (receiver, oc
 -- pelo worker quando processar as semanas das transações do envio.
 CREATE TABLE ingestions (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    source     TEXT        NOT NULL CHECK (source IN ('csv', 'manual')),
+    source     TEXT        NOT NULL DEFAULT 'api'
+               CHECK (source IN ('csv', 'api', 'simulation', 'connection')),
     file_name  TEXT,
     row_count  INTEGER     NOT NULL CHECK (row_count > 0),
     status     TEXT        NOT NULL DEFAULT 'received'

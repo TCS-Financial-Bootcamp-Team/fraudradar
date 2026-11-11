@@ -79,6 +79,11 @@ sentido e acrescente a linha.
 | fonte de dados (conexão externa) | data source | |
 | conjunto de dados | dataset | schema isolado com fila, semanas e histórico próprios |
 | trabalho (em segundo plano) | job | pedido persistido e executado por `worker serve` |
+| período aberto / fechado | open / closed period | o aberto é a semana da transação mais recente |
+| processamento automático | automatic processing | configuração em `public.processing_settings` |
+| processar agora | process now | enfileira um trabalho `process` |
+| simulação | simulation | ingestão sintética sem gabarito |
+| contas suspeitas | suspicious accounts | visão consolidada por conta entre períodos |
 | conexão | connection | |
 | ingestão / envio | ingestion / upload | |
 | recibo | receipt | |
@@ -127,7 +132,7 @@ Valores gravados:
 | `decisions.decision` | `arquivar`, `aprofundar`, `comunicar` | `archive`, `escalate`, `report` |
 | `reports.status` | `rascunho`, `aprovada` | `draft`, `approved` |
 | `ingestions.status` | `recebido`, `processando`, `concluido` | `received`, `processing`, `completed` |
-| `ingestions.source` | `csv`, `manual` | (iguais) |
+| `ingestions.source` | `csv`, entrada manual, simulação, conexão | `csv`, `api`, `simulation`, `connection` |
 | `audit_log.entity` | `alerta`, `ingestao`, `semana` | `alert`, `ingestion`, `week` |
 | `audit_log.action` | `decisao`, `comunicacao_aprovada`, `ingestao`, `replay`, `lote` | `decision`, `report_approved`, `ingestion`, `replay`, `batch` |
 
@@ -161,6 +166,11 @@ JSON gravado pelo worker (contrato worker → API):
 | `POST /alertas/{id}/chat` | `POST /alerts/{id}/chat` |
 | `POST /chat` | `POST /chat` |
 | `POST /replay/proxima-semana` | `POST /replay/next-week` |
+| `GET /contas/suspeitas` | `GET /accounts/suspicious` |
+| `GET /contas/{conta}/alertas` | `GET /accounts/{account}/alerts` |
+| `GET`/`PUT /processamento/configuracoes` | `GET`/`PUT /processing/settings` |
+| `POST /conjuntos/{slug}/simular` | `POST /datasets/{slug}/simulate` |
+| `DELETE /ingestoes/{id}` | `DELETE /ingestions/{id}` |
 | `GET /monitoramento?semana=` | `GET /monitoring?week=` |
 | `POST /ingestao/csv` (campo multipart `arquivo`) | `POST /ingestion/csv` (campo `file`) |
 | `POST /ingestao/transacoes` | `POST /ingestion/transactions` |
@@ -218,6 +228,7 @@ alerta não tem tipologia).
 | `/configuracoes` | `/settings` |
 | `/ingestao` | `/ingestion` |
 | `/monitoramento` | `/monitoring` |
+| `/contas` | `/accounts` |
 | `/dashboard`, `/login` | (iguais) |
 | `/cadastro` | `/signup` |
 | `/recuperar-senha?modo=redefinir` | `/reset-password?mode=update` |

@@ -83,12 +83,11 @@ def distribution(conn: Connection, week: date, by: str) -> list[RowMapping]:
 
 
 def recall_series(conn: Connection, week: date) -> list[dict[str, object]]:
-    """Série do recall das semanas liberadas até `week`, omitindo semanas sem a métrica."""
+    """Série do recall dos períodos processados, omitindo os que não têm a métrica."""
     sql = """
         SELECT week, metrics
         FROM weekly_batches
-        WHERE released_at IS NOT NULL
-          AND week <= :week
+        WHERE week <= :week
         ORDER BY week ASC
     """
     rows = conn.execute(text(sql), {"week": week}).mappings()

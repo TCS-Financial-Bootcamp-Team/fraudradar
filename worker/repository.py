@@ -167,6 +167,29 @@ def latest_processed_week(conn: Connection) -> date | None:
     return conn.execute(text("SELECT max(week) FROM weekly_batches")).scalar()
 
 
+def transaction_count(conn: Connection, week: date) -> int:
+    """Quantidade atual de transações do período, usada para evitar recomputação vazia."""
+    start, end = week_window(week)
+    return conn.execute(
+        text(
+            "SELECT count(*) FROM transactions WHERE occurred_at >= :start AND occurred_at < :end"
+        ),
+        {"start": start, "end": end},
+    ).scalar_one()
+
+
+def processed_transaction_count(conn: Connection, week: date) -> int | None:
+    """Quantidade registrada no último lote; lotes antigos sem a chave voltam como None."""
+    value = conn.execute(
+        text("SELECT metrics ->> 'transaction_count' FROM weekly_batches WHERE week = :week"),
+        {"week": week},
+    ).scalar()
+    try:
+        return int(value) if value is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
 def saml_d_count(conn: Connection) -> int:
     """Transações da carga do SAML-D (sem envio de origem)."""
     return conn.execute(
@@ -266,6 +289,49 @@ def clear_week(conn: Connection, week: date, version: str, transaction_ids: np.n
         {"version": version, "ids": transaction_ids.tolist()},
     )
     conn.execute(text("DELETE FROM weekly_batches WHERE week = :week"), {"week": week})
+
+
+def clear_open_week(
+    conn: Connection, week: date, version: str, transaction_ids: np.ndarray
+) -> set[int]:
+    """Substitui só a parte ainda não decidida da fila do período aberto.
+
+    Os alertas com decisão e todos os seus dependentes ficam congelados. As linhas são
+    travadas antes da consulta para serializar esta operação com a decisão da API.
+    """
+    conn.execute(text("SELECT id FROM alerts WHERE week = :week FOR UPDATE"), {"week": week})
+    decided_accounts = set(
+        conn.execute(
+            text(
+                "SELECT DISTINCT a.account FROM alerts a"
+                " WHERE a.week = :week"
+                " AND EXISTS (SELECT 1 FROM decisions d WHERE d.alert_id = a.id)"
+            ),
+            {"week": week},
+        ).scalars()
+    )
+    conn.execute(
+        text(
+            "DELETE FROM alerts a WHERE a.week = :week"
+            " AND NOT EXISTS (SELECT 1 FROM decisions d WHERE d.alert_id = a.id)"
+        ),
+        {"week": week},
+    )
+    conn.execute(
+        text(
+            "DELETE FROM transaction_scores WHERE model_version = :version"
+            " AND transaction_id = ANY(CAST(:ids AS bigint[]))"
+        ),
+        {"version": version, "ids": transaction_ids.tolist()},
+    )
+    conn.execute(text("DELETE FROM weekly_batches WHERE week = :week"), {"week": week})
+    return {int(account) for account in decided_accounts}
+
+
+def count_alerts(conn: Connection, week: date) -> int:
+    return conn.execute(
+        text("SELECT count(*) FROM alerts WHERE week = :week"), {"week": week}
+    ).scalar_one()
 
 
 def copy_scores(conn: Connection, ids: np.ndarray, version: str, scores: np.ndarray) -> None:

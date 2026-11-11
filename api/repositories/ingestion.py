@@ -127,7 +127,7 @@ def save_transaction(conn: Connection, request: TransactionRequest, user: User) 
         tx = ingestion.parse_transaction(request.model_dump())
     except ingestion.InvalidTransactionsError as exc:
         raise _validation_error(exc.errors, "body") from exc
-    ingestion_id = _create_ingestion(conn, "manual", None, 1, user)
+    ingestion_id = _create_ingestion(conn, "api", None, 1, user)
     conn.execute(
         text(
             f"INSERT INTO transactions ({', '.join(COLUMNS)})"
@@ -135,5 +135,5 @@ def save_transaction(conn: Connection, request: TransactionRequest, user: User) 
         ),
         {**tx._asdict(), "ingestion_id": ingestion_id},
     )
-    _audit(conn, ingestion_id, user, {"source": "manual", "row_count": 1})
+    _audit(conn, ingestion_id, user, {"source": "api", "row_count": 1})
     return _build_receipt(ingestion_id, 1)

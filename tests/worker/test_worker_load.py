@@ -75,7 +75,7 @@ def test_second_load_writes_nothing(loaded, saml_d_csv, saml_d):
 
 def test_load_is_refused_when_the_api_already_wrote_transactions(db, saml_d_csv, seed):
     """Os ids do SAML-D (1..N) colidiriam com os da ingestão."""
-    seed._exec("INSERT INTO ingestions (source, row_count, created_by) VALUES ('manual', 1, 'Ana')")
+    seed._exec("INSERT INTO ingestions (source, row_count, created_by) VALUES ('api', 1, 'Ana')")
     seed._exec(
         "INSERT INTO transactions (occurred_at, sender, receiver, amount, payment_currency,"
         " received_currency, sender_country, receiver_country, payment_type, ingestion_id)"

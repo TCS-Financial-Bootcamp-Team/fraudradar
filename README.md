@@ -16,8 +16,8 @@ Plano: https://claude.ai/artifact/WBpQHzLCN1yH53pmPGrddG#ac555d39-8243.mqrep4fzz
 3. O **analista** lê o parecer e decide: arquivar, aprofundar ou comunicar ao
    **COAF** (com justificativa obrigatória e o próprio nome registrado).
 
-Não há tempo real: o lote roda por semana, e um modo *replay* avança a demo uma
-semana por vez.
+Não há tempo real: o worker reavalia em lote o período semanal aberto, por intervalo
+configurável ou sob demanda; períodos fechados ficam congelados.
 
 ## Stack
 
@@ -26,7 +26,7 @@ semana por vez.
 | Python | 3.12 fixo, **uv** (um `pyproject.toml` na raiz, `uv.lock` versionado) |
 | Pacote compartilhado | `src/fraudradar` — importado por notebooks, API e worker |
 | API | FastAPI + Pydantic (única porta do front; guarda a chave do LLM) |
-| Worker | processo Python em lote (semana + replay) |
+| Worker | processo Python em lote, fila persistente e agendador contínuo |
 | Banco | Postgres 17 + pgvector (Docker, `pgvector/pgvector:pg17`) |
 | Front | Next.js (App Router) + TypeScript + Tailwind + shadcn/ui, pnpm; Cytoscape.js e Recharts |
 | Infra | Docker Compose + Terraform (provider `kreuzwerker/docker`), sem nuvem |
@@ -112,8 +112,10 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 
 | Rota | O que faz |
 |---|---|
-| `GET /weeks` | semanas já liberadas pelo replay (`current` é a mais recente; `next_release`, a que o próximo replay libera, ou `null`) |
-| `POST /replay/next-week` | libera a próxima semana já processada pelo worker |
+| `GET /weeks` | todos os períodos processados (`current` é o mais recente; `next_release` fica `null`) |
+| `POST /replay/next-week` | compatibilidade do replay antigo; não controla mais a visibilidade |
+| `GET /accounts/suspicious` | contas com alerta consolidadas entre períodos, com filtros e paginação |
+| `GET /accounts/{account}/alerts` | histórico de alertas semanais da conta |
 | `GET /alerts?week=` | fila paginada da semana (filtros `status`, `country` e `search`) |
 | `GET /alerts/{id}` | detalhe: contribuições, regras, movimentações e último parecer |
 | `GET /alerts/{id}/graph` | vizinhança de 2 saltos da conta na semana |
@@ -127,10 +129,13 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `/ingestion/connections` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |
 | `GET /datasets`, `POST /datasets` | lista os conjuntos ou cria um conjunto vazio e isolado |
 | `POST /datasets/{slug}/process` | enfileira o processamento do conjunto |
+| `POST /datasets/{slug}/simulate` | enfileira 50–5.000 transações sintéticas e depois o processamento |
+| `GET`, `PUT /processing/settings` | consulta ou altera intervalo, automação e modo demonstração do conjunto atual |
+| `DELETE /ingestions/{id}` | apaga apenas simulação no período aberto, sem decisão afetada, e reprocessa |
 | `GET /jobs?dataset=`, `GET /jobs/{id}` | acompanha os 20 trabalhos mais recentes ou um trabalho |
 
-A API não roda o modelo: ela lê o que o worker grava, e o replay só libera
-semanas que o worker já processou (`weekly_batches`). Os formatos JSON que o
+A API não roda o modelo: ela lê o que o worker grava; todo período em
+`weekly_batches` fica visível. Os formatos JSON que o
 worker grava (evidências e métricas da semana) estão comentados em
 `db/init/002_tables.sql` e, completos, na seção [Worker](#worker).
 As rotas de dados aceitam `X-Dataset`; sem o cabeçalho usam `saml-d`. Um slug
@@ -169,8 +174,8 @@ terraform apply -var 'docker_host=npipe:////./pipe/docker_engine'   # Windows
 ## Worker
 
 O worker transforma as transações do Postgres na fila semanal de alertas. Ele processa uma
-semana (de segunda 00:00 à segunda seguinte) por vez, sempre lendo do banco; a API só mostra
-as semanas que o replay liberou. Precisa do grupo `ml` e de um modelo treinado em `models/`
+semana (de segunda 00:00 à segunda seguinte) por vez, sempre lendo do banco; a API mostra
+todo período processado. Precisa do grupo `ml` e de um modelo treinado em `models/`
 (`docs/model.md`).
 
 | Comando | O que faz |
@@ -178,8 +183,8 @@ as semanas que o replay liberou. Precisa do grupo `ml` e de um modelo treinado e
 | `python -m worker load [--csv CAMINHO]` | carrega o `data/SAML-D.csv` em `transactions`, `ground_truth` e `accounts`; uma vez, num banco vazio |
 | `python -m worker batch --week AAAA-MM-DD` | processa uma semana (a data é a segunda-feira) |
 | `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` | processa várias semanas, com as variáveis calculadas uma vez só; sem datas, da primeira semana depois do treino do modelo à última com transações |
-| `python -m worker replay` | processa a próxima semana com transações depois da última processada; não libera nada (liberar é o `POST /replay/next-week`) |
-| `python -m worker serve` | atende continuamente os trabalhos de `public.jobs`; o Compose inicia esse serviço por padrão |
+| `python -m worker replay` | compatibilidade: processa a próxima semana com transações depois da última processada |
+| `python -m worker serve` | atende `public.jobs`, recupera trabalho interrompido e agenda os conjuntos vencidos |
 
 `batch` e `backfill` aceitam `--force` (refaz uma semana já processada) e `--allow-in-sample`
 (aceita uma semana do período de treino do modelo). O worker sai com 0 quando dá certo ou não
@@ -198,8 +203,9 @@ uv run python -m worker backfill   # ~1,5 min e ~7 GB: as 14 semanas do teste (2
 docker compose up -d --build api web
 ```
 
-Depois, no app, libere uma semana por vez (o replay chama `POST /replay/next-week`). Pelo
-Docker: `docker compose run --rm worker load` e `docker compose run --rm worker backfill` (a
+Depois, todos os períodos processados já aparecem no app; novas rodadas usam **Processar
+agora** ou o agendador do `worker serve`. Pelo Docker: `docker compose run --rm worker load`
+e `docker compose run --rm worker backfill` (a
 imagem tem o grupo `ml`; `models/` e `data/` são montados, e o `data/SAML-D.csv` precisa ser
 um arquivo, não um atalho para fora da pasta). Tempos medidos num Mac de 16 GB.
 
@@ -235,8 +241,8 @@ treino, o worker e a suíte de testes ao mesmo tempo.
 | `alerts` | a fila: contas (nunca o CAIXA) com score de pelo menos o corte, até `queue_size` (300), da maior para a menor (empate: a conta menor primeiro). O score da conta é o maior das transações que ela enviou ou recebeu; `countries` vem pelo valor movimentado; `total_amount` e `transaction_count` resumem as transações da conta na semana; `typology` fica vazia (virá do parecer, frente 3) |
 | `evidence` | `contributions` (todas as variáveis, em log-odds, na transação de maior score da conta), `rules` (as de `db/rules/`, ver o README de lá), `weekly_signals` e `graph` vazio (a API monta o grafo) |
 | `accounts` | primeira e última transação das contas da semana (conta nova da ingestão entra aqui) e o segmento do K-Means das contas ativas, pelo perfil das 12 semanas anteriores |
-| `weekly_batches` | a semana, as contas ativas e as métricas contra o gabarito; `released_at` fica vazio até o replay |
-| `ingestions` | envios da API com transações na semana passam a `processing`, e a `completed` quando todas as semanas deles estão processadas |
+| `weekly_batches` | a semana, as contas ativas e as métricas contra o gabarito; `released_at` é legado e não controla visibilidade |
+| `ingestions` | envios `csv`, `api`, `simulation` ou `connection`; passam a `processing` e depois a `completed` |
 | `audit_log` | `actor = worker`, `action = batch`, `entity = week`, com alertas, versão do modelo e contas ativas |
 
 `evidence.weekly_signals`: `sent_count`, `received_count`, `sent_amount`, `received_amount`,

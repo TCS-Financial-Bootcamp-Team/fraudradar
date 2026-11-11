@@ -210,8 +210,7 @@ def run_replay(
     rules_dir: Path = RULES_DIR,
     dataset: Dataset | None = None,
 ) -> RunResult:
-    """A próxima semana com transações depois da última processada (ou a primeira depois do
-    treino). Não libera nada: liberar é o POST /replay/next-week da API."""
+    """Compatibilidade: processa a próxima semana depois da última já processada."""
     booster, card = _dataset_model(dataset, model_dir)
     first = first_out_of_sample_week(card)
     with engine.connect() as conn:
@@ -234,6 +233,59 @@ def run_replay(
         rules_dir=rules_dir,
         dataset=dataset,
     )
+
+
+def run_continuous(
+    engine: Engine,
+    *,
+    model_dir: Path | None = None,
+    rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
+) -> RunResult:
+    """Processa períodos ainda sem lote e recalcula somente o período aberto.
+
+    O período aberto é a semana da transação mais recente. Uma semana anterior pode ser
+    processada pela primeira vez, mas nunca é reescrita. Quando a quantidade de transações
+    do período aberto não mudou desde o lote anterior, a rodada termina sem carregar o
+    histórico e sem executar o modelo.
+    """
+    booster, card = _dataset_model(dataset, model_dir)
+    first = first_out_of_sample_week(card)
+    with engine.connect() as conn:
+        _scope(conn, dataset)
+        last = repository.last_transaction_at(conn)
+        if last is None:
+            return RunResult(notes=["nada novo: o conjunto não tem transações"])
+        open_week = monday(last.date())
+        if open_week < first:
+            return RunResult(
+                notes=["nada novo: não há período posterior ao treino do modelo para processar"]
+            )
+        _, end = repository.week_window(open_week)
+        weeks = sorted(
+            repository.weeks_with_transactions(conn, datetime.combine(first, time.min), end)
+        )
+        done = repository.processed_weeks(conn, weeks)
+        todo = [week for week in weeks if week not in done]
+        current_count = repository.transaction_count(conn, open_week)
+        previous_count = repository.processed_transaction_count(conn, open_week)
+        if open_week in done and previous_count != current_count:
+            todo.append(open_week)
+    if not todo:
+        return RunResult(notes=["nada novo: o período aberto não recebeu transações"])
+    result = RunResult()
+    _process(
+        engine,
+        sorted(set(todo)),
+        booster,
+        card,
+        force=False,
+        rules_dir=rules_dir,
+        result=result,
+        dataset=dataset,
+        recompute_open={open_week} if open_week in done else set(),
+    )
+    return result
 
 
 # --- planejamento e processamento ---------------------------------------------------------------
@@ -283,6 +335,7 @@ def _run(
             rules_dir=rules_dir,
             result=result,
             dataset=dataset,
+            recompute_open=set(),
         )
     return result
 
@@ -297,6 +350,7 @@ def _process(
     rules_dir: Path,
     result: RunResult,
     dataset: Dataset | None,
+    recompute_open: set[date],
 ):
     clock = perf_counter()
     history_start = datetime.combine(date.fromisoformat(card["history_start"]), time.min)
@@ -336,7 +390,15 @@ def _process(
         prepared = _prepare_week(week, tx, x, begin, stop, booster, card)
         with engine.begin() as conn:
             _scope(conn, dataset)
-            outcome = _write_week(conn, prepared, card, version, force=force, rules_dir=rules_dir)
+            outcome = _write_week(
+                conn,
+                prepared,
+                card,
+                version,
+                force=force,
+                preserve_decided=week in recompute_open,
+                rules_dir=rules_dir,
+            )
         if isinstance(outcome, str):
             result.notes.append(outcome)
             continue
@@ -427,29 +489,51 @@ def _accounts(week_tx, tx, active, week, card) -> pd.DataFrame:
 
 
 def _write_week(
-    conn: Connection, w: _Week, card: dict, version: str, *, force: bool, rules_dir: Path
+    conn: Connection,
+    w: _Week,
+    card: dict,
+    version: str,
+    *,
+    force: bool,
+    preserve_decided: bool,
+    rules_dir: Path,
 ) -> WeekResult | str:
     """Grava a semana. Volta uma nota (str) se outra execução gravou a semana antes."""
     repository.lock_worker(conn)
-    if not force and repository.processed_weeks(conn, [w.week]):
+    if not force and not preserve_decided and repository.processed_weeks(conn, [w.week]):
         return f"semana {w.week.isoformat()}: outra execução já processou, nada a fazer"
-    reason = repository.protection(conn, w.week, lock=True)
-    if reason:
-        raise WorkerError(
-            f"reprocessamento recusado ({w.week.isoformat()}: {reason})."
-            " O trabalho dos analistas nunca é apagado."
-        )
+    if preserve_decided:
+        latest = repository.last_transaction_at(conn)
+        if latest is None or monday(latest.date()) != w.week:
+            return f"semana {w.week.isoformat()}: o período fechou durante o processamento"
+    else:
+        reason = repository.protection(conn, w.week, lock=True)
+        if reason:
+            raise WorkerError(
+                f"reprocessamento recusado ({w.week.isoformat()}: {reason})."
+                " O trabalho dos analistas nunca é apagado."
+            )
     ids = w.tx["id"].to_numpy()
     repository.upsert_model_version(conn, version, card)
-    repository.clear_week(conn, w.week, version, ids)
+    decided_accounts = (
+        repository.clear_open_week(conn, w.week, version, ids) if preserve_decided else set()
+    )
+    if not preserve_decided:
+        repository.clear_week(conn, w.week, version, ids)
     repository.copy_scores(conn, ids, version, w.scores)
     repository.upsert_accounts(conn, w.accounts)
     fired = run_rules(conn, w.week, rules_dir)
-    repository.insert_alerts(conn, w.week, version, w.alerts)
-    evidence = [{**e, "rules": fired.get(e["account"], [])} for e in w.evidence]
+    alerts = [row for row in w.alerts if row["account"] not in decided_accounts]
+    repository.insert_alerts(conn, w.week, version, alerts)
+    evidence = [
+        {**e, "rules": fired.get(e["account"], [])}
+        for e in w.evidence
+        if e["account"] not in decided_accounts
+    ]
     repository.insert_evidence(conn, w.week, evidence)
     # Só agora, com a fila gravada, o gabarito é lido.
     metrics = week_metrics(conn, w.week, w.tx)
+    metrics["transaction_count"] = len(w.tx)
     repository.insert_weekly_batch(conn, w.week, version, w.active_accounts, metrics)
     repository.update_ingestions(conn, w.ingestions)
     repository.audit_batch(
@@ -460,12 +544,14 @@ def _write_week(
             "model_version": version,
             "active_accounts": w.active_accounts,
             "forced": force,
+            "preserved_decided_alerts": len(decided_accounts),
         },
     )
+    alert_count = repository.count_alerts(conn, w.week)
     return WeekResult(
         week=w.week,
         transactions=len(w.tx),
         active_accounts=w.active_accounts,
-        alerts=len(w.alerts),
+        alerts=alert_count,
         metrics=metrics,
     )

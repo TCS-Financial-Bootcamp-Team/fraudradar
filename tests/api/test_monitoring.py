@@ -160,16 +160,16 @@ def test_midweek_date_normalizes_to_monday(client, seed):
     assert _monitoring(client, W1 + timedelta(days=3))["indicators"]["alerts"] == 1
 
 
-def test_recall_series_released_and_metrics_filtering(client, seed):
-    # Semana 0: liberada com recall -> deve aparecer
+def test_recall_series_uses_all_processed_weeks_and_filters_missing_metrics(client, seed):
+    # Semana 0: processada com recall -> deve aparecer
     w0 = W1
     seed.batch(w0, metrics={"recall": 0.81}, released=True)
 
-    # Semana 1: liberada SEM métricas (e.g. ingestão manual/CSV sem gabarito) -> omitida
+    # Semana 1: processada SEM métricas (e.g. ingestão por API/CSV sem gabarito) -> omitida
     w1 = W1 + timedelta(weeks=1)
     seed.batch(w1, metrics={}, released=True)
 
-    # Semana 2: NÃO liberada (released_at IS NULL), com recall -> omitida
+    # Semana 2: processada e não marcada no replay legado, com recall -> aparece
     w2 = W1 + timedelta(weeks=2)
     seed.batch(w2, metrics={"recall": 0.90}, released=False)
 
@@ -184,6 +184,7 @@ def test_recall_series_released_and_metrics_filtering(client, seed):
     body = _monitoring(client, week=w3)
     assert body["recall_series"] == [
         {"name": week_label(w0), "value": 0.81},
+        {"name": week_label(w2), "value": 0.90},
         {"name": week_label(w3), "value": 0.86},
     ]
 

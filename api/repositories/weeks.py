@@ -1,4 +1,4 @@
-"""Semanas processadas pelo worker (`weekly_batches`) e o replay que as libera uma a uma."""
+"""Semanas processadas pelo worker e replay mantido somente por compatibilidade."""
 
 import json
 from datetime import date
@@ -9,14 +9,13 @@ from api.dependencies import User
 from api.domain import STATUS_FROM_FRONT
 
 
-def released_weeks(conn: Connection) -> list[RowMapping]:
+def processed_weeks(conn: Connection) -> list[RowMapping]:
     sql = """
         SELECT b.week,
                count(a.id) AS alerts,
                count(a.id) FILTER (WHERE a.status = ANY(:pending)) AS pending
         FROM weekly_batches b
         LEFT JOIN alerts a ON a.week = b.week
-        WHERE b.released_at IS NOT NULL
         GROUP BY b.week
         ORDER BY b.week DESC
     """
@@ -25,14 +24,14 @@ def released_weeks(conn: Connection) -> list[RowMapping]:
 
 
 def next_release(conn: Connection) -> date | None:
-    """A semana que o próximo replay libera: a processada mais antiga ainda não liberada."""
+    """Compatibilidade do replay antigo; não controla mais a visibilidade."""
     return conn.execute(
         text("SELECT min(week) FROM weekly_batches WHERE released_at IS NULL")
     ).scalar()
 
 
 def release_next_week(conn: Connection, user: User) -> tuple[date, int] | None:
-    """Libera a semana processada mais antiga ainda não exibida. None se não houver."""
+    """Marca a coluna legada sem alterar a visibilidade das semanas."""
     # Dois cliques simultâneos liberam duas semanas em sequência, nunca a mesma duas vezes.
     conn.execute(text("SELECT pg_advisory_xact_lock(hashtext('fraudradar.replay'))"))
     week = conn.execute(

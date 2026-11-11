@@ -4,7 +4,7 @@ from sqlalchemy import text
 
 from fraudradar.datasets import create_dataset, use_dataset
 from worker.batch import RunResult
-from worker.jobs import process_next_job
+from worker.jobs import process_next_job, recover_stale_jobs, schedule_due_process_jobs
 
 
 def _enqueue(db, *, kind="process", dataset="saml-d") -> int:
@@ -66,7 +66,7 @@ def test_process_job_resolves_and_runs_on_the_registered_schema(db, monkeypatch)
     job_id = _enqueue(db, dataset="worker-base")
     observed = {}
 
-    def fake_replay(engine, *, dataset, **_options):
+    def fake_continuous(engine, *, dataset, **_options):
         with engine.connect() as conn:
             use_dataset(conn, dataset)
             observed["schema"] = conn.execute(text("SELECT current_schema()")).scalar_one()
@@ -75,7 +75,104 @@ def test_process_job_resolves_and_runs_on_the_registered_schema(db, monkeypatch)
             ).scalar_one()
         return RunResult()
 
-    monkeypatch.setattr("worker.batch.run_replay", fake_replay)
+    monkeypatch.setattr("worker.batch.run_continuous", fake_continuous)
     process_next_job(db)
     assert _job(db, job_id)["status"] == "done"
     assert observed == {"schema": "ds_worker_base", "markers": 1}
+
+
+def test_scheduler_enqueues_a_due_dataset_only_once(db):
+    with db.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE public.processing_settings SET next_run_at = now() - interval '1 minute'"
+                " WHERE dataset = 'saml-d'"
+            )
+        )
+    assert schedule_due_process_jobs(db) == 1
+    assert schedule_due_process_jobs(db) == 0
+    with db.connect() as conn:
+        assert (
+            conn.execute(
+                text(
+                    "SELECT count(*) FROM public.jobs WHERE dataset = 'saml-d'"
+                    " AND kind = 'process' AND status = 'queued'"
+                )
+            ).scalar_one()
+            == 1
+        )
+
+
+def test_stale_running_job_is_failed(db):
+    with db.begin() as conn:
+        job_id = conn.execute(
+            text(
+                "INSERT INTO public.jobs"
+                " (kind, dataset, status, progress, message, created_by, started_at)"
+                " VALUES ('process', 'saml-d', 'running', 42, 'Em curso', 'Teste',"
+                " now() - interval '3 hours') RETURNING id"
+            )
+        ).scalar_one()
+    assert recover_stale_jobs(db) == 1
+    row = _job(db, job_id)
+    assert (row["status"], row["progress"], row["message"]) == (
+        "failed",
+        0,
+        "Trabalho interrompido",
+    )
+
+
+def test_simulator_job_creates_one_flagged_ingestion_without_ground_truth(loaded):
+    with loaded.begin() as conn:
+        last_before = conn.execute(text("SELECT max(occurred_at) FROM transactions")).scalar_one()
+        truth_before = conn.execute(text("SELECT count(*) FROM ground_truth")).scalar_one()
+        job_id = conn.execute(
+            text(
+                "INSERT INTO public.jobs (kind, dataset, payload, created_by)"
+                " VALUES ('simulate', 'saml-d',"
+                ' \'{"transactions": 50, "days": 2, "inject_pattern": true}\'::jsonb,'
+                " 'Teste') RETURNING id"
+            )
+        ).scalar_one()
+
+    assert process_next_job(loaded) is True
+    assert _job(loaded, job_id)["status"] == "done"
+    with loaded.connect() as conn:
+        ingestion = (
+            conn.execute(
+                text("SELECT id, source, row_count FROM ingestions WHERE source = 'simulation'")
+            )
+            .mappings()
+            .one()
+        )
+        simulated = (
+            conn.execute(
+                text(
+                    "SELECT count(*) AS count, min(occurred_at) AS first_at,"
+                    " bool_and(sender IN (SELECT account FROM accounts)) AS senders_exist,"
+                    " bool_and(receiver IN (SELECT account FROM accounts)) AS receivers_exist"
+                    " FROM transactions WHERE ingestion_id = :id"
+                ),
+                {"id": ingestion["id"]},
+            )
+            .mappings()
+            .one()
+        )
+        assert dict(ingestion) == {
+            "id": ingestion["id"],
+            "source": "simulation",
+            "row_count": 50,
+        }
+        assert simulated["count"] == 50
+        assert simulated["first_at"].date() > last_before.date()
+        assert simulated["senders_exist"] and simulated["receivers_exist"]
+        assert conn.execute(text("SELECT count(*) FROM ground_truth")).scalar_one() == truth_before
+        assert (
+            conn.execute(
+                text(
+                    "SELECT count(*) FROM public.jobs WHERE kind = 'process'"
+                    " AND status = 'queued' AND dataset = 'saml-d'"
+                )
+            ).scalar_one()
+            == 1
+        )

@@ -3,7 +3,7 @@
 python -m worker load [--csv CAMINHO]                     # carrega o SAML-D no Postgres (uma vez)
 python -m worker batch --week 2023-05-22 [--force] [--allow-in-sample]
 python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--force] [--allow-in-sample]
-python -m worker replay                                   # processa a próxima semana
+python -m worker replay                         # compatibilidade: processa a próxima semana
 
 Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py` e
 `worker/batch.py`. Sai com 0 quando dá certo ou não há nada a fazer, e com 1 em erro, com uma
@@ -50,7 +50,7 @@ def _parser() -> argparse.ArgumentParser:
     reprocess.add_argument(
         "--force",
         action="store_true",
-        help="refaz semana já processada (recusado se já liberada ou com decisão de analista)",
+        help="refaz semana já processada (recusado se houver trabalho de analista)",
     )
     reprocess.add_argument(
         "--allow-in-sample",
@@ -85,7 +85,7 @@ def _parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "replay",
         parents=[scoped],
-        help="processa a próxima semana ainda não processada (liberar é o POST /replay/next-week)",
+        help="compatibilidade: processa a próxima semana ainda não processada",
     )
     sub.add_parser("serve", help="executa os trabalhos em segundo plano")
     return p
@@ -172,8 +172,7 @@ def _batch(args) -> int:
         log.info("%s", note)
     if result.processed:
         log.info(
-            "pronto: %d semana(s) processada(s) em %.0f s; para mostrá-las no app, libere uma"
-            " por vez (POST /replay/next-week)",
+            "pronto: %d semana(s) processada(s) e disponível(is) no app em %.0f s",
             len(result.processed),
             perf_counter() - clock,
         )

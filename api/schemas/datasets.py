@@ -21,7 +21,7 @@ class DatasetResponse(BaseModel):
 
 class JobResponse(BaseModel):
     id: str
-    kind: Literal["import", "process", "train"]
+    kind: Literal["import", "process", "simulate", "train"]
     dataset: str
     status: Literal["queued", "running", "done", "failed"]
     progress: int = Field(ge=0, le=100)
