@@ -12,6 +12,7 @@ from sqlalchemy import Engine, text
 
 from fraudradar.datasets import DatasetNotFoundError, resolve_dataset
 from worker.errors import WorkerError
+from worker.train_job import train_handler
 
 log = logging.getLogger("worker.jobs")
 
@@ -125,7 +126,7 @@ def process_handler(engine: Engine, job: Job, progress: Progress) -> None:
 DEFAULT_HANDLERS: Mapping[str, Handler] = {
     "import": _not_implemented("import"),
     "process": process_handler,
-    "train": _not_implemented("train"),
+    "train": train_handler,
 }
 
 

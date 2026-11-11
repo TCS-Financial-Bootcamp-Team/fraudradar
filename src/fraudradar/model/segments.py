@@ -21,6 +21,8 @@ def fit_segments(profiles: pd.DataFrame, ks=range(3, 9), seed: int = 0) -> dict:
     mean, std = z.mean(axis=0), z.std(axis=0) + 1e-9
     z = (z - mean) / std
     sample = np.random.default_rng(seed).choice(len(z), min(20_000, len(z)), replace=False)
+    # Conjuntos pequenos: o K-Means precisa de menos grupos que contas e a silhueta de pelo menos 2.
+    ks = [k for k in ks if 2 <= k < len(z)] or [min(2, len(z) - 1)]
     fits = {k: KMeans(k, n_init=5, random_state=seed).fit(z) for k in ks}
     silhouette = {k: float(silhouette_score(z[sample], f.labels_[sample])) for k, f in fits.items()}
     k = max(silhouette, key=silhouette.get)

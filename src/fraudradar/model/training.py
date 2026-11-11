@@ -9,6 +9,7 @@ transação usa só as variáveis, e o modelo nunca vê o gabarito do teste.
 import json
 import platform
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -50,6 +51,42 @@ LIGHTGBM_PARAMS = {
 }
 
 
+@dataclass(frozen=True)
+class Split:
+    """Divisão no tempo em semanas inteiras: treino até `train_end` (domingo, inclusive), sendo
+    as semanas desde `validation_start` (segunda) a validação; o teste vem depois."""
+
+    train_end: str
+    validation_start: str
+
+
+OFFICIAL_SPLIT = Split(TRAIN_END, VALIDATION_START)
+# Conjuntos que não cobrem as datas do SAML-D: a última fração das semanas vira teste e as
+# semanas antes dele, validação (no máximo 4, como no oficial).
+TEST_SHARE = 0.25
+VALIDATION_SHARE = 0.15
+MAX_VALIDATION_WEEKS = 4
+
+
+def resolve_split(transactions: pd.DataFrame) -> Split:
+    """A divisão oficial quando o dado a cobre (o SAML-D); senão uma proporcional, sempre no
+    tempo e em semanas inteiras."""
+    first, last = transactions["occurred_at"].min(), transactions["occurred_at"].max()
+    covers_official = first < pd.Timestamp(VALIDATION_START) and last >= pd.Timestamp(
+        TRAIN_END
+    ) + pd.Timedelta(days=1)
+    if covers_official:
+        return OFFICIAL_SPLIT
+    monday = first.normalize() - pd.Timedelta(days=first.weekday())
+    last_monday = last.normalize() - pd.Timedelta(days=last.weekday())
+    weeks = (last_monday - monday).days // 7 + 1
+    test_weeks = max(1, round(weeks * TEST_SHARE))
+    validation_weeks = max(1, min(MAX_VALIDATION_WEEKS, round(weeks * VALIDATION_SHARE)))
+    train_end = monday + pd.Timedelta(weeks=weeks - test_weeks) - pd.Timedelta(days=1)
+    validation_start = train_end + pd.Timedelta(days=1) - pd.Timedelta(weeks=validation_weeks)
+    return Split(train_end.date().isoformat(), validation_start.date().isoformat())
+
+
 @dataclass
 class TrainingData:
     """O que o modelo recebe. Uma posição por transação, em ordem de tempo, igual em todos os
@@ -69,6 +106,7 @@ def build_training_data(
     ground_truth: pd.DataFrame,
     features: pd.DataFrame,
     excluded=EXCLUDED_FEATURES,
+    split: Split = OFFICIAL_SPLIT,
 ) -> tuple[TrainingData, pd.DataFrame]:
     """Alinha tudo na ordem das variáveis e separa o gabarito, que só a avaliação lê.
 
@@ -79,8 +117,8 @@ def build_training_data(
     tx = with_cash_account(transactions).set_index("id").loc[ids]
     labels = ground_truth.set_index("transaction_id").loc[ids]
     when = tx["occurred_at"]
-    until_train_end = (when < pd.Timestamp(TRAIN_END) + pd.Timedelta(days=1)).to_numpy()
-    validation = until_train_end & (when >= VALIDATION_START).to_numpy()
+    until_train_end = (when < pd.Timestamp(split.train_end) + pd.Timedelta(days=1)).to_numpy()
+    validation = until_train_end & (when >= split.validation_start).to_numpy()
     y = labels["label"].to_numpy("int8")
     data = TrainingData(
         x=features.drop(columns=["id", *excluded]).reset_index(drop=True),
@@ -158,16 +196,51 @@ def save_model(transactions: pd.DataFrame, ground_truth: pd.DataFrame, folder=No
 
     As variáveis são calculadas aqui, com o código atual, e nunca lidas de um arquivo guardado.
     """
+    return train_version(transactions, ground_truth, folder, split=OFFICIAL_SPLIT, official=True)
+
+
+def train_version(
+    transactions: pd.DataFrame,
+    ground_truth: pd.DataFrame,
+    folder=None,
+    *,
+    split: Split | None = None,
+    official: bool = False,
+    first_version: int = 1,
+    progress: Callable[[int, str], None] | None = None,
+) -> dict:
+    """O treino de `save_model` com a divisão e a numeração escolhidas por quem chama.
+
+    `split`: padrão, a de `resolve_split` (a oficial no SAML-D). `first_version`: a versão nova
+    nunca é menor que ele (um conjunto numera depois do modelo oficial, para o nome da versão
+    ser único no banco). `official`: copia o modelo para MODEL_FILE. `progress(0..100, texto)`
+    é chamado a cada etapa. O gabarito só treina e mede; o score de cada transação usa só as
+    variáveis.
+    """
+    report = progress or (lambda _percent, _message: None)
     folder = Path(folder or get_settings().model_dir)
-    data, truth = build_training_data(transactions, ground_truth, compute_features(transactions))
+    split = split or resolve_split(transactions)
+    report(0, "Calculando as variáveis das transações.")
+    features = compute_features(transactions)
+    report(25, "Montando a base com a divisão no tempo.")
+    data, truth = build_training_data(transactions, ground_truth, features, split=split)
+    del features
+    if not (truth["y"].to_numpy()[data.train] == 1).any():
+        raise ValueError("o período de treino não tem nenhuma transação rotulada como lavagem")
+    report(40, "Treinando o LightGBM.")
     model = train_lightgbm(data)
+    report(65, "Medindo no período de teste.")
     score = model.predict_proba(data.x)[:, 1]
     metrics, by_typology = evaluate(score, data, truth)
     queue = queue_with_cut(score, data, truth, targets=(QUEUE_TARGET,)).iloc[-1]
     y, va, te = truth["y"].to_numpy(), data.validation, data.test
     threshold = recall_at_fpr(y[va], score[va])[1]
-    profiles = account_profile(transactions, until=pd.Timestamp(TRAIN_END) + pd.Timedelta(days=1))
+    report(80, "Agrupando as contas em segmentos.")
+    until = pd.Timestamp(split.train_end) + pd.Timedelta(days=1)
+    profiles = account_profile(transactions, until=until)
+    report(90, "Gravando a versão do modelo.")
     version = 1 + max(_versions(folder), default=0)
+    version = max(version, first_version)
     name = f"lightgbm_v{version}"
     folder.mkdir(parents=True, exist_ok=True)
     model.booster_.save_model(folder / f"{name}.txt", num_iteration=model.best_iteration_)
@@ -182,8 +255,8 @@ def save_model(transactions: pd.DataFrame, ground_truth: pd.DataFrame, folder=No
         "params": LIGHTGBM_PARAMS,
         "trees": int(model.best_iteration_),
         "history_start": transactions["occurred_at"].min().date().isoformat(),
-        "validation_start": VALIDATION_START,
-        "train_end": TRAIN_END,
+        "validation_start": split.validation_start,
+        "train_end": split.train_end,
         "week_start": "monday",
         "transaction_threshold": float(threshold),
         "queue_size": QUEUE_SIZE,
@@ -225,7 +298,8 @@ def save_model(transactions: pd.DataFrame, ground_truth: pd.DataFrame, folder=No
     (folder / f"{name}.json").write_text(
         json.dumps(card, indent=2, ensure_ascii=False), encoding="utf-8"
     )
-    shutil.copyfile(folder / f"{name}.txt", folder / get_settings().model_file)
+    if official:
+        shutil.copyfile(folder / f"{name}.txt", folder / get_settings().model_file)
     return card
 
 

@@ -37,6 +37,34 @@ em `lightgbm_model.txt`, o arquivo que o health da API confere. A ficha traz as 
 categorias, os parâmetros, os cortes, os segmentos e as métricas no teste. O CI instala o
 grupo `ml`: os testes do modelo e do worker rodam lá também.
 
+## Retreino por conjunto de dados
+
+Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/lightgbm_vN.txt` e
+`.json`. O desenho está em [external-data.md](external-data.md#retreino).
+
+- **Pedido**: em Monitoramento, "Treinar nova versão" chama `POST /datasets/{slug}/train` e o
+  `worker serve` executa o trabalho `train` (`worker/train_job.py`), com progresso em
+  `GET /jobs/{id}`. A API recusa (409, com o motivo em português) quando o conjunto não tem
+  gabarito, tem menos de 6 semanas rotuladas (`MIN_LABELED_WEEKS`), não tem nenhuma lavagem ou já
+  tem um treino na fila. A regra é `fraudradar.model.eligibility`, a mesma na API e no worker.
+- **Dado**: transações que têm gabarito, lidas do schema do conjunto. As variáveis são as de
+  `compute_features`, com a configuração oficial (21 variáveis, mesmos parâmetros). O gabarito
+  só vira alvo do treino e régua de teste.
+- **Divisão no tempo** (`training.resolve_split`): no SAML-D (ou em qualquer dado que cubra as datas
+  oficiais) vale a oficial (treino até 2023-05-21, validação a partir de 2023-04-24). Em outro
+  período, o último quarto das semanas vira teste e as semanas antes dele (15%, no máximo 4)
+  validação. Sempre em semanas inteiras e nunca embaralhado. `train_end` e `validation_start`
+  vão na ficha; o worker só processa semanas depois de `train_end`.
+- **Versões**: a numeração continua depois do modelo oficial (`models/lightgbm_vN`), porque o
+  nome da versão é chave em `model_versions`. A ficha tem os mesmos campos de métrica da oficial.
+  O retreino não copia nada para `lightgbm_model.txt`.
+- **Promoção**: a versão nova não é usada sozinha. `POST /datasets/{slug}/models/{versão}/promote`
+  grava `datasets.active_model_version` e uma linha em `audit_log` (`model_promoted`, com a versão
+  anterior). Promover o modelo oficial limpa o campo (volta a seguir o oficial mais novo). As
+  próximas rodadas do worker usam a versão ativa; períodos fechados não mudam.
+- **Memória**: o treino no SAML-D inteiro usa ~7 GB, como o `train` pelo CSV. O trabalho lê por
+  COPY com arquivo temporário e solta as variáveis assim que monta a base.
+
 ## Configuração oficial, e por quê
 
 - **Divisão no tempo, nunca embaralhada:** treino até 23/04/2023, validação de 24/04 a
