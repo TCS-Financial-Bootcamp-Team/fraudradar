@@ -5,14 +5,19 @@ python -m worker batch --week 2023-05-22 [--force] [--allow-in-sample]
 python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--force] [--allow-in-sample]
 python -m worker replay                         # compatibilidade: processa a próxima semana
 python -m worker labels [--dataset SLUG]        # mede o gabarito e grava no registro dos conjuntos
+python -m worker simulate-analyst [--dataset SLUG] [--from DATA] [--to DATA] [--error-rate 0.1]
+                                  [--insufficient-rate 0.2] [--seed N] [--undo]
+python -m worker feedback-eval [--dataset SLUG] [--include-simulated]
 
 Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py`,
-`worker/batch.py` e `worker/labels.py`. Sai com 0 quando dá certo ou não há nada a fazer, e com
-1 em erro, com uma mensagem que diz o que rodar.
+`worker/batch.py`, `worker/labels.py`, `worker/simulate_analyst.py` e `worker/feedback_eval.py`.
+Sai com 0 quando dá certo ou não há nada a fazer, e com 1 em erro, com uma mensagem que diz o
+que rodar.
 """
 
 import argparse
 import logging
+from datetime import date
 from pathlib import Path
 from time import perf_counter
 
@@ -105,6 +110,46 @@ def _parser() -> argparse.ArgumentParser:
     labels.add_argument(
         "--dataset", metavar="SLUG", help="só este conjunto (padrão: todos os registrados)"
     )
+    simulate = sub.add_parser(
+        "simulate-analyst",
+        parents=[scoped],
+        help=(
+            "decide pelo gabarito os alertas sem decisão das semanas fechadas (demonstração do"
+            " retorno dos analistas; docs/analyst-feedback.md)"
+        ),
+    )
+    simulate.add_argument(
+        "--from", dest="start", metavar="AAAA-MM-DD", help="primeira data (padrão: o início)"
+    )
+    simulate.add_argument(
+        "--to", dest="end", metavar="AAAA-MM-DD", help="última data (padrão: a última fechada)"
+    )
+    simulate.add_argument(
+        "--error-rate", type=float, default=0.1, help="chance de a conclusão sair trocada (0,1)"
+    )
+    simulate.add_argument(
+        "--insufficient-rate",
+        type=float,
+        default=0.2,
+        help="chance de um arquivamento sair sem evidência suficiente, sem rótulo (0,2)",
+    )
+    simulate.add_argument("--seed", type=int, default=108, help="semente do sorteio (108)")
+    simulate.add_argument(
+        "--undo",
+        action="store_true",
+        help="desfaz: apaga as decisões e os rótulos simulados e volta os alertas para new",
+    )
+    evaluate = sub.add_parser(
+        "feedback-eval",
+        parents=[scoped],
+        help=(
+            "treina, na mesma divisão, um modelo só com o gabarito e outro com o retorno dos"
+            " analistas e grava a comparação em models/<slug>/feedback-eval-*.json"
+        ),
+    )
+    evaluate.add_argument(
+        "--include-simulated", action="store_true", help="inclui o retorno do analista simulado"
+    )
     return p
 
 
@@ -176,6 +221,95 @@ def _labels(args) -> int:
     return 0
 
 
+def _parse_date(value: str | None, flag: str) -> date | None:
+    if value is None:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise WorkerError(f"{flag} {value}: use a data no formato AAAA-MM-DD") from None
+
+
+def _simulate(args) -> int:
+    from worker.simulate_analyst import _check_rate, simulate_analyst, undo_simulation
+
+    start = _parse_date(args.start, "--from")
+    end = _parse_date(args.end, "--to")
+    _check_rate("--error-rate", args.error_rate)
+    _check_rate("--insufficient-rate", args.insufficient_rate)
+    _require_database()
+    dataset = _dataset(args.dataset)
+    if args.undo:
+        undone = undo_simulation(get_engine(), dataset)
+        log.info(
+            "simulação desfeita: %d decisões e %d rótulos apagados, %d alertas de volta a new",
+            undone.decisions,
+            undone.labels,
+            undone.alerts_reset,
+        )
+        return 0
+    result = simulate_analyst(
+        get_engine(),
+        dataset,
+        start=start,
+        end=end,
+        error_rate=args.error_rate,
+        insufficient_rate=args.insufficient_rate,
+        seed=args.seed,
+    )
+    if not result.decided:
+        log.info("nada a decidir: nenhum alerta sem decisão nas semanas fechadas pedidas")
+        return 0
+    log.info(
+        "%d alertas decididos em %d semana(s) (%s a %s): %d comunicados, %d falsos positivos"
+        " confirmados, %d sem evidência suficiente (sem rótulo); %d com a conclusão trocada de"
+        " propósito",
+        result.decided,
+        len(result.weeks),
+        result.weeks[0].isoformat(),
+        result.weeks[-1].isoformat(),
+        result.reported,
+        result.false_positive,
+        result.insufficient_evidence,
+        result.flipped,
+    )
+    if result.without_truth:
+        log.info("%d alertas sem transação rotulada ficaram sem decisão", result.without_truth)
+    return 0
+
+
+def _feedback_eval(args) -> int:
+    _require_database()
+    try:
+        from worker.feedback_eval import run_feedback_eval
+    except ModuleNotFoundError as exc:  # lightgbm e scikit-learn ficam no grupo ml
+        raise WorkerError(
+            f"falta o pacote {exc.name}: o experimento precisa do grupo ml (uv sync --group ml)"
+        ) from exc
+    clock = perf_counter()
+    path, result = run_feedback_eval(
+        get_engine(), _dataset(args.dataset), include_simulated=args.include_simulated
+    )
+
+    def line(name: str, metrics: dict) -> str:
+        def pct(key):
+            value = metrics.get(key)
+            return "-" if value is None else f"{value:.1%}".replace(".", ",")
+
+        innocents = metrics.get("innocents_per_week")
+        return (
+            f"{name}: PR-AUC {metrics['pr_auc']:.3f}, fila com corte: recall {pct('queue_recall')},"
+            f" precisão {pct('queue_precision')},"
+            f" {'-' if innocents is None else f'{innocents:.1f}'} inocentes por semana"
+        )
+
+    log.info("treino até %s; teste depois disso", result["split"]["train_end"])
+    log.info("%s", line("controle (só o gabarito)", result["control"]))
+    log.info("%s", line("tratamento (gabarito + retorno)", result["treatment"]))
+    log.info("resultado em %s (%.0f s)", path, perf_counter() - clock)
+    return 0
+
+
 def _batch(args) -> int:
     # Os argumentos são conferidos antes de tudo: data errada não espera o banco nem o modelo.
     dates = {
@@ -222,6 +356,10 @@ def main(argv: list[str] | None = None) -> int:
             return _load(args)
         if args.command == "labels":
             return _labels(args)
+        if args.command == "simulate-analyst":
+            return _simulate(args)
+        if args.command == "feedback-eval":
+            return _feedback_eval(args)
         if args.command == "serve":
             _require_database()
             from worker.jobs import serve

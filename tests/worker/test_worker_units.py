@@ -234,11 +234,13 @@ def test_dataset_active_model_uses_its_own_folder(monkeypatch, tmp_path):
 
 
 def test_only_metrics_reads_ground_truth():
-    """O gabarito só é lido em worker/metrics.py (notas) e worker/labels.py (resumo do registro)."""
+    """O gabarito só é lido em worker/metrics.py (métricas do lote), worker/labels.py (resumo do
+    registro) e worker/simulate_analyst.py (o analista simulado decide por ele); o treino e o
+    feedback-eval o leem pelo pacote do modelo (fraudradar.model.dataset_data)."""
     reads = re.compile(r"\b(FROM|JOIN)\s+ground_truth\b", re.IGNORECASE)
     readers = {
         path.name
         for path in Path(ROOT_DIR, "worker").glob("*.py")
         if reads.search(path.read_text(encoding="utf-8"))
     }
-    assert readers == {"metrics.py", "labels.py"}
+    assert readers == {"metrics.py", "labels.py", "simulate_analyst.py"}
