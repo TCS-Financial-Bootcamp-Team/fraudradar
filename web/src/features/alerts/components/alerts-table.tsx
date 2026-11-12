@@ -16,6 +16,12 @@ export const statusLabels: Record<AlertStatus, string> = {
   reported: "Para comunicação",
 };
 
+export function getAlertLinkLabel(
+  alert: Pick<Alert, "id" | "account">,
+): string {
+  return `Abrir alerta ${alert.id}, conta ${alert.account}`;
+}
+
 // Status = ponto colorido + texto na cor do texto (nunca texto colorido).
 const statusDots: Record<AlertStatus, string> = {
   pending: "bg-chart-muted",
@@ -123,7 +129,10 @@ export function AlertsTable({
         </thead>
         <tbody>
           {items.map((alert) => (
-            <tr key={alert.id} className="hover:bg-soft/60">
+            <tr
+              key={alert.id}
+              className="relative cursor-pointer transition-colors hover:bg-soft/60 focus-within:bg-soft/60"
+            >
               <td
                 className={`${cell} pl-0 font-mono text-xs text-muted-foreground`}
               >
@@ -132,7 +141,8 @@ export function AlertsTable({
               <td className={cell}>
                 <Link
                   href={"/alerts/" + alert.id}
-                  className="font-medium underline decoration-border underline-offset-[3px] hover:decoration-current"
+                  aria-label={getAlertLinkLabel(alert)}
+                  className="font-medium underline decoration-border underline-offset-[3px] after:absolute after:inset-0 after:z-10 after:content-[''] hover:decoration-current focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
                 >
                   {alert.id}
                 </Link>

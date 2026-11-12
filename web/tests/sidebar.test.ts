@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import {
   SIDEBAR_COOKIE,
@@ -91,4 +92,21 @@ test("sidebar: getAlertIdFromPathname detecta alertas em rotas de detalhe", () =
   assert.equal(getAlertIdFromPathname("/alerts/"), undefined);
   assert.equal(getAlertIdFromPathname("/dashboard"), undefined);
   assert.equal(getAlertIdFromPathname(""), undefined);
+});
+
+test("sidebar: tooltip recolhido usa portal acima da moldura e alinhado ao item", () => {
+  const tooltip = readFileSync("src/components/ui/tooltip.tsx", "utf8");
+  const accountMenu = readFileSync(
+    "src/components/layout/account-menu.tsx",
+    "utf8",
+  );
+
+  assert.match(tooltip, /<Tooltip\.Portal>/);
+  assert.match(tooltip, /side="right"/);
+  assert.match(tooltip, /align="center"/);
+  assert.match(tooltip, /sideOffset=\{10\}/);
+  assert.match(tooltip, /className="z-\[90\]"/);
+  assert.match(tooltip, /bg-foreground/);
+  assert.match(tooltip, /text-background/);
+  assert.match(accountMenu, /<CollapsedTooltip label=\{`\$\{name\} .* conta`\}/);
 });
