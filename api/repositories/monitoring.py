@@ -1,8 +1,9 @@
 """Números do monitoramento de uma semana.
 
-O que muda com o trabalho do analista (revisados, comunicados) é contado em `alerts`;
-a avaliação contra o gabarito (recall, acerto, taxas) vem pronta do worker em
-`weekly_batches.metrics`: a API nunca lê `ground_truth`.
+O que muda com o trabalho do analista (revisados, comunicados) é contado em `alerts`; as taxas de
+alerta por país e por meio de pagamento vêm prontas do worker em `weekly_batches.metrics`. O
+recall e o acerto de tipologia que o worker também grava ali (avaliação de desenvolvimento,
+contra o gabarito) não vão para as telas. A API nunca lê `ground_truth`.
 
 Alerta, aqui, é a conta que passou do corte da fila (`alerts.origin = 'model'`). A amostra de
 controle (`exploration`) fica fora de todas as contagens: o resultado dela aparece no retorno
@@ -84,25 +85,6 @@ def distribution(conn: Connection, week: date, by: str) -> list[RowMapping]:
         ORDER BY value DESC, name
     """
     return list(conn.execute(text(sql), {"week": week, "undefined": undefined}).mappings())
-
-
-def recall_series(conn: Connection, week: date) -> list[dict[str, object]]:
-    """Série do recall dos períodos processados, omitindo os que não têm a métrica."""
-    sql = """
-        SELECT week, metrics
-        FROM weekly_batches
-        WHERE week <= :week
-        ORDER BY week ASC
-    """
-    rows = conn.execute(text(sql), {"week": week}).mappings()
-    series: list[dict[str, object]] = []
-    for row in rows:
-        metrics = row["metrics"]
-        if isinstance(metrics, dict):
-            recall = clamp_rate(metrics.get("recall"))
-            if recall is not None:
-                series.append({"name": week_label(row["week"]), "value": recall})
-    return series
 
 
 def score_histogram(conn: Connection, week: date) -> list[dict[str, object]]:

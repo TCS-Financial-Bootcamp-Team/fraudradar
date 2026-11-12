@@ -40,8 +40,6 @@ def get_monitoring(week: date, conn: DbConnection) -> Monitoring:
             reported=counts["reported"],
             alert_rate=repo.clamp_rate(alert_rate) or 0.0,
             flagged_amount=float(counts["flagged_amount"]),
-            recall=repo.clamp_rate(metrics.get("recall")),
-            typology_accuracy=repo.clamp_rate(metrics.get("typology_accuracy")),
         ),
         weeks=[
             Series(name=repo.week_label(row["week"]), value=row["alerts"])
@@ -51,7 +49,6 @@ def get_monitoring(week: date, conn: DbConnection) -> Monitoring:
         countries=[Series(**row) for row in repo.distribution(conn, week, "country")],
         country_rates=_rate_series(metrics.get("country_rates")),
         payment_type_rates=_rate_series(metrics.get("payment_type_rates")),
-        recall_series=[Series(**item) for item in repo.recall_series(conn, week)],
         score_histogram=[Series(**item) for item in repo.score_histogram(conn, week)],
         status_counts=StatusCounts(**repo.status_counts(conn, week)),
     )

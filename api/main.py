@@ -8,6 +8,7 @@ from api.routes import (
     alerts,
     datasets,
     decisions,
+    feedback,
     health,
     ingestion,
     monitoring,
@@ -42,6 +43,7 @@ def create_app() -> FastAPI:
         ingestion,
         datasets,
         processing,
+        feedback,
     ):
         app.include_router(module.router, dependencies=protected)
     app.include_router(model_routes.router, dependencies=protected)

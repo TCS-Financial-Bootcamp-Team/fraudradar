@@ -1,5 +1,6 @@
 """GET /monitoring."""
 
+import json
 from datetime import date, timedelta
 
 import pytest
@@ -24,11 +25,7 @@ def test_empty_week_zeros_everything(client):
     assert ind["reported"] == 0
     assert ind["alert_rate"] == 0.0
     assert ind["flagged_amount"] == 0.0
-    assert ind["recall"] is None
-    assert ind["typology_accuracy"] is None
-    assert all(
-        body[series] == [] for series in ("weeks", "typologies", "countries", "recall_series")
-    )
+    assert all(body[series] == [] for series in ("weeks", "typologies", "countries"))
     assert body["country_rates"] == body["payment_type_rates"] == []
     assert body["score_histogram"] == [{"name": b, "value": 0} for b in SCORE_HISTOGRAM_BINS]
     assert body["status_counts"] == {"pending": 0, "escalated": 0, "archived": 0, "reported": 0}
@@ -59,14 +56,18 @@ def test_approved_report_counts_once(client, seed):
     assert _monitoring(client)["indicators"]["reported"] == 1
 
 
-def test_alert_rate_and_batch_metrics(client, seed):
+def test_alert_rate_and_no_ground_truth_metric_on_screen(client, seed):
+    """O recall e o acerto de tipologia que o worker grava no lote são avaliação de
+    desenvolvimento: o monitoramento não os serve (uma plataforma real não tem gabarito)."""
     seed.batch(W1, active_accounts=200, metrics={"recall": 0.79, "typology_accuracy": 0.5})
     for acc in range(1, 6):
         seed.alert(acc, W1)
-    indicators = _monitoring(client)["indicators"]
+    body = _monitoring(client)
+    indicators = body["indicators"]
     assert indicators["alert_rate"] == pytest.approx(5 / 200)
-    assert indicators["recall"] == 0.79
-    assert indicators["typology_accuracy"] == 0.5
+    assert "recall" not in indicators and "typology_accuracy" not in indicators
+    assert "recall_series" not in body
+    assert "recall" not in json.dumps(body)
 
 
 @pytest.mark.parametrize(
@@ -97,8 +98,6 @@ def test_clamp_rate_rejects_non_finite():
 def test_invalid_worker_metrics_do_not_crash_route(client, seed):
     seed.batch(W1, metrics={"recall": "alto", "typology_accuracy": 3, "country_rates": [1, 2]})
     body = _monitoring(client)
-    assert body["indicators"]["recall"] is None
-    assert body["indicators"]["typology_accuracy"] == 1.0
     assert body["country_rates"] == []
 
 
@@ -160,35 +159,6 @@ def test_midweek_date_normalizes_to_monday(client, seed):
     assert _monitoring(client, W1 + timedelta(days=3))["indicators"]["alerts"] == 1
 
 
-def test_recall_series_uses_all_processed_weeks_and_filters_missing_metrics(client, seed):
-    # Semana 0: processada com recall -> deve aparecer
-    w0 = W1
-    seed.batch(w0, metrics={"recall": 0.81}, released=True)
-
-    # Semana 1: processada SEM métricas (e.g. ingestão por API/CSV sem gabarito) -> omitida
-    w1 = W1 + timedelta(weeks=1)
-    seed.batch(w1, metrics={}, released=True)
-
-    # Semana 2: processada e não marcada no replay legado, com recall -> aparece
-    w2 = W1 + timedelta(weeks=2)
-    seed.batch(w2, metrics={"recall": 0.90}, released=False)
-
-    # Semana 3: liberada com recall -> deve aparecer
-    w3 = W1 + timedelta(weeks=3)
-    seed.batch(w3, metrics={"recall": 0.86}, released=True)
-
-    # Semana 4: liberada com recall mas posterior à semana solicitada -> omitida
-    w4 = W1 + timedelta(weeks=4)
-    seed.batch(w4, metrics={"recall": 0.95}, released=True)
-
-    body = _monitoring(client, week=w3)
-    assert body["recall_series"] == [
-        {"name": week_label(w0), "value": 0.81},
-        {"name": week_label(w2), "value": 0.90},
-        {"name": week_label(w3), "value": 0.86},
-    ]
-
-
 def test_score_histogram_bins(client, seed):
     # Faixas:
     # "40": [<50) -> teste com score abaixo de 0.40 (0.35) e 0.45
@@ -244,18 +214,3 @@ def test_status_counts(client, seed):
         "archived": 1,
         "reported": 2,
     }
-
-
-def test_indicators_recall_null_when_batch_has_no_recall(client, seed):
-    # Lote sem recall
-    seed.batch(W1, metrics={})
-    body = _monitoring(client, week=W1)
-    assert body["indicators"]["recall"] is None
-    assert body["indicators"]["typology_accuracy"] is None
-
-    # Lote apenas com typology_accuracy
-    w2 = W1 + timedelta(weeks=1)
-    seed.batch(w2, metrics={"typology_accuracy": 0.88})
-    body2 = _monitoring(client, week=w2)
-    assert body2["indicators"]["recall"] is None
-    assert body2["indicators"]["typology_accuracy"] == 0.88
