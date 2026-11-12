@@ -6,16 +6,18 @@ from datetime import date
 from sqlalchemy import Connection, RowMapping, text
 
 from api.dependencies import User
-from api.domain import STATUS_FROM_FRONT
+from api.domain import MODEL_ALERTS, STATUS_FROM_FRONT
 
 
 def processed_weeks(conn: Connection) -> list[RowMapping]:
-    sql = """
+    """Períodos processados, com os alertas da fila do modelo (a amostra de controle não é
+    alerta e fica fora da contagem)."""
+    sql = f"""
         SELECT b.week,
                count(a.id) AS alerts,
                count(a.id) FILTER (WHERE a.status = ANY(:pending)) AS pending
         FROM weekly_batches b
-        LEFT JOIN alerts a ON a.week = b.week
+        LEFT JOIN alerts a ON a.week = b.week AND {MODEL_ALERTS}
         GROUP BY b.week
         ORDER BY b.week DESC
     """
@@ -44,7 +46,8 @@ def release_next_week(conn: Connection, user: User) -> tuple[date, int] | None:
     if week is None:
         return None
     alerts = conn.execute(
-        text("SELECT count(*) FROM alerts WHERE week = :week"), {"week": week}
+        text(f"SELECT count(*) FROM alerts a WHERE a.week = :week AND {MODEL_ALERTS}"),
+        {"week": week},
     ).scalar_one()
     conn.execute(
         text("""

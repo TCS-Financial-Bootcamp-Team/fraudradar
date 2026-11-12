@@ -7,6 +7,7 @@ from sqlalchemy import Connection, RowMapping, text
 
 from api.domain import ALERT_COLUMNS, STATUS_FROM_FRONT
 from api.schemas.alerts import (
+    AlertOrigin,
     AlertStatus,
     Assessment,
     Contribution,
@@ -21,9 +22,10 @@ from fraudradar.features import feature_label
 
 SortOrder = Literal["score_desc", "queue"]
 
+# A amostra de controle vem sempre depois da fila do modelo, qualquer que seja a nota.
 _SORT_SQL: dict[SortOrder, str] = {
-    "score_desc": "a.score DESC, a.queue_position, a.id",
-    "queue": "a.queue_position, a.id",
+    "score_desc": "(a.origin = 'exploration'), a.score DESC, a.queue_position, a.id",
+    "queue": "(a.origin = 'exploration'), a.queue_position, a.id",
 }
 
 TOP_CONTRIBUTIONS = 6
@@ -45,13 +47,18 @@ def list_queue(
     status: AlertStatus | None,
     country: str | None,
     search: str | None = None,
+    origin: AlertOrigin | None = None,
     page: int,
     size: int,
     sort: SortOrder,
 ) -> tuple[list[RowMapping], int]:
-    """Página da fila e total com os mesmos filtros."""
+    """Página da fila e total com os mesmos filtros. Sem `origin`, a fila do modelo seguida da
+    amostra de controle."""
     filters = ["a.week = :week"]
     params: dict[str, Any] = {"week": week}
+    if origin is not None:
+        filters.append("a.origin = :origin")
+        params["origin"] = origin
     if status is not None:
         filters.append("a.status = ANY(CAST(:status AS text[]))")
         params["status"] = list(STATUS_FROM_FRONT[status])

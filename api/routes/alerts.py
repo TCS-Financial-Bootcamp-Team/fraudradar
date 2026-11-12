@@ -1,6 +1,6 @@
 """Fila de alertas da semana, detalhe com evidências e grafo de 2 saltos.
 
-- GET /alerts?week=&status=&country=&search=&page=&size=&sort=  — fila paginada da semana
+- GET /alerts?week=&status=&country=&search=&origin=&page=&size=&sort=  — fila paginada da semana
 - GET /alerts/{id}                                             — detalhe + evidências
 - GET /alerts/{id}/graph                                       — grafo de 2 saltos (Cytoscape)
 
@@ -15,7 +15,7 @@ from fastapi import APIRouter, Query
 from api.dependencies import DbConnection
 from api.domain import AlertId, alert_from_row, get_alert_row, week_start
 from api.repositories import alert_queue
-from api.schemas.alerts import AlertDetail, AlertQueue, AlertStatus, Graph
+from api.schemas.alerts import AlertDetail, AlertOrigin, AlertQueue, AlertStatus, Graph
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -27,6 +27,7 @@ def list_alerts(
     status: AlertStatus | None = None,
     country: Annotated[str | None, Query(min_length=1, max_length=80)] = None,
     search: Annotated[str | None, Query(min_length=1, max_length=40)] = None,
+    origin: AlertOrigin | None = None,
     page: Annotated[int, Query(ge=1, le=10_000)] = 1,  # sem teto, OFFSET estoura o bigint
     size: Annotated[int, Query(ge=1, le=100)] = 10,
     sort: alert_queue.SortOrder = "score_desc",
@@ -34,6 +35,8 @@ def list_alerts(
     """Fila paginada da semana.
 
     `search` filtra por id exato ou prefixo de conta;
+    `origin` separa a fila do modelo (`model`) da amostra de controle (`exploration`): sem ele
+    vêm as duas, a amostra sempre no fim;
     `countries` traz todas as opções da semana, sem os filtros.
     """
     week = week_start(week)
@@ -43,6 +46,7 @@ def list_alerts(
         status=status,
         country=country,
         search=search,
+        origin=origin,
         page=page,
         size=size,
         sort=sort,
