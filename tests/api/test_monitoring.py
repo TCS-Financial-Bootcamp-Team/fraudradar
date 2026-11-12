@@ -147,3 +147,110 @@ def test_distribution_by_typology_and_country(client, seed):
 def test_midweek_date_normalizes_to_monday(client, seed):
     seed.alert(1, W1)
     assert _monitoring(client, W1 + timedelta(days=3))["indicators"]["alerts"] == 1
+
+
+# REGRESSION_TESTS_MONITORING_DASHBOARD_3365
+
+
+def test_dashboard_new_fields_empty_week(client):
+    """Uma semana vazia precisa manter o contrato do frontend."""
+    body = _monitoring(client)
+
+    assert body["recall_series"] == []
+    assert len(body["score_histogram"]) == 8
+
+    assert sum(
+        point["value"]
+        for point in body["score_histogram"]
+    ) == 0
+
+    assert body["status_counts"] == {
+        "pending": 0,
+        "escalated": 0,
+        "archived": 0,
+        "reported": 0,
+    }
+
+
+def test_dashboard_new_fields_with_real_database_queries(client, seed, db):
+    """Validar recall, oito bins de score e status internos."""
+    from sqlalchemy import text
+
+    seed.batch(
+        W1,
+        active_accounts=100,
+        metrics={"recall": 0.88},
+    )
+
+    statuses = (
+        "new",
+        "in_review",
+        "escalated",
+        "archived",
+        "reported",
+        "new",
+        "new",
+        "new",
+    )
+
+    scores = (
+        0.45,
+        0.55,
+        0.65,
+        0.75,
+        0.85,
+        0.925,
+        0.975,
+        0.9999,
+    )
+
+    for account, status in enumerate(statuses, start=1):
+        seed.alert(account, W1, status=status)
+
+    with db.begin() as conn:
+        conn.execute(
+            text(
+                "UPDATE weekly_batches "
+                "SET released_at = now() "
+                "WHERE week = :week"
+            ),
+            {"week": W1},
+        )
+
+        for account, score in enumerate(scores, start=1):
+            conn.execute(
+                text(
+                    "UPDATE alerts SET score = :score "
+                    "WHERE week = :week AND account = :account"
+                ),
+                {
+                    "week": W1,
+                    "account": account,
+                    "score": score,
+                },
+            )
+
+    body = _monitoring(client)
+
+    assert body["indicators"]["alerts"] == 8
+
+    assert body["recall_series"] == [
+        {"name": week_label(W1), "value": 0.88}
+    ]
+
+    assert [item["name"] for item in body["score_histogram"]] == [
+        "40", "50", "60", "70", "80", "90", "95", "100"
+    ]
+
+    assert [item["value"] for item in body["score_histogram"]] == [
+        1, 1, 1, 1, 1, 1, 1, 1
+    ]
+
+    assert body["status_counts"] == {
+        "pending": 5,
+        "escalated": 1,
+        "archived": 1,
+        "reported": 1,
+    }
+
+    assert sum(body["status_counts"].values()) == 8

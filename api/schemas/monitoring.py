@@ -20,6 +20,13 @@ class Indicators(BaseModel):
     typology_accuracy: float = Field(ge=0, le=1)
 
 
+class StatusCounts(BaseModel):
+    pending: int = Field(ge=0)
+    escalated: int = Field(ge=0)
+    archived: int = Field(ge=0)
+    reported: int = Field(ge=0)
+
+
 class Monitoring(BaseModel):
     week: date
     indicators: Indicators
@@ -28,3 +35,6 @@ class Monitoring(BaseModel):
     countries: list[Series]
     country_rates: list[Series]
     payment_type_rates: list[Series]
+    recall_series: list[Series]
+    score_histogram: list[Series]
+    status_counts: StatusCounts

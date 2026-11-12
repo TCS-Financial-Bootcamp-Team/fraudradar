@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from api.dependencies import DbConnection
 from api.domain import week_start
 from api.repositories import monitoring as repo
-from api.schemas.monitoring import Indicators, Monitoring, Series
+from api.schemas.monitoring import Indicators, Monitoring, Series, StatusCounts
 
 router = APIRouter(tags=["monitoring"])
 
@@ -51,4 +51,15 @@ def get_monitoring(week: date, conn: DbConnection) -> Monitoring:
         countries=[Series(**row) for row in repo.distribution(conn, week, "country")],
         country_rates=_rate_series(metrics.get("country_rates")),
         payment_type_rates=_rate_series(metrics.get("payment_type_rates")),
+        recall_series=[
+            Series(**item)
+            for item in repo.recall_by_week(conn, week)
+        ],
+        score_histogram=[
+            Series(**item)
+            for item in repo.score_histogram(conn, week)
+        ],
+        status_counts=StatusCounts(
+            **repo.status_counts(conn, week)
+        ),
     )
