@@ -291,16 +291,16 @@ def _feedback_eval(args) -> int:
         get_engine(), _dataset(args.dataset), include_simulated=args.include_simulated
     )
 
-    def line(name: str, metrics: dict) -> str:
-        def pct(key):
-            value = metrics.get(key)
-            return "-" if value is None else f"{value:.1%}".replace(".", ",")
+    def number(value, spec: str) -> str:
+        return "-" if value is None else format(value, spec).replace(".", ",")
 
-        innocents = metrics.get("innocents_per_week")
+    def line(name: str, metrics: dict) -> str:
         return (
-            f"{name}: PR-AUC {metrics['pr_auc']:.3f}, fila com corte: recall {pct('queue_recall')},"
-            f" precisão {pct('queue_precision')},"
-            f" {'-' if innocents is None else f'{innocents:.1f}'} inocentes por semana"
+            f"{name}: PR-AUC {number(metrics['pr_auc'], '.3f')}, recall com 0,13% de falso"
+            f" positivo {number(metrics['recall_at_fpr'], '.1%')}; fila com corte: recall"
+            f" {number(metrics['queue_recall'], '.1%')}, precisão"
+            f" {number(metrics['queue_precision'], '.1%')},"
+            f" {number(metrics['innocents_per_week'], '.1f')} inocentes por semana"
         )
 
     log.info("treino até %s; teste depois disso", result["split"]["train_end"])
