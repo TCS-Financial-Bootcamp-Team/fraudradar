@@ -36,8 +36,13 @@ docker compose run --rm worker replay
 ## Regras invioláveis
 
 - Features e score vivem **só** em `src/fraudradar`. Nunca em `api/`, `worker/` ou notebooks.
-- O modelo nunca lê `ground_truth` nem as colunas `Is_laundering`/`Laundering_type`.
+- O modelo nunca lê `ground_truth` nem as colunas `Is_laundering`/`Laundering_type` para dar
+  nota. Quem lê o gabarito: o treino e a avaliação (`src/fraudradar/model`) e, no worker, só
+  `worker/metrics.py` (métricas do lote), `worker/labels.py` (resumo do registro) e
+  `worker/simulate_analyst.py` (analista simulado da demonstração). A API nunca lê; o retorno dos
+  analistas fica em `analyst_labels`, separado (`docs/analyst-feedback.md`).
 - O LLM nunca recebe números de conta (pseudonimize antes do prompt). Chave do LLM só na API.
 - Dependências pesadas (torch, lightgbm) ficam nos grupos `ml`/`ai`; a imagem da API usa só `api`.
 - Nunca leia o `SAML-D.csv` inteiro para inspecionar (1 GB): use `head` ou `nrows`.
-- Mudança de esquema: edite `db/init/002_tables.sql` e avise o time (exige `docker compose down -v`).
+- Mudança de esquema: edite `db/init/002_tables.sql` e avise o time (exige `docker compose down -v`,
+  ou um script idempotente em `db/upgrades/` para bancos que já existem).

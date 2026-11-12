@@ -117,7 +117,14 @@ A importação é um trabalho `import` (lotes, progresso) seguido de `process`.
 
 - Só é oferecido quando o conjunto tem gabarito. O worker treina com a configuração oficial
   (`src/fraudradar/model`), com corte no tempo, e grava a versão nova do conjunto com as métricas.
-- A versão nova **não** vira oficial sozinha: a tela mostra as métricas lado a lado com a versão
-  ativa e o analista promove (`POST /datasets/{slug}/models/{version}/promote`), com auditoria; a
-  partir daí as próximas rodadas usam a versão nova (períodos fechados não mudam).
+- O retorno dos analistas (registros 107 e 108, `docs/analyst-feedback.md`) entra como sinal a
+  mais nesse retreino, nunca no lugar do gabarito: a decisão 5 continua valendo. Num conjunto sem
+  gabarito, o sistema guarda os rótulos e mostra o painel do retorno, e o botão de retreino
+  explica por que não treina.
+- A versão nova **não** vira oficial sozinha: a tela (Configurações > Modelo) mostra as métricas
+  lado a lado com a versão ativa medida nas mesmas semanas de teste, e o analista promove
+  (`POST /datasets/{slug}/models/{version}/promote`), com auditoria; a partir daí as próximas
+  rodadas usam a versão nova (períodos fechados não mudam).
+- **Trava de promoção**: a versão nova que acha na fila mais de 1 p.p. a menos de lavadoras que a
+  ativa, no mesmo período de teste, não pode ser promovida (409 com o motivo).
 - O gabarito só é usado para treinar e medir. O modelo nunca o lê para dar nota.

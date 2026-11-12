@@ -60,14 +60,22 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
   existem em `ground_truth`, e a API nunca lê nem grava essa tabela). O que a API precisa
   saber do gabarito (o retreino é possível?) vem de `public.datasets.labeled_weeks` e
   `has_laundering`, que só o worker preenche (`worker/labels.py`); há teste que proíbe consulta
-  a `ground_truth` pela API.
+  a `ground_truth` pela API. Quem lê o gabarito: o treino (`src/fraudradar/model`) e, no worker,
+  `worker/metrics.py`, `worker/labels.py` e `worker/simulate_analyst.py`.
+- Retorno dos analistas (`docs/analyst-feedback.md`): a decisão grava o rótulo em
+  `analyst_labels` na mesma transação (`fraudradar.model.feedback.store_label`); arquivar exige
+  `archive_reason`. A API lê e grava `analyst_labels`, nunca mistura com o gabarito.
+- Alerta é a conta da fila do modelo: a amostra de controle (`alerts.origin = 'exploration'`) fica
+  fora de toda contagem de alertas e das contas suspeitas (`MODEL_ALERTS` em `api/domain.py`). O
+  recall e o acerto de tipologia de `weekly_batches.metrics` não vão para as telas.
 - Contas são `BIGINT` no banco (no SAML-D, até 10 dígitos). Validação de
   transação que entra (CSV ou JSON): `src/fraudradar/data/ingestion.py`, a mesma
   para API e worker.
 - Formatos JSON que o worker grava (evidências, métricas): comentários em
   `db/init/002_tables.sql`.
 - Mudança de esquema: só em `db/init/002_tables.sql`, commit com `!` e aviso
-  "exige docker compose down -v" (ver `CONTRIBUTING.md`).
+  "exige docker compose down -v" (ver `CONTRIBUTING.md`); para bancos que já existem, um script
+  idempotente em `db/upgrades/` (ex.: `006_analyst_feedback.sql`, explicado no README).
 
 ## Testes
 
