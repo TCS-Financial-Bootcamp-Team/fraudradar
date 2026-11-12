@@ -5,6 +5,9 @@ Todas as respostas são JSON, exceto o pedido multipart de CSV. Erros HTTP
 não são convertidos em sucesso nem em mocks. As rotas de domínio exigem
 `Authorization: Bearer <access_token do Supabase>`. A API deve validar o JWT
 e autorizar os dados; o proxy do frontend não substitui a autorização da API.
+Todas as requisições do frontend enviam `X-Dataset` com o slug do conjunto atual;
+na ausência do cabeçalho a API usa `saml-d`. Rotas de dados respondem 404, com
+mensagem em português, quando o slug não existe.
 
 Datas de semana: `AAAA-MM-DD`; timestamps: ISO 8601. Score e contribuições:
 0–100. Taxas: frações de 0–1. Valores monetários nos indicadores: BRL.
@@ -22,8 +25,8 @@ A normalização/conversão dos valores é responsabilidade da API.
 | GET /alerts/{id}/report             | reportSchema: alert_id, content, status, updated_at.                                                         |
 | POST /alerts/{id}/report/approve    | approvalSchema: {content}; resposta reportSchema atualizado. A edição é persistida junto da aprovação.       |
 | POST /alerts/{id}/chat              | chatRequestSchema; resposta chatResponseSchema.                                                              |
-| GET /weeks                          | weeksSchema: {current, next_release, items}. Só as semanas liberadas entram no seletor; next_release nulo desliga o replay. |
-| POST /replay/next-week              | Pedido {}; resposta replaySchema: {week, alerts_generated}. A API controla a progressão e a idempotência.    |
+| GET /weeks                          | weeksSchema: {current, next_release, items}. Todos os períodos processados entram; next_release é sempre nulo. |
+| POST /replay/next-week              | Compatibilidade: replaySchema; não controla mais a visibilidade nem é chamado pela UI.                       |
 | GET /monitoring?week=               | monitoringSchema, usado pelo dashboard e pela tela de qualidade.                                             |
 | GET /health                         | healthSchema, compatível com o contrato anterior.                                                            |
 
@@ -38,6 +41,25 @@ A API deve ordenar por score antes de paginar.
 
 O detalhe contém contas pseudonimizadas, dados financeiros, regras e
 contribuições já calculadas. O frontend não calcula features ou score.
+
+## Contas suspeitas e processamento
+
+| Requisição | Pedido / resposta |
+| --- | --- |
+| `GET /accounts/suspicious` | Query `from`, `to`, `status`, `search`, `page`, `size`, `sort`; resposta `suspiciousAccountsSchema`. |
+| `GET /accounts/{account}/alerts` | resposta `{items: alertSchema[]}`, do período mais recente ao mais antigo. |
+| `GET /processing/settings` | `processingSettingsSchema` do conjunto indicado por `X-Dataset`. |
+| `PUT /processing/settings` | `{interval_minutes: 5..1440, enabled, demo_mode}`; resposta atualizada. |
+| `POST /datasets/{slug}/simulate` | `{transactions: 50..5000, days: 1..7, inject_pattern}`; `jobSchema` com 202. |
+| `DELETE /ingestions/{id}` | somente `source=simulation`; `jobSchema` de recomputação com 202. |
+
+`suspiciousAccountSchema`: `{account, max_score, latest_score, alert_weeks,
+first_week, last_week, total_flagged_amount, country, status, latest_alert_id}`.
+Ordenação padrão: maior nota; empate pela posição do alerta do período mais recente.
+
+`processingSettingsSchema` acrescenta `{dataset, last_run_at, next_run_at}` ao pedido.
+O front consulta `GET /jobs/{id}` a cada 2 s enquanto o status for `queued` ou `running`,
+para em `done`/`failed`, notifica e recarrega o contexto do app.
 
 Monitoramento retorna:
 
@@ -63,9 +85,11 @@ simuladas neste produto acadêmico. Validar esse rótulo com o responsável do p
 | -------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | POST /ingestion/csv                    | multipart/form-data com campo file (File); resposta receiptSchema.                                 |
 | POST /ingestion/transactions           | transactionSchema com as 10 colunas transacionais; resposta receiptSchema.                         |
-| POST /ingestion/connections            | connectionSchema: {name, type: "postgres", connection_string, ssl}; resposta dataSourceSchema.     |
-| GET /ingestion/connections             | dataSourcesSchema: {items: DataSource[]}.                                                          |
-| POST /ingestion/connections/{id}/sync  | **Endpoint adicional assumido** para a ação de sincronização. Pedido {}; resposta dataSourceSchema.|
+| GET /ingestion/connections             | connectionsSchema: {items: Connection[]}; nunca traz senha (só host e banco mascarados).           |
+| POST /ingestion/connections            | connectionFormSchema: {name, host, port, database, user, password, table, control_column}; 201 com connectionSchema. 422 host fora de EXTERNAL_DB_ALLOWED_HOSTS ou identificador inválido; 503 sem CONNECTIONS_SECRET_KEY. |
+| DELETE /ingestion/connections/{id}     | 204; 409 durante a importação. A tela ainda não chama (lib/api.ts não tem apiDelete).              |
+| POST /ingestion/connections/{id}/test  | Pedido {}; resposta compatibilityReportSchema (itens passou/falhou, gabarito, linhas, datas, amostra, sobreposição com o conjunto de `X-Dataset` e sugestão). |
+| POST /ingestion/connections/{id}/import | importRequestSchema: {relation: extend \| new_dataset, new_dataset?: {name, slug}, mode: history \| follow \| both, control_column}; 202 com {dataset, job}. 422 datas que cruzam semanas fechadas; 409 conexão já ligada ou importando. Acompanhar por GET /jobs/{id}. |
 | POST /chat                             | chatRequestSchema; resposta chatResponseSchema.                                                    |
 
 `receiptSchema`: {id, status: received | processing | completed, message}.
@@ -119,6 +143,33 @@ Implementado em POST /ingestion/csv e /ingestion/transactions; as regras ficam e
 - **Resposta**: 201 com receiptSchema, status `received`; o id é o do envio
   (tabela `ingestions`). O score sai quando o worker processa a semana.
 
+## Conjuntos de dados e trabalhos
+
+| Requisição | Pedido / resposta |
+| --- | --- |
+| `GET /datasets` | lista `datasetSchema[]`, ordenada por criação |
+| `POST /datasets` | pedido `{name, slug}`; cria um conjunto vazio e responde `datasetSchema` com 201 |
+| `POST /datasets/{slug}/process` | sem corpo; enfileira o processamento e responde `jobSchema` com 202 |
+| `GET /jobs?dataset=` | até 20 trabalhos mais recentes; filtro por slug opcional |
+| `GET /jobs/{id}` | um `jobSchema`; 404 quando não existe |
+| `GET /datasets/{slug}/models` | `modelsSchema`: `{dataset, active_version, versions[], can_train, train_blocked_reason, training_job}`. Cada versão: `{version, source: "official" \| "dataset", created_at, trees, history_start, train_end, metrics{pr_auc, recall_at_fpr, f1, queue_recall, queue_precision, innocents_per_week}, active}`. `can_train`/`train_blocked_reason` vêm do resumo do gabarito que o worker grava em `public.datasets` (a API não lê `ground_truth`). 404 conjunto inexistente |
+| `POST /datasets/{slug}/train` | sem corpo; enfileira o treino e responde `jobSchema` (`kind: "train"`) com 202. 409 com o motivo em português: sem gabarito, menos de 6 semanas rotuladas, sem lavagem ou treino já na fila |
+| `POST /datasets/{slug}/models/{version}/promote` | sem corpo; torna a versão a ativa do conjunto e responde `modelsSchema` com 200. `{version}` é `lightgbm_vN` (oficial: volta a seguir o oficial mais novo) ou `<slug>/vN` (retreino do conjunto; a barra vai codificada, `%2F`). 404 versão inexistente ou de outro conjunto; 409 já é a ativa |
+
+**Nome das versões**: o modelo oficial é `lightgbm_vN`; o retreino de um conjunto é `<slug>/vN`
+(`models/<slug>/lightgbm_vN.*` no disco). É assim em `active_model_version`, em
+`model_versions` e nas respostas, para os dois nunca colidirem.
+
+`datasetSchema`: `{slug, name, origin: "saml-d" | "external",
+active_model_version: string | null, created_at}`. O slug aceita somente
+`[a-z0-9-]{1,40}`. A tela guarda o slug atual no `localStorage`, com fallback
+seguro para `saml-d`; a troca limpa a semana selecionada e recarrega os recursos.
+
+`jobSchema`: `{id, kind: "import" | "process" | "simulate" | "train", dataset, status:
+"queued" | "running" | "done" | "failed", progress, message, created_at,
+started_at, finished_at}`. `process`, `simulate`, `import` e `train` executam trabalho real. O front tem um só
+tipo de trabalho e um só acompanhamento (`web/src/features/jobs`).
+
 ## Chat e privacidade
 
 Pedido: {message, context: {page, week, alert_id?}, history}.
@@ -135,7 +186,7 @@ Chaves do LLM não fazem parte do ambiente do Next.
 
 Com NEXT_PUBLIC_USE_MOCKS=true, cada serviço usa seu arquivo services/mocks.ts.
 Não há fallback silencioso no modo real. Fixtures começam na semana 2026-10-19,
-com dados também em 2026-10-12; o replay gera a próxima semana. Alterações de
+com dados também em 2026-10-12; todos os períodos mockados ficam visíveis. Alterações de
 decisão, parecer e aprovação vivem na memória da aba e reiniciam ao recarregar.
 As taxas de qualidade são exemplos, não resultados de treinamento.
 

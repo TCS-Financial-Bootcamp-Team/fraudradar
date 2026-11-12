@@ -21,9 +21,11 @@ import pandas as pd
 from sqlalchemy import Engine
 
 from fraudradar.data.saml_d import TRANSACTION_COLUMNS, load_csv
+from fraudradar.datasets import Dataset, use_dataset
 from fraudradar.features.history import CASH_ACCOUNT
 from worker import repository
 from worker.errors import WorkerError
+from worker.labels import DEFAULT_SLUG, store_label_stats
 
 GROUND_TRUTH_COLUMNS = ["transaction_id", "label", "original_typology", "typology"]
 
@@ -46,10 +48,14 @@ def check_csv(csv_path: Path | str) -> Path:
     return path
 
 
-def load_saml_d(engine: Engine, csv_path: Path | str) -> LoadResult:
+def load_saml_d(
+    engine: Engine, csv_path: Path | str, *, dataset: Dataset | None = None
+) -> LoadResult:
     """Carrega o CSV inteiro numa transação só. Se o SAML-D já está no banco, não faz nada."""
     path = check_csv(csv_path)
     with engine.connect() as conn:
+        if dataset is not None:
+            use_dataset(conn, dataset)
         existing = _existing(conn)
     if existing:
         return LoadResult(transactions=existing, already_loaded=True)
@@ -63,6 +69,8 @@ def load_saml_d(engine: Engine, csv_path: Path | str) -> LoadResult:
     rounded = int((np.round(amount, 2) != amount).sum())
     accounts = _accounts(transactions)
     with engine.begin() as conn:
+        if dataset is not None:
+            use_dataset(conn, dataset)
         repository.lock_worker(conn)
         existing = _existing(conn)  # outra carga pode ter terminado enquanto esta lia o CSV
         if existing:
@@ -71,6 +79,8 @@ def load_saml_d(engine: Engine, csv_path: Path | str) -> LoadResult:
         repository.copy_frame(conn, "ground_truth", ground_truth[GROUND_TRUTH_COLUMNS])
         repository.copy_frame(conn, "accounts", accounts)
         repository.move_identity(conn)
+        # A API decide o retreino por este resumo e não lê o gabarito.
+        store_label_stats(conn, dataset.slug if dataset is not None else DEFAULT_SLUG)
     return LoadResult(
         transactions=len(transactions),
         accounts=len(accounts),

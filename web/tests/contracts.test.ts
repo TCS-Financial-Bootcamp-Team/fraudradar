@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   transactionSchema,
+  connectionFormSchema,
   connectionSchema,
-  dataSourceSchema,
   csvHeaders,
 } from "../src/features/ingestion/schemas/ingestion";
 import {
@@ -140,35 +140,47 @@ test("encaminhamentos exigem justificativa e aprovação exige um relato revisá
   assert.equal(approvalSchema.safeParse({ content: "curto" }).success, false);
 });
 
-test("credenciais só entram no pedido de conexão; resposta pública contém apenas máscara", () => {
-  assert.ok(
-    connectionSchema.safeParse({
-      name: "Teste",
-      type: "postgres",
-      connection_string:
-        "postgresql://leitura:segredo@db.example.test:5432/operacoes",
-      ssl: true,
-    }).success,
-  );
+test("credenciais só entram no formulário de conexão; resposta pública contém apenas máscara", () => {
+  const form = {
+    name: "Teste",
+    host: "localhost",
+    port: "5432",
+    database: "operacoes",
+    user: "leitura",
+    password: "segredo",
+    table: "public.transactions",
+    control_column: "id",
+  };
+  assert.ok(connectionFormSchema.safeParse(form).success);
   assert.equal(
-    connectionSchema.safeParse({
-      name: "Teste",
-      type: "postgres",
-      connection_string: "https://db.example.test",
-      ssl: true,
-    }).success,
+    connectionFormSchema.safeParse({ ...form, table: "t; DROP TABLE x" })
+      .success,
     false,
   );
-  const source = dataSourceSchema.parse({
+  assert.equal(
+    connectionFormSchema.safeParse({ ...form, port: "0" }).success,
+    false,
+  );
+  assert.equal(
+    connectionFormSchema.safeParse({ ...form, connection_string: "x" }).success,
+    false,
+  );
+  const source = connectionSchema.parse({
     id: "1",
     name: "Teste",
     type: "postgres",
-    masked_host: "db•••",
-    masked_database: "op•••",
+    masked_host: "loc•••",
+    masked_database: "ope•••",
+    table: "public.transactions",
+    control_column: "id",
     status: "connected",
+    last_error: null,
     last_synced_at: null,
-    connection_string: "segredo",
+    dataset: null,
+    mode: null,
+    compatibility: null,
     password: "segredo",
+    connection_string: "segredo",
   });
   assert.equal("password" in source, false);
   assert.equal("connection_string" in source, false);

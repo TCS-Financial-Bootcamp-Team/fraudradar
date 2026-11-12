@@ -3,23 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Database, FileUp, Plus, RefreshCw, Upload } from "lucide-react";
+import { FileUp, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select } from "@/components/ui/field";
-import { formatShortDate } from "@/lib/format";
-import {
-  useCsvUpload,
-  useDataSources,
-  useManualTransaction,
-} from "../hooks/use-ingestion";
+import { Field, Input } from "@/components/ui/field";
+import { ProcessingControls } from "@/features/processing/components/processing-controls";
+import { ConnectionsCard } from "./connections-card";
+import { useCsvUpload, useManualTransaction } from "../hooks/use-ingestion";
 import {
   csvHeaders,
-  connectionSchema,
   paymentTypes,
   currencies,
   countries,
   transactionSchema,
-  type ConnectionRequest,
   type TransactionRequest,
 } from "../schemas/ingestion";
 
@@ -44,16 +39,11 @@ const transactionFieldLabels: Record<keyof TransactionRequest, string> = {
 
 export function Ingestion() {
   const csv = useCsvUpload();
-  const sources = useDataSources();
   const manual = useManualTransaction();
 
   const inputRef = useRef<HTMLInputElement>(null);
   const lastFileRef = useRef("");
   const [recentUploads, setRecentUploads] = useState<RecentUpload[]>([]);
-  const [showConnectionForm, setShowConnectionForm] = useState(false);
-  const [connMode, setConnMode] = useState<"uri" | "fields">("uri");
-  const [connError, setConnError] = useState("");
-  const formRef = useRef<HTMLFormElement>(null);
 
   const {
     register: registerManual,
@@ -93,70 +83,19 @@ export function Ingestion() {
     ]);
   }, [csv.completed]);
 
-  async function handleRegisterSource(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setConnError("");
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-    let uri = String(formData.get("uri") ?? "");
-    if (connMode === "fields") {
-      const port = String(formData.get("port"));
-      if (!/^\d+$/.test(port) || Number(port) < 1 || Number(port) > 65535) {
-        setConnError("Informe uma porta entre 1 e 65535.");
-        return;
-      }
-      uri =
-        "postgresql://" +
-        encodeURIComponent(String(formData.get("username"))) +
-        ":" +
-        encodeURIComponent(String(formData.get("password"))) +
-        "@" +
-        String(formData.get("host")).trim() +
-        ":" +
-        port +
-        "/" +
-        encodeURIComponent(String(formData.get("database")));
-    }
-    const payload: ConnectionRequest = {
-      name: String(formData.get("name")),
-      type: "postgres",
-      connection_string: uri,
-      ssl: formData.get("ssl") === "on",
-    };
-    const validation = connectionSchema.safeParse(payload);
-    if (!validation.success) {
-      setConnError(validation.error.issues[0].message);
-      return;
-    }
-    try {
-      if (await sources.register(validation.data)) {
-        form.reset();
-        setShowConnectionForm(false);
-      }
-    } finally {
-      for (const fieldName of ["uri", "password"]) {
-        const inputElement = form.elements.namedItem(fieldName);
-        if (inputElement instanceof HTMLInputElement) inputElement.value = "";
-      }
-    }
-  }
-
-  // Verifica se a API respondeu 501 / não implementado
-  const is501 =
-    Boolean(sources.error) &&
-    (Boolean(sources.error?.includes("501")) ||
-      Boolean(sources.error?.toLowerCase().includes("não implementado")) ||
-      Boolean(sources.error?.toLowerCase().includes("not implemented")));
-
   return (
     <div className="flex flex-col gap-7">
-      <div className="flex flex-col gap-1.5">
-        <p className="m-0 text-[13px] text-muted-foreground">
-          Entrada de transações
-        </p>
-        <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
-          Fontes de dados
-        </h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="flex flex-col gap-1.5">
+          <p className="m-0 text-[13px] text-muted-foreground">
+            Entrada de transações
+          </p>
+          <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
+            Fontes de dados
+          </h1>
+        </div>
+        {/* Processar agora e, com o modo demonstração ligado, o simulador. */}
+        <ProcessingControls />
       </div>
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
@@ -321,173 +260,7 @@ export function Ingestion() {
           )}
         </article>
 
-        {/* Card 2: Conexões com bancos externos */}
-        <article className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-3">
-          <div className="flex justify-between items-center">
-            <h2 className="m-0 text-sm font-semibold text-foreground">
-              Conexões com bancos externos
-            </h2>
-            <span className="text-xs px-2 py-0.5 border border-border rounded-full text-muted-foreground">
-              em breve
-            </span>
-          </div>
-
-          <p className="m-0 text-[13px] text-muted-foreground leading-relaxed">
-            Ler transações direto de um Postgres do banco. Precisa de um desenho
-            de segurança próprio (credenciais, rede, escopo de leitura) antes de
-            existir.
-          </p>
-
-          {is501 && (
-            <p className="text-xs text-muted-foreground p-2.5 bg-muted/20 border border-border rounded-lg">
-              Endpoint não implementado na API (501). Funcionalidade prevista
-              para próximas versões.
-            </p>
-          )}
-
-          {/* Se houver fontes cadastradas */}
-          {sources.data?.items && sources.data.items.length > 0 ? (
-            <div className="flex flex-col gap-3 pt-2">
-              <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                Fontes cadastradas
-              </h3>
-              <div className="divide-y divide-soft border border-border rounded-lg overflow-hidden">
-                {sources.data.items.map((src) => (
-                  <div
-                    key={src.id}
-                    className="p-3 flex items-center justify-between text-xs"
-                  >
-                    <div>
-                      <p className="m-0 font-medium text-foreground">
-                        {src.name}
-                      </p>
-                      <p className="m-0 font-mono text-muted-foreground">
-                        {src.masked_host} / {src.masked_database}
-                      </p>
-                      {src.last_synced_at && (
-                        <p className="m-0 text-[11px] text-muted-foreground">
-                          Última sincronização:{" "}
-                          {formatShortDate(src.last_synced_at)}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <span
-                          className={`size-2 rounded-full ${
-                            src.status === "connected"
-                              ? "bg-primary"
-                              : "bg-signal"
-                          }`}
-                        />
-                        {src.status === "connected" ? "Conectada" : "Erro"}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={sources.busy}
-                        onClick={() => void sources.sync(src.id)}
-                      >
-                        <RefreshCw className="size-3" strokeWidth={1.5} />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {showConnectionForm ? (
-            <form
-              ref={formRef}
-              onSubmit={handleRegisterSource}
-              className="flex flex-col gap-3.5 pt-3 border-t border-border"
-              autoComplete="off"
-            >
-              <Field label="Nome da fonte">
-                <Input
-                  name="name"
-                  required
-                  placeholder="Ex.: Operações de produção"
-                />
-              </Field>
-              <Field label="Como deseja conectar?">
-                <Select
-                  value={connMode}
-                  onChange={(e) =>
-                    setConnMode(e.target.value as "uri" | "fields")
-                  }
-                >
-                  <option value="uri">Connection string</option>
-                  <option value="fields">Host, porta e credenciais</option>
-                </Select>
-              </Field>
-              {connMode === "uri" ? (
-                <Field label="Connection string">
-                  <Input
-                    type="password"
-                    name="uri"
-                    required
-                    placeholder="postgresql://usuario:senha@host:5432/banco"
-                  />
-                </Field>
-              ) : (
-                <>
-                  <div className="grid grid-cols-[1fr_90px] gap-2">
-                    <Field label="Host">
-                      <Input
-                        name="host"
-                        required
-                        placeholder="db.exemplo.com"
-                      />
-                    </Field>
-                    <Field label="Porta">
-                      <Input
-                        name="port"
-                        type="number"
-                        defaultValue={5432}
-                        required
-                      />
-                    </Field>
-                  </div>
-                  <Field label="Banco de dados">
-                    <Input name="database" required />
-                  </Field>
-                  <Field label="Usuário">
-                    <Input name="username" required />
-                  </Field>
-                  <Field label="Senha">
-                    <Input type="password" name="password" required />
-                  </Field>
-                </>
-              )}
-              {connError && (
-                <p className="text-xs text-signal m-0">{connError}</p>
-              )}
-              <div className="flex gap-2 pt-1">
-                <Button type="submit" disabled={sources.busy}>
-                  <Database className="size-4" strokeWidth={1.5} />
-                  {sources.busy ? "Registrando…" : "Registrar"}
-                </Button>
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setShowConnectionForm(false)}
-                >
-                  Cancelar
-                </Button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="self-start h-10 px-4 border border-border rounded-lg bg-transparent text-muted-foreground opacity-70 text-sm font-medium cursor-not-allowed"
-            >
-              Nova conexão
-            </button>
-          )}
-        </article>
+        <ConnectionsCard />
       </section>
 
       {/* Envios recentes */}

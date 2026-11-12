@@ -30,7 +30,10 @@ function ShellContent({
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const { week, weeksLoading, weeksError, reloadWeeks } = useAppContext();
+  const { dataset, datasets, week, weeksLoading, weeksError, reloadWeeks } =
+    useAppContext();
+  const datasetName =
+    datasets.find((item) => item.slug === dataset)?.name ?? "SAML-D";
   const queue = useAlertQueue("pending");
   const pendingCount = queue.data?.total ?? 0;
 
@@ -132,7 +135,7 @@ function ShellContent({
             )}
           </div>
           <footer className="mx-auto w-full max-w-[1320px] px-[clamp(16px,3.5vw,48px)] pb-6 text-[11px] text-muted-foreground">
-            FraudRadar PLD · SAML-D
+            FraudRadar PLD · {datasetName}
             {week ? " · Semana de " + formatShortDate(week) : ""}
           </footer>
         </main>

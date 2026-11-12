@@ -12,6 +12,7 @@ import { usePathname } from "next/navigation";
 import { Bell, Menu, PanelLeft, Palette, Sparkles, X } from "lucide-react";
 import { cn } from "cn";
 import { AppearancePanel } from "@/components/theme";
+import { DatasetSelector } from "@/features/datasets/components/dataset-selector";
 import { getBreadcrumb } from "@/lib/sidebar";
 import { HeaderAccountMenu } from "./account-menu";
 import { SIDEBAR_ID } from "./sidebar";
@@ -109,6 +110,7 @@ export function Header({
             <Menu className="size-[18px]" strokeWidth={1.5} />
           </button>
         )}
+        <DatasetSelector />
         <span
           aria-hidden="true"
           className="hidden h-5 w-px shrink-0 bg-topbar-border sm:block"

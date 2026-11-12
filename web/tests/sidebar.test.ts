@@ -22,6 +22,7 @@ test("sidebar: abre por padrão e só recolhe com o valor 'closed'", () => {
 
 test("sidebar: isNavItemActive reconhece rota exata, sub-rotas e rejeita falsos positivos", () => {
   assert.equal(isNavItemActive("/dashboard", "/dashboard"), true);
+  assert.equal(isNavItemActive("/accounts", "/accounts"), true);
   assert.equal(isNavItemActive("/alerts", "/alerts"), true);
   assert.equal(isNavItemActive("/alerts/123", "/alerts"), true);
   assert.equal(isNavItemActive("/settings", "/settings"), true);
@@ -48,11 +49,15 @@ test("sidebar: getBreadcrumb mapeia rotas conhecidas e padrão", () => {
   });
   assert.deepEqual(getBreadcrumb("/"), {
     group: "Análise",
-    page: "Visão geral",
+    page: "Contas suspeitas",
   });
   assert.deepEqual(getBreadcrumb(""), {
     group: "Análise",
-    page: "Visão geral",
+    page: "Contas suspeitas",
+  });
+  assert.deepEqual(getBreadcrumb("/accounts"), {
+    group: "Análise",
+    page: "Contas suspeitas",
   });
   assert.deepEqual(getBreadcrumb("/alerts"), {
     group: "Análise",

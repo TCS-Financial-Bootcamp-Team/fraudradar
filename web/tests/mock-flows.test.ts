@@ -41,14 +41,14 @@ test("mock: decisão, parecer, comunicação e replay preservam consistência na
   );
   const weeksBefore = await s.fetchWeeks();
   assert.equal(weeksBefore.current, week);
-  assert.equal(weeksBefore.next_release, "2026-10-26");
+  assert.equal(weeksBefore.next_release, null);
   const nextBatch = await s.advanceWeek(week);
   assert.equal(nextBatch.week, "2026-10-26");
   assert.equal(
     (await s.fetchAlerts({ week: nextBatch.week })).total,
     nextBatch.alerts_generated,
   );
-  // O seletor só oferece semanas liberadas, da mais recente para a mais antiga.
+  // O seletor oferece todos os períodos processados, do mais recente ao mais antigo.
   const weeksAfter = await s.fetchWeeks();
   assert.equal(weeksAfter.current, "2026-10-26");
   assert.deepEqual(
@@ -57,19 +57,68 @@ test("mock: decisão, parecer, comunicação e replay preservam consistência na
   );
 });
 
-test("mock: registro e sincronização nunca devolvem senha nem URI", async () => {
+test("mock: conexão, teste, importação e acompanhamento do trabalho nunca devolvem senha", async () => {
   process.env.NEXT_PUBLIC_USE_MOCKS = "true";
   const s =
     await import("../src/features/ingestion/services/ingestion-service");
-  const source = await s.registerDataSource({
+  const connection = await s.createConnection({
     name: "Teste de contrato",
-    type: "postgres",
-    connection_string:
-      "postgresql://leitura:segredo@financeiro.example.test:5432/operacoes",
-    ssl: true,
+    host: "financeiro.example.test",
+    port: 5432,
+    database: "operacoes",
+    user: "leitura",
+    password: "segredo",
+    table: "public.transactions",
+    control_column: "id",
   });
-  const list = await s.listDataSources();
-  assert.ok(list.items.some((item) => item.id === source.id));
+  const list = await s.listConnections();
+  assert.ok(list.items.some((item) => item.id === connection.id));
   assert.doesNotMatch(JSON.stringify(list), /segredo|postgresql:\/\//);
-  assert.ok((await s.syncDataSource(source.id)).last_synced_at);
+  const report = await s.testConnection(connection.id);
+  assert.equal(report.compatible, true);
+  const started = await s.startImport(connection.id, {
+    relation: "extend",
+    mode: "history",
+    control_column: "id",
+  });
+  assert.equal(started.job.kind, "import");
+  const jobs = await import("../src/features/jobs/services/jobs-service");
+  let job = started.job;
+  for (let i = 0; i < 5 && job.status !== "done"; i++)
+    job = await jobs.fetchJob(job.id);
+  assert.equal(job.status, "done");
+  assert.ok(
+    (await s.listConnections()).items.find((item) => item.id === connection.id)
+      ?.last_synced_at,
+  );
+});
+
+test("mock: remover a conexão tira da lista e recusa durante a importação", async () => {
+  process.env.NEXT_PUBLIC_USE_MOCKS = "true";
+  const s =
+    await import("../src/features/ingestion/services/ingestion-service");
+  const created = await s.createConnection({
+    name: "Para remover",
+    host: "financeiro.example.test",
+    port: 5432,
+    database: "operacoes",
+    user: "leitura",
+    password: "segredo",
+    table: "public.transactions",
+    control_column: "id",
+  });
+  await s.testConnection(created.id);
+  const started = await s.startImport(created.id, {
+    relation: "extend",
+    mode: "history",
+    control_column: "id",
+  });
+  await assert.rejects(() => s.deleteConnection(created.id), /em andamento/);
+  const jobs = await import("../src/features/jobs/services/jobs-service");
+  await jobs.pollJob(started.job.id, { intervalMs: 0 });
+  await s.deleteConnection(created.id);
+  assert.ok(
+    !(await s.listConnections()).items.some((item) => item.id === created.id),
+  );
+  await assert.rejects(() => s.deleteConnection(created.id), /não encontrada/);
 });

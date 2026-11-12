@@ -1,8 +1,9 @@
-"""Semanas do lote: sempre a segunda-feira, e só depois do treino do modelo (sem pandas nem
-LightGBM, para a CLI validar os argumentos antes de tudo)."""
+"""Semanas do lote: sempre a segunda-feira e, no conjunto em que o modelo treinou, só depois do
+treino (sem pandas nem LightGBM, para a CLI validar os argumentos antes de tudo)."""
 
 from datetime import date, timedelta
 
+from fraudradar.model import OFFICIAL_DATASET
 from worker.errors import WorkerError
 
 
@@ -27,6 +28,20 @@ def parse_monday(value: str, flag: str) -> date:
         raise WorkerError(f"{flag} {value}: use a data no formato AAAA-MM-DD") from None
     check_monday(day, flag)
     return day
+
+
+def training_dataset(card: dict) -> str:
+    """O conjunto em que o modelo da ficha treinou; ficha sem o campo é a do oficial (SAML-D)."""
+    return card.get("training_dataset") or OFFICIAL_DATASET
+
+
+def guards_training_period(card: dict, dataset_slug: str) -> bool:
+    """A trava do período de treino só vale no conjunto em que o modelo treinou.
+
+    Ali o modelo já viu os scores das semanas até `train_end`. Em outro conjunto ele nunca viu
+    as transações, mesmo com datas anteriores ao treino: toda semana pode ser processada.
+    """
+    return training_dataset(card) == dataset_slug
 
 
 def first_out_of_sample_week(card: dict) -> date:

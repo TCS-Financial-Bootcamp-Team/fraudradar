@@ -1,23 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
 import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
-import { Button } from "@/components/ui/button";
 import {
   EmptyState,
   LoadingState,
   ResourceError,
 } from "@/components/ui/states";
+import { ProcessingControls } from "@/features/processing/components/processing-controls";
 import {
   formatCurrency,
   formatNumber,
   formatPercent,
-  formatShortDate,
 } from "@/lib/format";
 import { formatScore } from "@/lib/risk";
-import { useAlertQueue, useMonitoring, useReplay } from "../hooks/use-alerts";
+import { useAlertQueue, useMonitoring } from "../hooks/use-alerts";
 import type { AlertStatus } from "../schemas/alerts";
 import {
   HorizontalBarList,
@@ -92,12 +90,8 @@ export function Dashboard() {
   const { week } = useAppContext();
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
-  const replay = useReplay();
 
   const weekRangeText = week ? formatWeekPeriod(week) : "";
-  const releaseHint = replay.nextRelease
-    ? `Próxima: semana de ${formatShortDate(replay.nextRelease)}`
-    : "Nenhuma semana processada aguardando";
 
   const heading = (
     <div className="flex flex-wrap items-end justify-between gap-5">
@@ -116,14 +110,7 @@ export function Dashboard() {
         </h1>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <span className="text-[13px] text-muted-foreground">{releaseHint}</span>
-        <Button
-          disabled={replay.busy || !replay.nextRelease}
-          onClick={() => void replay.advance()}
-        >
-          <RefreshCw className={cn("size-4", replay.busy && "animate-spin")} />
-          {replay.busy ? "Liberando…" : "Liberar próxima semana"}
-        </Button>
+        <ProcessingControls />
       </div>
     </div>
   );
@@ -136,12 +123,8 @@ export function Dashboard() {
         {heading}
         <section className="rounded-[14px] border border-border bg-card p-6">
           <EmptyState
-            title="Nenhuma semana liberada"
-            description={
-              replay.nextRelease
-                ? "Libere a primeira semana para ver a fila e os indicadores."
-                : "Ainda não há semana processada. Rode o worker (docker compose run --rm worker backfill) e volte aqui."
-            }
+            title="Nenhum período processado"
+            description="Use Processar agora depois de carregar transações no conjunto."
           />
         </section>
       </div>

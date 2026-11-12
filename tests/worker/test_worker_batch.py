@@ -9,6 +9,7 @@ from datetime import timedelta
 import numpy as np
 import pandas as pd
 import pytest
+from sqlalchemy import text
 
 pytest.importorskip("lightgbm")
 
@@ -19,8 +20,10 @@ from worker_helpers import (  # noqa: E402
     rows,
     scalar,
     week_bounds,
+    write_saml_d_csv,
 )
 
+from fraudradar.datasets import create_dataset, use_dataset  # noqa: E402
 from fraudradar.features.history import (  # noqa: E402
     CASH_ACCOUNT,
     compute_features,
@@ -29,8 +32,9 @@ from fraudradar.features.history import (  # noqa: E402
 )
 from fraudradar.model.evaluation import account_weeks  # noqa: E402
 from fraudradar.model.training import load_model  # noqa: E402
-from worker.batch import run_batch  # noqa: E402
+from worker.batch import run_batch, run_continuous  # noqa: E402
 from worker.errors import WorkerError  # noqa: E402
+from worker.load import load_saml_d  # noqa: E402
 
 SIGNALS = {
     "sent_count",
@@ -163,6 +167,7 @@ def test_batch_writes_the_week(batch, loaded, card):
             "model_version": "lightgbm_v1",
             "active_accounts": active,
             "forced": False,
+            "preserved_decided_alerts": 0,
         },
     }
 
@@ -345,3 +350,97 @@ def test_week_with_an_empty_queue_is_processed(loaded, model_dir, no_rules, clie
     response = client.get("/monitoring", params={"week": FIRST_WEEK.isoformat()})
     assert response.status_code == 200
     assert response.json()["indicators"]["alerts"] == 0
+
+
+def test_continuous_recompute_preserves_decisions_and_never_changes_closed_weeks(
+    loaded, model_dir, no_rules
+):
+    first = run_continuous(loaded, model_dir=model_dir, rules_dir=no_rules)
+    assert first.processed
+    open_week = scalar(loaded, "SELECT max(week) FROM weekly_batches")
+    closed_before = scalar(
+        loaded,
+        "SELECT processed_at FROM weekly_batches WHERE week = :week",
+        week=FIRST_WEEK,
+    )
+    open_alerts = rows(
+        loaded,
+        "SELECT id, account, score, status FROM alerts WHERE week = :week ORDER BY id",
+        week=open_week,
+    )
+    decided, replaceable = open_alerts[:2]
+    execute(
+        loaded,
+        "INSERT INTO decisions (alert_id, analyst, decision, justification)"
+        " VALUES (:id, 'Teste', 'archive', 'Decisão que precisa permanecer intacta.')",
+        id=decided["id"],
+    )
+    execute(loaded, "UPDATE alerts SET status = 'archived' WHERE id = :id", id=decided["id"])
+    decided_before = rows(
+        loaded,
+        "SELECT id, account, score, status FROM alerts WHERE id = :id",
+        id=decided["id"],
+    )[0]
+    execute(
+        loaded,
+        "INSERT INTO transactions (occurred_at, sender, receiver, amount, payment_currency,"
+        " received_currency, sender_country, receiver_country, payment_type)"
+        " SELECT date_trunc('week', max(occurred_at)) + interval '6 days',"
+        " max(sender), max(receiver), max(amount), max(payment_currency),"
+        " max(received_currency), max(sender_country), max(receiver_country), max(payment_type)"
+        " FROM transactions",
+    )
+
+    second = run_continuous(loaded, model_dir=model_dir, rules_dir=no_rules)
+
+    assert [week.week for week in second.processed] == [open_week]
+    assert (
+        rows(
+            loaded,
+            "SELECT id, account, score, status FROM alerts WHERE id = :id",
+            id=decided["id"],
+        )[0]
+        == decided_before
+    )
+    assert scalar(loaded, "SELECT count(*) FROM alerts WHERE id = :id", id=replaceable["id"]) == 0
+    assert (
+        scalar(
+            loaded,
+            "SELECT processed_at FROM weekly_batches WHERE week = :week",
+            week=FIRST_WEEK,
+        )
+        == closed_before
+    )
+
+
+def test_training_period_is_refused_only_in_the_dataset_the_model_trained_on(
+    db, saml_d, model_dir, no_rules, tmp_path
+):
+    """O mesmo dado, com datas antes do treino e do `history_start` da ficha, no SAML-D (onde o
+    modelo treinou) e num conjunto externo: no SAML-D nada é processado; no externo, tudo."""
+    transactions, ground_truth = saml_d
+    old = transactions.assign(occurred_at=transactions["occurred_at"] - pd.Timedelta(weeks=52))
+    csv = write_saml_d_csv(old, ground_truth, tmp_path / "outra-epoca.csv")
+    with db.begin() as conn:
+        external = create_dataset(conn, name="Outra época", slug="outra-epoca")
+    load_saml_d(db, csv)
+    load_saml_d(db, csv, dataset=external)
+    weeks = sorted(week_start(old["occurred_at"]).dt.date.unique())
+    options = {"model_dir": model_dir, "rules_dir": no_rules}
+
+    same = run_continuous(db, **options)
+    assert same.processed == []
+    assert same.notes == ["nada novo: não há período posterior ao treino do modelo para processar"]
+    with pytest.raises(WorkerError, match="período de treino do modelo"):
+        run_batch(db, weeks[0], **options)
+    assert scalar(db, "SELECT count(*) FROM weekly_batches") == 0
+
+    first = run_batch(db, weeks[0], dataset=external, **options)
+    rest = run_continuous(db, dataset=external, **options)
+    processed = first.processed + rest.processed
+    assert [week.week for week in processed] == weeks
+    # O histórico começa na primeira transação do conjunto, não no `history_start` da ficha.
+    assert sum(week.transactions for week in processed) == len(old)
+    with db.connect() as conn:
+        use_dataset(conn, external)
+        assert conn.execute(text("SELECT count(*) FROM weekly_batches")).scalar_one() == len(weeks)

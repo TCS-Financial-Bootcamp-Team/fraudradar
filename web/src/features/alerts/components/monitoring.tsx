@@ -8,6 +8,7 @@ import {
   ResourceError,
 } from "@/components/ui/states";
 import { formatPercent, formatShortDate } from "@/lib/format";
+import { ModelSection } from "@/features/models/components/model-section";
 import { useMonitoring } from "../hooks/use-alerts";
 
 // Threshold para destacar taxa de alerta como sinal de risco:
@@ -97,12 +98,15 @@ export function MonitoringView() {
 
   if (resource.data === null)
     return (
-      <section className="panel">
-        <EmptyState
-          title="Nenhuma semana liberada"
-          description="Libere uma semana na Visão geral para ver os indicadores."
-        />
-      </section>
+      <div className="flex flex-col gap-7">
+        <section className="panel">
+          <EmptyState
+            title="Nenhuma semana liberada"
+            description="Libere uma semana na Visão geral para ver os indicadores."
+          />
+        </section>
+        <ModelSection />
+      </div>
     );
 
   if (resource.error || !resource.data)
@@ -209,6 +213,8 @@ export function MonitoringView() {
           items={data.payment_type_rates}
         />
       </section>
+
+      <ModelSection />
 
       <p className="m-0 text-xs text-muted-foreground">
         O gabarito só entra depois da fila pronta, para medir. O modelo nunca o

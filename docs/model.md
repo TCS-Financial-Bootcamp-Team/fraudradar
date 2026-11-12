@@ -37,6 +37,41 @@ em `lightgbm_model.txt`, o arquivo que o health da API confere. A ficha traz as 
 categorias, os parâmetros, os cortes, os segmentos e as métricas no teste. O CI instala o
 grupo `ml`: os testes do modelo e do worker rodam lá também.
 
+## Retreino por conjunto de dados
+
+Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/lightgbm_vN.txt` e
+`.json`. O desenho está em [external-data.md](external-data.md#retreino).
+
+- **Pedido**: em Monitoramento, "Treinar nova versão" chama `POST /datasets/{slug}/train` e o
+  `worker serve` executa o trabalho `train` (`worker/train_job.py`), com progresso em
+  `GET /jobs/{id}`. A API recusa (409, com o motivo em português) quando o conjunto não tem
+  gabarito, tem menos de 6 semanas rotuladas (`MIN_LABELED_WEEKS`), não tem nenhuma lavagem ou já
+  tem um treino na fila. A regra é `fraudradar.model.eligibility`. A API só lê `public.datasets.labeled_weeks` e
+  `has_laundering` (o worker mede e grava depois de `load`, de uma importação com gabarito e de
+  cada treino, ou com `python -m worker labels` num banco que já existia; a consulta junta o
+  gabarito com as transações e nunca roda na requisição).
+- **Dado**: transações que têm gabarito, lidas do schema do conjunto. As variáveis são as de
+  `compute_features`, com a configuração oficial (21 variáveis, mesmos parâmetros). O gabarito
+  só vira alvo do treino e régua de teste.
+- **Divisão no tempo** (`training.resolve_split`): no SAML-D (ou em qualquer dado que cubra as datas
+  oficiais) vale a oficial (treino até 2023-05-21, validação a partir de 2023-04-24). Em outro
+  período, o último quarto das semanas vira teste e as semanas antes dele (15%, no máximo 4)
+  validação. Sempre em semanas inteiras e nunca embaralhado. `train_end`, `validation_start` e
+  `training_dataset` (o slug do conjunto do treino) vão na ficha. Só nesse conjunto o worker
+  recusa as semanas até `train_end`, que o modelo já viu; nos outros processa todas (ficha sem
+  `training_dataset` é a do oficial, `saml-d`).
+- **Versões**: no disco, `models/<slug>/lightgbm_vN.*` (a numeração continua depois do oficial).
+  Onde a versão é mostrada ou guardada (`model_versions`, `datasets.active_model_version`, API) o
+  retreino se chama `<slug>/vN` e o oficial `lightgbm_vN`, então nunca colidem. A ficha tem os
+  mesmos campos de métrica da oficial.
+  O retreino não copia nada para `lightgbm_model.txt`.
+- **Promoção**: a versão nova não é usada sozinha. `POST /datasets/{slug}/models/{versão}/promote`
+  grava `datasets.active_model_version` e uma linha em `audit_log` (`model_promoted`, com a versão
+  anterior). Promover o modelo oficial limpa o campo (volta a seguir o oficial mais novo). As
+  próximas rodadas do worker usam a versão ativa; períodos fechados não mudam.
+- **Memória**: o treino no SAML-D inteiro usa ~7 GB, como o `train` pelo CSV. O trabalho lê por
+  COPY com arquivo temporário e solta as variáveis assim que monta a base.
+
 ## Configuração oficial, e por quê
 
 - **Divisão no tempo, nunca embaralhada:** treino até 23/04/2023, validação de 24/04 a

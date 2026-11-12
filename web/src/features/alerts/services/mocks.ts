@@ -6,44 +6,64 @@ import type {
   Monitoring,
   Weeks,
 } from "../schemas/alerts";
+import { getCurrentDataset } from "@/lib/dataset";
 
-export const alertsMock: Alert[] = Array.from({ length: 36 }, (_, i) => ({
-  id: "ALT-" + String(2401 + i),
-  account: "CTA-" + String(810 + i),
-  week: i < 24 ? "2026-10-19" : "2026-10-12",
-  country: [
-    "Brasil",
-    "Portugal",
-    "Reino Unido",
-    "Estados Unidos",
-    "Emirados Árabes",
-  ][i % 5],
-  typology: [
-    "Fan-out",
-    "Estruturação",
-    "Ciclo financeiro",
-    "Fan-in",
-    "Dispersão internacional",
-  ][i % 5],
-  score: Math.max(43, 98 - i * 2),
-  queue_position: i + 1,
-  amount: 845000 - i * 15730,
-  transaction_count: 47 - i,
-  status:
-    i % 9 === 0
-      ? "reported"
-      : i % 7 === 0
-        ? "archived"
-        : i % 4 === 0
-          ? "escalated"
-          : "pending",
-}));
+function makeAlerts(dataset: string): Alert[] {
+  const external = dataset === "external-demo";
+  return Array.from({ length: external ? 18 : 36 }, (_, i) => ({
+    id: "ALT-" + String((external ? 3401 : 2401) + i),
+    account: "CTA-" + String((external ? 1810 : 810) + i),
+    week: external
+      ? i < 12
+        ? "2026-11-02"
+        : "2026-10-26"
+      : i < 24
+        ? "2026-10-19"
+        : "2026-10-12",
+    country: [
+      "Brasil",
+      "Portugal",
+      "Reino Unido",
+      "Estados Unidos",
+      "Emirados Árabes",
+    ][i % 5],
+    typology: [
+      "Fan-out",
+      "Estruturação",
+      "Ciclo financeiro",
+      "Fan-in",
+      "Dispersão internacional",
+    ][i % 5],
+    score: Math.max(43, 98 - i * 2),
+    queue_position: i + 1,
+    amount: 845000 - i * 15730,
+    transaction_count: 47 - i,
+    status:
+      i % 9 === 0
+        ? "reported"
+        : i % 7 === 0
+          ? "archived"
+          : i % 4 === 0
+            ? "escalated"
+            : "pending",
+  }));
+}
+
+export const alertsByDataset: Record<string, Alert[]> = {
+  "saml-d": makeAlerts("saml-d"),
+  "external-demo": makeAlerts("external-demo"),
+};
+export const alertsMock = alertsByDataset["saml-d"];
+export function currentAlertsMock() {
+  return alertsByDataset[getCurrentDataset()] ?? alertsMock;
+}
 export const reportsMock = new Map<string, Report>();
 export const assessmentsMock = new Map<string, AlertDetail["assessment"]>();
 export function queueMock(filters: AlertFilters) {
   const searchTerm = filters.search?.trim();
   const isDigits = searchTerm ? /^\d+$/.test(searchTerm) : false;
-  const items = alertsMock
+  const alerts = currentAlertsMock();
+  const items = alerts
     .filter(
       (a) =>
         (!filters.week || a.week === filters.week) &&
@@ -62,19 +82,17 @@ export function queueMock(filters: AlertFilters) {
   return {
     items: items.slice(start, start + 10),
     total: items.length,
-    countries: [...new Set(alertsMock.map((a) => a.country))],
+    countries: [...new Set(alerts.map((a) => a.country))],
   };
 }
 export function weeksMock(): Weeks {
-  const weeks = [...new Set(alertsMock.map((a) => a.week))].sort().reverse();
-  const next = new Date(weeks[0] + "T00:00:00Z");
-  next.setUTCDate(next.getUTCDate() + 7);
+  const alerts = currentAlertsMock();
+  const weeks = [...new Set(alerts.map((a) => a.week))].sort().reverse();
   return {
     current: weeks[0] ?? null,
-    // No modo demonstrativo sempre há uma semana a mais para liberar.
-    next_release: next.toISOString().slice(0, 10),
+    next_release: null,
     items: weeks.map((week) => {
-      const ofWeek = alertsMock.filter((a) => a.week === week);
+      const ofWeek = alerts.filter((a) => a.week === week);
       return {
         week,
         alerts: ofWeek.length,
@@ -84,7 +102,7 @@ export function weeksMock(): Weeks {
   };
 }
 export function alertDetailMock(id: string): AlertDetail {
-  const alert = alertsMock.find((a) => a.id === id);
+  const alert = currentAlertsMock().find((a) => a.id === id);
   if (!alert) throw new Error("Alerta não encontrado.");
   return {
     ...alert,
@@ -134,7 +152,7 @@ export function reportMock(id: string): Report {
   };
 }
 export function monitoringMock(week: string): Monitoring {
-  const items = alertsMock.filter((a) => a.week === week);
+  const items = currentAlertsMock().filter((a) => a.week === week);
   const groupCount = (field: "typology" | "country") =>
     [...new Set(items.map((a) => a[field]))]
       .map((name) => ({

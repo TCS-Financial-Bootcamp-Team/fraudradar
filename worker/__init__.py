@@ -1,1 +1,1 @@
-"""Worker em lote: processamento semanal e replay da demonstração."""
+"""Worker em lote e executor do processamento contínuo."""

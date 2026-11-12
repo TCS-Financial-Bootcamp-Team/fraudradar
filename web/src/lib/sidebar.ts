@@ -5,6 +5,7 @@ export const SIDEBAR_NAV_GROUPS = [
   {
     label: "Análise",
     items: [
+      { href: "/accounts", label: "Contas suspeitas" },
       { href: "/dashboard", label: "Visão geral" },
       { href: "/alerts", label: "Fila de alertas" },
     ],
@@ -61,7 +62,10 @@ export interface BreadcrumbInfo {
  * - "/settings" -> { group: "Conta", page: "Configurações" }
  */
 export function getBreadcrumb(pathname: string): BreadcrumbInfo {
-  if (!pathname || pathname === "/" || pathname === "/dashboard") {
+  if (!pathname || pathname === "/" || pathname === "/accounts") {
+    return { group: "Análise", page: "Contas suspeitas" };
+  }
+  if (pathname === "/dashboard") {
     return { group: "Análise", page: "Visão geral" };
   }
   if (pathname === "/alerts") {

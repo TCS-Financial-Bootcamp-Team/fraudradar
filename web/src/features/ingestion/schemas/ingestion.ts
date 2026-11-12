@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { jobSchema } from "@/features/jobs/schemas/jobs";
 
 export const currencies = [
   "BRL",
@@ -96,39 +97,136 @@ export const transactionSchema = z
   })
   .strict();
 export const csvHeaders = Object.keys(transactionSchema.shape);
-export const connectionSchema = z
+// Formulário de nova conexão. A senha só existe aqui e no pedido; nunca volta em resposta.
+export const connectionFormSchema = z
   .object({
     name: z.string().trim().min(2, "Informe um nome.").max(100),
-    type: z.literal("postgres"),
-    connection_string: z
+    host: z.string().trim().min(1, "Informe o host.").max(253),
+    port: z.coerce
+      .number()
+      .int("Informe uma porta entre 1 e 65535.")
+      .min(1, "Informe uma porta entre 1 e 65535.")
+      .max(65535, "Informe uma porta entre 1 e 65535."),
+    database: z.string().trim().min(1, "Informe o banco de dados.").max(63),
+    user: z.string().trim().min(1, "Informe o usuário.").max(63),
+    password: z.string().min(1, "Informe a senha.").max(500),
+    table: z
       .string()
-      .min(1, "Informe a conexão.")
-      .max(4000)
-      .refine((v) => {
-        try {
-          const u = new URL(v);
-          return (
-            ["postgres:", "postgresql:"].includes(u.protocol) &&
-            Boolean(u.hostname && u.pathname.length > 1 && u.username)
-          );
-        } catch {
-          return false;
-        }
-      }, "Use uma URI Postgres válida com host, banco e usuário."),
-    ssl: z.boolean(),
+      .trim()
+      .regex(
+        /^[A-Za-z_][A-Za-z0-9_]{0,62}(\.[A-Za-z_][A-Za-z0-9_]{0,62})?$/,
+        "Use tabela ou schema.tabela, só com letras, números e _.",
+      ),
+    control_column: z
+      .string()
+      .trim()
+      .regex(
+        /^[A-Za-z_][A-Za-z0-9_]{0,62}$/,
+        "Use só letras, números e _ no nome da coluna.",
+      )
+      .or(z.literal("")),
   })
   .strict();
-export const dataSourceSchema = z.object({
+export const connectionStatusSchema = z.enum([
+  "untested",
+  "connected",
+  "incompatible",
+  "error",
+  "syncing",
+]);
+export const importModeSchema = z.enum(["history", "follow", "both"]);
+export const checkItemSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  status: z.enum(["ok", "fail", "info"]),
+  detail: z.string(),
+});
+export const compatibilityReportSchema = z.object({
+  compatible: z.boolean(),
+  checks: z.array(checkItemSchema),
+  missing_columns: z.array(z.string()),
+  wrong_types: z.array(
+    z.object({ column: z.string(), expected: z.string(), found: z.string() }),
+  ),
+  has_ground_truth: z.boolean(),
+  has_typology: z.boolean(),
+  row_count: z.number().nullable(),
+  date_first: z.string().nullable(),
+  date_last: z.string().nullable(),
+  sample: z.object({
+    size: z.number(),
+    valid: z.boolean(),
+    errors: z.array(z.record(z.string(), z.unknown())),
+  }),
+  overlap: z
+    .object({
+      dataset: z.string(),
+      sample_accounts: z.number(),
+      known_accounts_pct: z.number().nullable(),
+      dates: z.enum([
+        "continue",
+        "overlap",
+        "other_era",
+        "empty_dataset",
+        "unknown",
+      ]),
+      dataset_first: z.string().nullable(),
+      dataset_last: z.string().nullable(),
+    })
+    .nullable(),
+  suggestion: z
+    .object({
+      relation: z.enum(["extend", "new_dataset"]).nullable(),
+      message: z.string(),
+    })
+    .nullable(),
+});
+export const connectionSchema = z.object({
   id: z.string(),
   name: z.string(),
   type: z.literal("postgres"),
   masked_host: z.string(),
   masked_database: z.string(),
-  status: z.enum(["connected", "syncing", "error"]),
+  table: z.string(),
+  control_column: z.string().nullable(),
+  status: connectionStatusSchema,
+  last_error: z.string().nullable(),
   last_synced_at: z.string().nullable(),
+  dataset: z.string().nullable(),
+  mode: importModeSchema.nullable(),
+  compatibility: compatibilityReportSchema.nullable(),
 });
-export const dataSourcesSchema = z.object({
-  items: z.array(dataSourceSchema),
+export const connectionsSchema = z.object({
+  items: z.array(connectionSchema),
+});
+export const importRequestSchema = z
+  .object({
+    relation: z.enum(["extend", "new_dataset"]),
+    new_dataset: z
+      .object({
+        name: z.string().trim().min(1, "Informe o nome do conjunto.").max(120),
+        slug: z
+          .string()
+          .regex(
+            /^[a-z0-9-]{1,40}$/,
+            "O slug usa letras minúsculas, números e hífen (até 40).",
+          ),
+      })
+      .strict()
+      .optional(),
+    mode: importModeSchema,
+    control_column: z
+      .string()
+      .regex(/^[A-Za-z_][A-Za-z0-9_]{0,62}$/, "Informe a coluna de controle."),
+  })
+  .strict()
+  .refine((v) => (v.relation === "new_dataset") === Boolean(v.new_dataset), {
+    message: "Informe nome e slug só quando for outro dataset.",
+    path: ["new_dataset"],
+  });
+export const importResponseSchema = z.object({
+  dataset: z.string(),
+  job: jobSchema,
 });
 export const receiptSchema = z.object({
   id: z.string(),
@@ -136,9 +234,14 @@ export const receiptSchema = z.object({
   message: z.string(),
 });
 export type TransactionRequest = z.infer<typeof transactionSchema>;
-export type ConnectionRequest = z.infer<typeof connectionSchema>;
-export type DataSource = z.infer<typeof dataSourceSchema>;
-export type DataSources = z.infer<typeof dataSourcesSchema>;
+export type ConnectionForm = z.input<typeof connectionFormSchema>;
+export type ConnectionRequest = z.output<typeof connectionFormSchema>;
+export type Connection = z.infer<typeof connectionSchema>;
+export type Connections = z.infer<typeof connectionsSchema>;
+export type CompatibilityReport = z.infer<typeof compatibilityReportSchema>;
+export type ImportMode = z.infer<typeof importModeSchema>;
+export type ImportRequest = z.input<typeof importRequestSchema>;
+export type ImportResponse = z.infer<typeof importResponseSchema>;
 export type Receipt = z.infer<typeof receiptSchema>;
 export type CsvPreview = {
   headers: string[];

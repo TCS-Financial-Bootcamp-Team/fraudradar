@@ -59,7 +59,7 @@ export function AlertDetailView({ id }: { id: string }) {
         onRetry={resource.reload}
       />
     );
-  const { detail: alert, graph, report } = resource.data;
+  const { detail: alert, graph, report, otherAlerts } = resource.data;
   const isApproved = report?.status === "approved";
   const high = isHighRisk(alert.score);
   const decisionError = form.formState.errors.decision?.message;
@@ -228,6 +228,29 @@ export function AlertDetailView({ id }: { id: string }) {
         </div>
 
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
+          <section className={cardClass}>
+            <CardTitle title="Outras semanas desta conta" hint={`${otherAlerts.length} período(s)`} />
+            {otherAlerts.length === 0 ? (
+              <p className="text-[13px] text-muted-foreground">
+                Esta conta não apareceu em outro período processado.
+              </p>
+            ) : (
+              <ul className="divide-y divide-soft">
+                {otherAlerts.map((item) => (
+                  <li key={item.id}>
+                    <Link
+                      href={`/alerts/${item.id}`}
+                      className="flex min-h-11 items-center justify-between gap-3 py-2 text-[13px] hover:underline"
+                    >
+                      <span>Semana de {formatWeekLabel(item.week)}</span>
+                      <span className="font-mono text-xs">{formatScore(item.score)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
           <section className={cardClass}>
             <CardTitle title="Parecer da IA" hint="rascunho para revisão" />
             {alert.assessment ? (

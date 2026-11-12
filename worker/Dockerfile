@@ -22,6 +22,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY src ./src
 COPY api ./api
 COPY worker ./worker
+# DDL das tabelas de dados: create_dataset aplica no schema de cada conjunto novo.
+COPY db/init/002_tables.sql ./db/init/002_tables.sql
 # Regras de cenário que o lote roda a cada semana (evidence.rules)
 COPY db/rules ./db/rules
 RUN --mount=type=cache,target=/root/.cache/uv \

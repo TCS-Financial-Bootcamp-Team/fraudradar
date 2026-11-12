@@ -1,14 +1,18 @@
 import Papa from "papaparse";
-import { apiGet, apiMultipart, apiPost, USE_MOCKS } from "@/lib/api";
+import { apiDelete, apiGet, apiMultipart, apiPost, USE_MOCKS } from "@/lib/api";
 import {
-  csvHeaders,
+  compatibilityReportSchema,
+  connectionFormSchema,
   connectionSchema,
-  dataSourcesSchema,
-  dataSourceSchema,
+  connectionsSchema,
+  csvHeaders,
+  importRequestSchema,
+  importResponseSchema,
   receiptSchema,
   transactionSchema,
-  type ConnectionRequest,
+  type ConnectionForm,
   type CsvPreview,
+  type ImportRequest,
   type TransactionRequest,
 } from "../schemas/ingestion";
 
@@ -152,46 +156,43 @@ export async function submitTransaction(data: TransactionRequest) {
       : await apiPost("/ingestion/transactions", parsed),
   );
 }
-export async function listDataSources(signal?: AbortSignal) {
-  return dataSourcesSchema.parse(
+export async function listConnections(signal?: AbortSignal) {
+  return connectionsSchema.parse(
     USE_MOCKS
-      ? { items: (await import("./mocks")).dataSourcesMock }
+      ? { items: (await import("./mocks")).connectionsMock }
       : await apiGet("/ingestion/connections", { signal }),
   );
 }
-export async function registerDataSource(data: ConnectionRequest) {
-  const parsed = connectionSchema.parse(data);
-  if (USE_MOCKS) {
-    const mocks = await import("./mocks");
-    const u = new URL(parsed.connection_string);
-    const source = dataSourceSchema.parse({
-      id: crypto.randomUUID(),
-      name: parsed.name,
-      type: "postgres",
-      masked_host: u.hostname.slice(0, 3) + "•••",
-      masked_database: u.pathname.slice(1, 4) + "•••",
-      status: "connected",
-      last_synced_at: null,
-    });
-    mocks.dataSourcesMock.push(source);
-    return source;
-  }
+export async function createConnection(form: ConnectionForm) {
+  const parsed = connectionFormSchema.parse(form);
+  const body = {
+    ...parsed,
+    control_column: parsed.control_column || null,
+  };
+  if (USE_MOCKS) return (await import("./mocks")).createConnectionMock(body);
   requireSecureTransport();
-  return dataSourceSchema.parse(await apiPost("/ingestion/connections", parsed));
+  return connectionSchema.parse(await apiPost("/ingestion/connections", body));
 }
-export async function syncDataSource(id: string) {
-  if (USE_MOCKS) {
-    const mocks = await import("./mocks");
-    const source = mocks.dataSourcesMock.find((s) => s.id === id);
-    if (!source) throw new Error("Fonte não encontrada.");
-    source.last_synced_at = new Date().toISOString();
-    source.status = "connected";
-    return dataSourceSchema.parse(source);
-  }
-  return dataSourceSchema.parse(
+export async function testConnection(id: string) {
+  if (USE_MOCKS) return (await import("./mocks")).testConnectionMock(id);
+  return compatibilityReportSchema.parse(
     await apiPost(
-      "/ingestion/connections/" + encodeURIComponent(id) + "/sync",
+      "/ingestion/connections/" + encodeURIComponent(id) + "/test",
       {},
     ),
   );
+}
+export async function startImport(id: string, request: ImportRequest) {
+  const parsed = importRequestSchema.parse(request);
+  if (USE_MOCKS) return (await import("./mocks")).startImportMock(id, parsed);
+  return importResponseSchema.parse(
+    await apiPost(
+      "/ingestion/connections/" + encodeURIComponent(id) + "/import",
+      parsed,
+    ),
+  );
+}
+export async function deleteConnection(id: string) {
+  if (USE_MOCKS) return (await import("./mocks")).deleteConnectionMock(id);
+  await apiDelete<void>("/ingestion/connections/" + encodeURIComponent(id));
 }

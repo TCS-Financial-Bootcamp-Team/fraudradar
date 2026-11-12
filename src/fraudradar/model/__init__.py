@@ -17,4 +17,8 @@ TRAIN_END = "2023-05-21"  # domingo: treino até aqui (inclusive); teste depois
 VALIDATION_START = "2023-04-24"  # segunda: as 4 últimas semanas do treino, para parar o treino
 QUEUE_SIZE = 300  # contas por semana que o analista consegue revisar
 QUEUE_TARGET = 0.95  # o corte da fila é escolhido na validação para manter 95% das lavadoras
+MIN_LABELED_WEEKS = 6  # semanas com gabarito para o retreino ter treino, validação e teste
 TARGET_FPR = 0.0013  # 0,13% de falso positivo, a régua do artigo do SAML-D
+# Conjunto de dados do modelo oficial. A ficha diz em que conjunto o modelo treinou
+# (`training_dataset`); ficha sem o campo é de antes dele e é a do oficial.
+OFFICIAL_DATASET = "saml-d"

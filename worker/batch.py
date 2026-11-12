@@ -4,8 +4,8 @@ Uma semana vai de segunda 00:00 à segunda seguinte. Para cada pedido (`batch`, 
 `replay`), o worker:
 
 1. lê do Postgres as transações desde `history_start` da ficha até o fim da última semana pedida
-   (as contagens do histórico das variáveis dependem desse início) e calcula as variáveis uma
-   vez só, com `compute_features`;
+   (as contagens do histórico das variáveis dependem desse início; em outro conjunto, desde a
+   primeira transação dele) e calcula as variáveis uma vez só, com `compute_features`;
 2. em cada semana: score de cada transação com o booster, fila por conta (`worker.queue`),
    contribuições da transação de maior score de cada conta da fila, regras de `db/rules/`,
    sinais da semana (`worker.summary`) e segmento das contas ativas;
@@ -13,12 +13,16 @@ Uma semana vai de segunda 00:00 à segunda seguinte. Para cada pedido (`batch`, 
    `evidence`; depois as métricas contra o gabarito (`worker.metrics`, o único que lê
    `ground_truth`), `weekly_batches`, `ingestions` e `audit_log`.
 
-Só processa semanas que começam depois do treino do modelo (`train_end` da ficha), a não ser com
-`allow_in_sample`: o modelo já viu os scores do treino, e a demo pareceria melhor do que é.
+No conjunto em que o modelo treinou (`training_dataset` da ficha; sem o campo, o SAML-D), só
+processa semanas que começam depois do treino (`train_end`), a não ser com `allow_in_sample`: o
+modelo já viu os scores do treino, e a demo pareceria melhor do que é. Em outro conjunto o modelo
+nunca viu as transações, mesmo com datas anteriores ao treino, e toda semana é processada.
 Semana já processada fica como está; `force` refaz, menos quando há trabalho de analista nela.
 """
 
+import json
 import logging
+import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
@@ -29,19 +33,29 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import Connection, Engine
 
+from fraudradar.config import get_settings
+from fraudradar.datasets import Dataset, use_dataset
 from fraudradar.features.history import (
     CASH_ACCOUNT,
     account_profile,
     compute_features,
     with_cash_account,
 )
+from fraudradar.model import OFFICIAL_DATASET
+from fraudradar.model.naming import dataset_version_name, file_stem, parse_dataset_version
 from fraudradar.model.segments import assign_segments
 from fraudradar.model.training import load_model
 from worker import queue, repository, summary
 from worker.errors import WorkerError
 from worker.metrics import week_metrics
 from worker.rules import RULES_DIR, run_rules
-from worker.weeks import check_monday, check_out_of_sample, first_out_of_sample_week, monday
+from worker.weeks import (
+    check_monday,
+    check_out_of_sample,
+    first_out_of_sample_week,
+    guards_training_period,
+    monday,
+)
 
 log = logging.getLogger("worker")
 
@@ -91,10 +105,19 @@ class _Week:
 # --- ficha e semanas ------------------------------------------------------------------------
 
 
-def load_card(model_dir: Path | None = None) -> tuple[lgb.Booster, dict]:
+def load_card(
+    model_dir: Path | None = None, model_version: str | None = None
+) -> tuple[lgb.Booster, dict]:
     """O modelo mais novo de MODEL_DIR (ou `model_dir`) e a ficha dele."""
     try:
-        booster, card = load_model(model_dir)
+        if model_version is None:
+            booster, card = load_model(model_dir)
+        else:
+            if not re.fullmatch(r"[A-Za-z0-9._-]{1,80}", model_version):
+                raise WorkerError("a versão ativa do modelo tem um nome inválido")
+            folder = Path(model_dir or get_settings().model_dir)
+            card = json.loads((folder / f"{model_version}.json").read_text(encoding="utf-8"))
+            booster = lgb.Booster(model_file=str(folder / f"{model_version}.txt"))
     except FileNotFoundError as exc:
         raise WorkerError(f"{exc} (uv run --group ml python -m fraudradar.model train)") from exc
     except lgb.basic.LightGBMError as exc:
@@ -113,8 +136,43 @@ def load_card(model_dir: Path | None = None) -> tuple[lgb.Booster, dict]:
     return booster, card
 
 
+def _dataset_model(dataset: Dataset | None, model_dir: Path | None) -> tuple[lgb.Booster, dict]:
+    """Mantém o modelo oficial atual quando o conjunto não fixa uma versão própria."""
+    if dataset is None or dataset.active_model_version is None:
+        return load_card(model_dir)
+    root = Path(model_dir or get_settings().model_dir)
+    parsed = parse_dataset_version(dataset.active_model_version)
+    if parsed is None:
+        # Nome antigo, sem o prefixo do conjunto: continua lendo da pasta dele.
+        booster, card = load_card(root / dataset.slug, dataset.active_model_version)
+    else:
+        slug, number = parsed
+        if slug != dataset.slug:
+            raise WorkerError(
+                f"a versão ativa '{dataset.active_model_version}' pertence a outro conjunto de"
+                " dados"
+            )
+        booster, card = load_card(root / slug, file_stem(number))
+        # Só em memória: o nome gravado em model_versions/alertas não colide com o do oficial.
+        card["model_name"] = dataset_version_name(slug, number)
+    # Ficha de retreino gravada antes de `training_dataset`: a pasta diz em que conjunto treinou.
+    card.setdefault("training_dataset", dataset.slug)
+    return booster, card
+
+
+def _scope(conn: Connection, dataset: Dataset | None) -> None:
+    if dataset is not None:
+        use_dataset(conn, dataset)
+
+
+def _guarded(card: dict, dataset: Dataset | None) -> bool:
+    """A trava do período de treino vale para este conjunto? (sem `dataset`, o SAML-D)"""
+    return guards_training_period(card, dataset.slug if dataset is not None else OFFICIAL_DATASET)
+
+
 def model_version(card: dict) -> str:
-    return f"lightgbm_v{card['version']}"
+    """``lightgbm_vN`` (oficial) ou ``<slug>/vN`` (retreino do conjunto, ver ``model_name``)."""
+    return card.get("model_name") or file_stem(card["version"])
 
 
 # --- comandos -------------------------------------------------------------------------------
@@ -128,12 +186,14 @@ def run_batch(
     allow_in_sample: bool = False,
     model_dir: Path | None = None,
     rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
 ) -> RunResult:
     """Uma semana (`week` é a segunda-feira)."""
     check_monday(week, "--week")
-    booster, card = load_card(model_dir)
-    check_out_of_sample([week], card, allow_in_sample)
-    return _run(engine, [week], booster, card, force=force, rules_dir=rules_dir)
+    booster, card = _dataset_model(dataset, model_dir)
+    if _guarded(card, dataset):
+        check_out_of_sample([week], card, allow_in_sample)
+    return _run(engine, [week], booster, card, force=force, rules_dir=rules_dir, dataset=dataset)
 
 
 def run_backfill(
@@ -145,65 +205,147 @@ def run_backfill(
     allow_in_sample: bool = False,
     model_dir: Path | None = None,
     rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
 ) -> RunResult:
     """Todas as semanas de `start` a `end` (segundas), com as variáveis calculadas uma vez só.
 
-    Padrão: da primeira segunda depois do treino à última semana com transações.
+    Padrão: da primeira segunda depois do treino (em outro conjunto, da primeira semana com
+    transações) à última semana com transações.
     """
     for day, flag in ((start, "--from"), (end, "--to")):
         if day is not None:
             check_monday(day, flag)
-    booster, card = load_card(model_dir)
+    booster, card = _dataset_model(dataset, model_dir)
     if start is not None and end is not None and start > end:
         raise WorkerError(f"--from {start.isoformat()} vem depois de --to {end.isoformat()}")
-    start = start or first_out_of_sample_week(card)
-    if end is None:
+    guarded = _guarded(card, dataset)
+    if start is None and guarded:
+        start = first_out_of_sample_week(card)
+    if start is None or end is None:
         with engine.connect() as conn:
+            _scope(conn, dataset)
+            first = repository.first_transaction_at(conn)
             last = repository.last_transaction_at(conn)
-        if last is None:
+        if first is None or last is None:
             return RunResult(
                 notes=["nada a processar: o banco não tem transações (rode  python -m worker load)"]
             )
-        end = monday(last.date())
+        start = start or monday(first.date())
+        end = end or monday(last.date())
     if start > end:
         return RunResult(
             notes=[f"nada a processar: não há semana com transações de {start} em diante"]
         )
     weeks = [start + timedelta(weeks=i) for i in range((end - start).days // 7 + 1)]
-    check_out_of_sample(weeks, card, allow_in_sample)
-    return _run(engine, weeks, booster, card, force=force, rules_dir=rules_dir)
+    if guarded:
+        check_out_of_sample(weeks, card, allow_in_sample)
+    return _run(engine, weeks, booster, card, force=force, rules_dir=rules_dir, dataset=dataset)
 
 
 def run_replay(
-    engine: Engine, *, model_dir: Path | None = None, rules_dir: Path = RULES_DIR
+    engine: Engine,
+    *,
+    model_dir: Path | None = None,
+    rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
 ) -> RunResult:
-    """A próxima semana com transações depois da última processada (ou a primeira depois do
-    treino). Não libera nada: liberar é o POST /replay/next-week da API."""
-    booster, card = load_card(model_dir)
-    first = first_out_of_sample_week(card)
+    """Compatibilidade: processa a próxima semana depois da última já processada."""
+    booster, card = _dataset_model(dataset, model_dir)
+    first = first_out_of_sample_week(card) if _guarded(card, dataset) else None
     with engine.connect() as conn:
+        _scope(conn, dataset)
         latest = repository.latest_processed_week(conn)
-        since = first if latest is None else max(latest + timedelta(days=7), first)
-        next_at = repository.first_transaction_at(conn, datetime.combine(since, time.min))
-    if next_at is None:
-        return RunResult(
-            notes=[
-                f"nada a processar: nenhuma semana com transações de {since.isoformat()} em diante"
-            ]
+        candidates = [] if first is None else [first]
+        if latest is not None:
+            candidates.append(latest + timedelta(days=7))
+        since = max(candidates, default=None)
+        next_at = repository.first_transaction_at(
+            conn, None if since is None else datetime.combine(since, time.min)
         )
-    return _run(engine, [monday(next_at.date())], booster, card, force=False, rules_dir=rules_dir)
+    if next_at is None:
+        where = "" if since is None else f" de {since.isoformat()} em diante"
+        return RunResult(notes=[f"nada a processar: nenhuma semana com transações{where}"])
+    return _run(
+        engine,
+        [monday(next_at.date())],
+        booster,
+        card,
+        force=False,
+        rules_dir=rules_dir,
+        dataset=dataset,
+    )
+
+
+def run_continuous(
+    engine: Engine,
+    *,
+    model_dir: Path | None = None,
+    rules_dir: Path = RULES_DIR,
+    dataset: Dataset | None = None,
+) -> RunResult:
+    """Processa períodos ainda sem lote e recalcula somente o período aberto.
+
+    O período aberto é a semana da transação mais recente. Uma semana anterior pode ser
+    processada pela primeira vez, mas nunca é reescrita. Quando a quantidade de transações
+    do período aberto não mudou desde o lote anterior, a rodada termina sem carregar o
+    histórico e sem executar o modelo.
+    """
+    booster, card = _dataset_model(dataset, model_dir)
+    with engine.connect() as conn:
+        _scope(conn, dataset)
+        last = repository.last_transaction_at(conn)
+        if last is None:
+            return RunResult(notes=["nada novo: o conjunto não tem transações"])
+        open_week = monday(last.date())
+        if _guarded(card, dataset):
+            first = first_out_of_sample_week(card)
+            if open_week < first:
+                return RunResult(
+                    notes=["nada novo: não há período posterior ao treino do modelo para processar"]
+                )
+        else:
+            # O modelo nunca viu este conjunto: vale desde a primeira semana dele.
+            first = monday(repository.first_transaction_at(conn).date())
+        _, end = repository.week_window(open_week)
+        weeks = sorted(
+            repository.weeks_with_transactions(conn, datetime.combine(first, time.min), end)
+        )
+        done = repository.processed_weeks(conn, weeks)
+        todo = [week for week in weeks if week not in done]
+        current_count = repository.transaction_count(conn, open_week)
+        previous_count = repository.processed_transaction_count(conn, open_week)
+        if open_week in done and previous_count != current_count:
+            todo.append(open_week)
+    if not todo:
+        return RunResult(notes=["nada novo: o período aberto não recebeu transações"])
+    result = RunResult()
+    _process(
+        engine,
+        sorted(set(todo)),
+        booster,
+        card,
+        force=False,
+        rules_dir=rules_dir,
+        result=result,
+        dataset=dataset,
+        recompute_open={open_week} if open_week in done else set(),
+    )
+    return result
 
 
 # --- planejamento e processamento ---------------------------------------------------------------
 
 
-def _run(engine, weeks, booster, card, *, force: bool, rules_dir: Path) -> RunResult:
+def _run(
+    engine, weeks, booster, card, *, force: bool, rules_dir: Path, dataset: Dataset | None
+) -> RunResult:
     """Separa o que fazer do que pular e recusa logo o --force sobre trabalho de analista,
     antes de ler 9 milhões de transações."""
     result = RunResult()
     first_start, _ = repository.week_window(min(weeks))
     _, last_end = repository.week_window(max(weeks))
     with engine.connect() as conn:
+        _scope(conn, dataset)
         with_transactions = repository.weeks_with_transactions(conn, first_start, last_end)
         done = repository.processed_weeks(conn, weeks)
         blocked = {}
@@ -229,15 +371,51 @@ def _run(engine, weeks, booster, card, *, force: bool, rules_dir: Path) -> RunRe
         else:
             todo.append(week)
     if todo:
-        _process(engine, todo, booster, card, force=force, rules_dir=rules_dir, result=result)
+        _process(
+            engine,
+            todo,
+            booster,
+            card,
+            force=force,
+            rules_dir=rules_dir,
+            result=result,
+            dataset=dataset,
+            recompute_open=set(),
+        )
     return result
 
 
-def _process(engine, weeks, booster, card, *, force: bool, rules_dir: Path, result: RunResult):
+def _history_start(conn: Connection, card: dict, dataset: Dataset | None) -> datetime:
+    """Onde começa o histórico das variáveis.
+
+    No conjunto do treino, em `history_start` da ficha: as contagens do histórico precisam do
+    mesmo início do treino. Em outro conjunto, na primeira transação dele, que pode vir antes do
+    início do treino (outra época).
+    """
+    start = datetime.combine(date.fromisoformat(card["history_start"]), time.min)
+    if _guarded(card, dataset):
+        return start
+    first = repository.first_transaction_at(conn)
+    return start if first is None else datetime.combine(first.date(), time.min)
+
+
+def _process(
+    engine,
+    weeks,
+    booster,
+    card,
+    *,
+    force: bool,
+    rules_dir: Path,
+    result: RunResult,
+    dataset: Dataset | None,
+    recompute_open: set[date],
+):
     clock = perf_counter()
-    history_start = datetime.combine(date.fromisoformat(card["history_start"]), time.min)
     _, end = repository.week_window(max(weeks))
     with engine.connect() as conn:
+        _scope(conn, dataset)
+        history_start = _history_start(conn, card, dataset)
         tx = repository.read_transactions(conn, history_start, end)
     log.info(
         "%s transações lidas, de %s a %s (%.0f s)",
@@ -270,7 +448,16 @@ def _process(engine, weeks, booster, card, *, force: bool, rules_dir: Path, resu
         begin, stop = np.searchsorted(times, np.array(repository.week_window(week), times.dtype))
         prepared = _prepare_week(week, tx, x, begin, stop, booster, card)
         with engine.begin() as conn:
-            outcome = _write_week(conn, prepared, card, version, force=force, rules_dir=rules_dir)
+            _scope(conn, dataset)
+            outcome = _write_week(
+                conn,
+                prepared,
+                card,
+                version,
+                force=force,
+                preserve_decided=week in recompute_open,
+                rules_dir=rules_dir,
+            )
         if isinstance(outcome, str):
             result.notes.append(outcome)
             continue
@@ -361,29 +548,51 @@ def _accounts(week_tx, tx, active, week, card) -> pd.DataFrame:
 
 
 def _write_week(
-    conn: Connection, w: _Week, card: dict, version: str, *, force: bool, rules_dir: Path
+    conn: Connection,
+    w: _Week,
+    card: dict,
+    version: str,
+    *,
+    force: bool,
+    preserve_decided: bool,
+    rules_dir: Path,
 ) -> WeekResult | str:
     """Grava a semana. Volta uma nota (str) se outra execução gravou a semana antes."""
     repository.lock_worker(conn)
-    if not force and repository.processed_weeks(conn, [w.week]):
+    if not force and not preserve_decided and repository.processed_weeks(conn, [w.week]):
         return f"semana {w.week.isoformat()}: outra execução já processou, nada a fazer"
-    reason = repository.protection(conn, w.week, lock=True)
-    if reason:
-        raise WorkerError(
-            f"reprocessamento recusado ({w.week.isoformat()}: {reason})."
-            " O trabalho dos analistas nunca é apagado."
-        )
+    if preserve_decided:
+        latest = repository.last_transaction_at(conn)
+        if latest is None or monday(latest.date()) != w.week:
+            return f"semana {w.week.isoformat()}: o período fechou durante o processamento"
+    else:
+        reason = repository.protection(conn, w.week, lock=True)
+        if reason:
+            raise WorkerError(
+                f"reprocessamento recusado ({w.week.isoformat()}: {reason})."
+                " O trabalho dos analistas nunca é apagado."
+            )
     ids = w.tx["id"].to_numpy()
     repository.upsert_model_version(conn, version, card)
-    repository.clear_week(conn, w.week, version, ids)
+    decided_accounts = (
+        repository.clear_open_week(conn, w.week, version, ids) if preserve_decided else set()
+    )
+    if not preserve_decided:
+        repository.clear_week(conn, w.week, version, ids)
     repository.copy_scores(conn, ids, version, w.scores)
     repository.upsert_accounts(conn, w.accounts)
     fired = run_rules(conn, w.week, rules_dir)
-    repository.insert_alerts(conn, w.week, version, w.alerts)
-    evidence = [{**e, "rules": fired.get(e["account"], [])} for e in w.evidence]
+    alerts = [row for row in w.alerts if row["account"] not in decided_accounts]
+    repository.insert_alerts(conn, w.week, version, alerts)
+    evidence = [
+        {**e, "rules": fired.get(e["account"], [])}
+        for e in w.evidence
+        if e["account"] not in decided_accounts
+    ]
     repository.insert_evidence(conn, w.week, evidence)
     # Só agora, com a fila gravada, o gabarito é lido.
     metrics = week_metrics(conn, w.week, w.tx)
+    metrics["transaction_count"] = len(w.tx)
     repository.insert_weekly_batch(conn, w.week, version, w.active_accounts, metrics)
     repository.update_ingestions(conn, w.ingestions)
     repository.audit_batch(
@@ -394,12 +603,14 @@ def _write_week(
             "model_version": version,
             "active_accounts": w.active_accounts,
             "forced": force,
+            "preserved_decided_alerts": len(decided_accounts),
         },
     )
+    alert_count = repository.count_alerts(conn, w.week)
     return WeekResult(
         week=w.week,
         transactions=len(w.tx),
         active_accounts=w.active_accounts,
-        alerts=len(w.alerts),
+        alerts=alert_count,
         metrics=metrics,
     )

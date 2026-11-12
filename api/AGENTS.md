@@ -21,7 +21,10 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
 - Banco → front: status `new`/`in_review` → `pending`, `escalated` →
   `escalated`, `reported` → `reported`; score 0–1 vira 0–100; ids e contas
   saem como texto; o país exibido é `countries[0]`.
-- Transação: use `DbConnection` (`api/dependencies.py`). É uma transação por
+- Transação de dados: use `DbConnection` (`api/dependencies.py`). Ela resolve
+  `X-Dataset` (padrão `saml-d`) e aplica `SET LOCAL search_path` antes da rota;
+  slug desconhecido responde 404. Catálogos globais em `public` usam
+  `PublicDbConnection`. Cada uma é uma transação por
   requisição, com commit antes da resposta; `HTTPException` faz rollback;
   `statement_timeout` de 15 s. Não abra outra conexão nem faça commit manual.
   Linha que vai mudar: `get_alert_row(..., for_update=True)` (FOR UPDATE).
@@ -54,7 +57,10 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
   converta nem some por moeda. O motivo está comentado no próprio arquivo.
 - Colunas do CSV → tabela: `COLUMN_RENAMES` em `schema.py`. Transação tem as 10 de
   `TRANSACTION_COLUMNS` (o SAML-D tem 12; `Is_laundering`/`Laundering_type` só
-  existem em `ground_truth`, e a API nunca lê nem grava essa tabela).
+  existem em `ground_truth`, e a API nunca lê nem grava essa tabela). O que a API precisa
+  saber do gabarito (o retreino é possível?) vem de `public.datasets.labeled_weeks` e
+  `has_laundering`, que só o worker preenche (`worker/labels.py`); há teste que proíbe consulta
+  a `ground_truth` pela API.
 - Contas são `BIGINT` no banco (no SAML-D, até 10 dígitos). Validação de
   transação que entra (CSV ou JSON): `src/fraudradar/data/ingestion.py`, a mesma
   para API e worker.

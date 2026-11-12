@@ -1,6 +1,8 @@
 -- Esquema do FraudRadar PLD. Roda uma vez, quando o volume do Postgres é criado.
 -- Datas do SAML-D não têm fuso: occurred_at e week ficam sem timezone.
 -- `week` é sempre a segunda-feira da semana.
+-- Este DDL não qualifica schemas de propósito: pode ser aplicado depois de
+-- `SET LOCAL search_path TO <schema_do_conjunto>, public`. O tipo vector vive em public.
 
 -- Transações do SAML-D (~9,5 mi linhas), carregadas por COPY.
 -- Sem FK para accounts: accounts é derivada de transactions e a FK deixaria a carga lenta.
@@ -27,7 +29,8 @@ CREATE INDEX transactions_receiver_occurred_at_idx ON transactions (receiver, oc
 -- pelo worker quando processar as semanas das transações do envio.
 CREATE TABLE ingestions (
     id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    source     TEXT        NOT NULL CHECK (source IN ('csv', 'manual')),
+    source     TEXT        NOT NULL DEFAULT 'api'
+               CHECK (source IN ('csv', 'api', 'simulation', 'connection')),
     file_name  TEXT,
     row_count  INTEGER     NOT NULL CHECK (row_count > 0),
     status     TEXT        NOT NULL DEFAULT 'received'

@@ -299,7 +299,7 @@ def test_single_transaction_saves_and_returns_receipt(client, seed):
     assert receipt["message"].startswith("1 transação recebida.")
     ing = seed.row("SELECT * FROM ingestions")
     assert str(ing["id"]) == receipt["id"]
-    assert (ing["source"], ing["file_name"], ing["row_count"]) == ("manual", None, 1)
+    assert (ing["source"], ing["file_name"], ing["row_count"]) == ("api", None, 1)
     saved = seed.row("SELECT * FROM transactions")
     assert saved["occurred_at"] == datetime(2022, 10, 7, 10, 35)
     assert (saved["sender"], saved["receiver"]) == (8724731955, 2769355426)
@@ -368,7 +368,7 @@ def test_ingestion_audits_with_local_analyst(client, db):
         "user_id": LOCAL_USER.id,
     }
     assert audits[1]["details"] == {
-        "source": "manual",
+        "source": "api",
         "row_count": 1,
         "user_id": LOCAL_USER.id,
     }

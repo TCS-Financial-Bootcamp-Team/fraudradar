@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Activity,
+  CircleUserRound,
   Database,
   LayoutDashboard,
   ListFilter,
@@ -44,6 +45,7 @@ const SIDEBAR_TRANSITION =
   "duration-200 ease-out motion-reduce:transition-none";
 
 const NAV_ICONS: Record<SidebarHref, LucideIcon> = {
+  "/accounts": CircleUserRound,
   "/dashboard": LayoutDashboard,
   "/alerts": ListFilter,
   "/monitoring": Activity,
@@ -157,9 +159,9 @@ export function Sidebar({
           )}
         >
           <Link
-            href="/dashboard"
+            href="/accounts"
             onClick={onMobileClose}
-            aria-label="FraudRadar — visão geral"
+            aria-label="FraudRadar — contas suspeitas"
             className="flex items-center gap-2.5 whitespace-nowrap rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
             <BrandMark />

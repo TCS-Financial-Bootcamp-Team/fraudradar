@@ -3,11 +3,12 @@
 python -m worker load [--csv CAMINHO]                     # carrega o SAML-D no Postgres (uma vez)
 python -m worker batch --week 2023-05-22 [--force] [--allow-in-sample]
 python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD] [--force] [--allow-in-sample]
-python -m worker replay                                   # processa a próxima semana
+python -m worker replay                         # compatibilidade: processa a próxima semana
+python -m worker labels [--dataset SLUG]        # mede o gabarito e grava no registro dos conjuntos
 
-Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py` e
-`worker/batch.py`. Sai com 0 quando dá certo ou não há nada a fazer, e com 1 em erro, com uma
-mensagem que diz o que rodar.
+Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py`,
+`worker/batch.py` e `worker/labels.py`. Sai com 0 quando dá certo ou não há nada a fazer, e com
+1 em erro, com uma mensagem que diz o que rodar.
 """
 
 import argparse
@@ -18,6 +19,11 @@ from time import perf_counter
 from sqlalchemy.exc import OperationalError
 
 from fraudradar.config import get_settings
+from fraudradar.datasets import (
+    DatasetNotFoundError,
+    InvalidDatasetSlugError,
+    resolve_dataset,
+)
 from fraudradar.db import check_connection, get_engine
 from worker.errors import WorkerError
 from worker.weeks import parse_monday
@@ -29,7 +35,14 @@ def _parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="python -m worker", description="Worker em lote do FraudRadar")
     sub = p.add_subparsers(dest="command", required=True)
 
-    load = sub.add_parser("load", help="carrega o SAML-D no Postgres (uma vez, num banco vazio)")
+    scoped = argparse.ArgumentParser(add_help=False)
+    scoped.add_argument(
+        "--dataset", default="saml-d", metavar="SLUG", help="conjunto de dados (padrão: saml-d)"
+    )
+
+    load = sub.add_parser(
+        "load", parents=[scoped], help="carrega o SAML-D no Postgres (uma vez, num banco vazio)"
+    )
     load.add_argument(
         "--csv", type=Path, help="caminho do SAML-D.csv (padrão: DATA_DIR/SAML-D.csv)"
     )
@@ -38,29 +51,37 @@ def _parser() -> argparse.ArgumentParser:
     reprocess.add_argument(
         "--force",
         action="store_true",
-        help="refaz semana já processada (recusado se já liberada ou com decisão de analista)",
+        help="refaz semana já processada (recusado se houver trabalho de analista)",
     )
     reprocess.add_argument(
         "--allow-in-sample",
         action="store_true",
-        help="aceita semana do período de treino do modelo (os números ficam otimistas)",
+        help=(
+            "aceita semana do período de treino do modelo no conjunto em que ele treinou (os"
+            " números ficam otimistas); nos outros conjuntos toda semana já é aceita"
+        ),
     )
     batch = sub.add_parser(
-        "batch", parents=[reprocess], help="score, fila, evidências e métricas de uma semana"
+        "batch",
+        parents=[scoped, reprocess],
+        help="score, fila, evidências e métricas de uma semana",
     )
     batch.add_argument(
         "--week", required=True, metavar="AAAA-MM-DD", help="segunda-feira da semana"
     )
     backfill = sub.add_parser(
         "backfill",
-        parents=[reprocess],
+        parents=[scoped, reprocess],
         help="processa várias semanas de uma vez (prepara o banco da demo)",
     )
     backfill.add_argument(
         "--from",
         dest="start",
         metavar="AAAA-MM-DD",
-        help="primeira segunda (padrão: a primeira depois do treino do modelo)",
+        help=(
+            "primeira segunda (padrão: a primeira depois do treino do modelo; em outro conjunto,"
+            " a primeira com transações)"
+        ),
     )
     backfill.add_argument(
         "--to",
@@ -70,7 +91,19 @@ def _parser() -> argparse.ArgumentParser:
     )
     sub.add_parser(
         "replay",
-        help="processa a próxima semana ainda não processada (liberar é o POST /replay/next-week)",
+        parents=[scoped],
+        help="compatibilidade: processa a próxima semana ainda não processada",
+    )
+    sub.add_parser("serve", help="executa os trabalhos em segundo plano")
+    labels = sub.add_parser(
+        "labels",
+        help=(
+            "mede de novo o gabarito (semanas rotuladas e se há lavagem) e grava no registro"
+            " dos conjuntos, que a API usa para liberar o retreino"
+        ),
+    )
+    labels.add_argument(
+        "--dataset", metavar="SLUG", help="só este conjunto (padrão: todos os registrados)"
     )
     return p
 
@@ -88,13 +121,21 @@ def _thousands(number: int) -> str:
     return f"{number:,}".replace(",", ".")
 
 
+def _dataset(slug: str):
+    with get_engine().connect() as conn:
+        try:
+            return resolve_dataset(conn, slug)
+        except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
+            raise WorkerError(f"conjunto de dados '{slug}' não encontrado") from exc
+
+
 def _load(args) -> int:
     from worker.load import check_csv, load_saml_d
 
     csv = check_csv(args.csv or get_settings().data_dir / "SAML-D.csv")
     _require_database()
     log.info("lendo %s", csv)
-    result = load_saml_d(get_engine(), csv)
+    result = load_saml_d(get_engine(), csv, dataset=_dataset(args.dataset))
     if result.already_loaded:
         log.info(
             "o SAML-D já está no banco (%s transações): nada a fazer. Para carregar de novo,"
@@ -117,6 +158,24 @@ def _load(args) -> int:
     return 0
 
 
+def _labels(args) -> int:
+    from worker.labels import refresh_registry
+
+    _require_database()
+    datasets = None if args.dataset is None else [_dataset(args.dataset)]
+    measured = refresh_registry(get_engine(), datasets)
+    if not measured:
+        log.info("nenhum conjunto de dados registrado: nada a medir")
+    for slug, stats in measured.items():
+        log.info(
+            "%s: %d semana(s) com gabarito, %s",
+            slug,
+            stats.labeled_weeks,
+            "com lavagem" if stats.has_laundering else "sem lavagem marcada",
+        )
+    return 0
+
+
 def _batch(args) -> int:
     # Os argumentos são conferidos antes de tudo: data errada não espera o banco nem o modelo.
     dates = {
@@ -133,20 +192,22 @@ def _batch(args) -> int:
         ) from exc
     clock = perf_counter()
     engine = get_engine()
+    dataset = _dataset(args.dataset)
     if args.command == "replay":
-        result = batch.run_replay(engine)
+        result = batch.run_replay(engine, dataset=dataset)
     else:
         options = {"force": args.force, "allow_in_sample": args.allow_in_sample}
         if args.command == "batch":
-            result = batch.run_batch(engine, dates["week"], **options)
+            result = batch.run_batch(engine, dates["week"], dataset=dataset, **options)
         else:
-            result = batch.run_backfill(engine, dates.get("start"), dates.get("end"), **options)
+            result = batch.run_backfill(
+                engine, dates.get("start"), dates.get("end"), dataset=dataset, **options
+            )
     for note in result.notes:
         log.info("%s", note)
     if result.processed:
         log.info(
-            "pronto: %d semana(s) processada(s) em %.0f s; para mostrá-las no app, libere uma"
-            " por vez (POST /replay/next-week)",
+            "pronto: %d semana(s) processada(s) e disponível(is) no app em %.0f s",
             len(result.processed),
             perf_counter() - clock,
         )
@@ -157,7 +218,17 @@ def main(argv: list[str] | None = None) -> int:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     args = _parser().parse_args(argv)
     try:
-        return _load(args) if args.command == "load" else _batch(args)
+        if args.command == "load":
+            return _load(args)
+        if args.command == "labels":
+            return _labels(args)
+        if args.command == "serve":
+            _require_database()
+            from worker.jobs import serve
+
+            serve(get_engine())
+            return 0
+        return _batch(args)
     except WorkerError as exc:
         log.error("%s", exc)
         return 1

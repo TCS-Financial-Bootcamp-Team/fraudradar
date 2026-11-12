@@ -6,11 +6,17 @@ from functools import lru_cache
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, Header, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import Connection
 
 from fraudradar.config import get_settings
+from fraudradar.datasets import (
+    DatasetNotFoundError,
+    InvalidDatasetSlugError,
+    resolve_dataset,
+    use_dataset,
+)
 from fraudradar.db import get_engine
 
 
@@ -22,7 +28,27 @@ def _get_connection() -> Iterator[Connection]:
 
 
 # scope="function": o commit roda antes de a resposta sair, então falha no commit vira 500.
-DbConnection = Annotated[Connection, Depends(_get_connection, scope="function")]
+PublicDbConnection = Annotated[Connection, Depends(_get_connection, scope="function")]
+
+
+def _get_dataset_connection(
+    x_dataset: Annotated[str, Header(alias="X-Dataset")] = "saml-d",
+) -> Iterator[Connection]:
+    """Abre a transação da requisição já no schema indicado por ``X-Dataset``."""
+    with get_engine().begin() as conn:
+        conn.exec_driver_sql("SET LOCAL statement_timeout = '15s'")
+        try:
+            dataset = resolve_dataset(conn, x_dataset)
+        except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"Conjunto de dados '{x_dataset}' não encontrado.",
+            ) from exc
+        use_dataset(conn, dataset)
+        yield conn
+
+
+DbConnection = Annotated[Connection, Depends(_get_dataset_connection, scope="function")]
 
 
 @dataclass(frozen=True)
