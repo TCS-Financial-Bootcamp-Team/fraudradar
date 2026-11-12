@@ -170,13 +170,10 @@ def test_prior_approval_locks_alert_even_with_newer_draft(client, seed, alert_id
 @pytest.mark.parametrize("decision", ["archive", "escalate"])
 def test_approval_blocked_after_changing_decision(client, seed, alert_id, draft_id, decision):
     before = seed.row("SELECT * FROM reports WHERE id = :id", id=draft_id)
-    assert (
-        client.post(
-            f"/alerts/{alert_id}/decision",
-            json={"decision": decision, "justification": JUSTIFICATION},
-        ).status_code
-        == 200
-    )
+    request = {"decision": decision, "justification": JUSTIFICATION}
+    if decision == "archive":
+        request["archive_reason"] = "insufficient_evidence"
+    assert client.post(f"/alerts/{alert_id}/decision", json=request).status_code == 200
     resp = client.post(f"/alerts/{alert_id}/report/approve", json={"content": APPROVED_CONTENT})
     assert resp.status_code == 409
     assert seed.row("SELECT * FROM reports WHERE id = :id", id=draft_id) == before

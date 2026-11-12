@@ -53,6 +53,7 @@ def test_item_matches_front_contract(client, seed):
         "transaction_count": 4,
         "status": "pending",
         "queue_position": 1,
+        "origin": "model",
     }
 
 

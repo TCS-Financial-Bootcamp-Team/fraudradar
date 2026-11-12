@@ -213,13 +213,15 @@ class Seed:
         total_amount: float = 1000.0,
         transaction_count: int = 3,
         version: str = VERSION,
+        origin: str = "model",
     ) -> int:
+        """Alerta; `origin="exploration"` é a amostra de controle (conta fora da fila)."""
         self.model(version)
         self.account(account)
         return self._exec(
             "INSERT INTO alerts (account, week, score, queue_position, status, countries, typology,"
-            " total_amount, transaction_count, model_version)"
-            " VALUES (:c, :w, :sc, :p, :st, :co, :t, :a, :tc, :m) RETURNING id",
+            " total_amount, transaction_count, model_version, origin)"
+            " VALUES (:c, :w, :sc, :p, :st, :co, :t, :a, :tc, :m, :o) RETURNING id",
             c=account,
             w=week,
             sc=score,
@@ -230,6 +232,7 @@ class Seed:
             a=total_amount,
             tc=transaction_count,
             m=version,
+            o=origin,
         )
 
     def evidence(
@@ -277,16 +280,55 @@ class Seed:
         analyst: str = "Ana Analista",
         justification: str = "Justificativa de teste suficiente.",
         assessment_id: int | None = None,
+        archive_reason: str | None = None,
     ) -> int:
+        """Decisão gravada direto no banco (sem rótulo); sem `archive_reason`, um arquivamento
+        fica como os de antes do motivo obrigatório."""
         return self._exec(
-            "INSERT INTO decisions (alert_id, assessment_id, analyst, decision, justification)"
-            " VALUES (:a, :p, :an, :d, :j) RETURNING id",
+            "INSERT INTO decisions"
+            " (alert_id, assessment_id, analyst, decision, justification, archive_reason)"
+            " VALUES (:a, :p, :an, :d, :j, :r) RETURNING id",
             a=alert_id,
             p=assessment_id,
             an=analyst,
             d=decision,
             j=justification,
+            r=archive_reason,
         )
+
+    def label(
+        self,
+        alert_id: int,
+        label: int,
+        *,
+        source: str = "analyst",
+        decision: str | None = None,
+        analyst: str = "Ana Analista",
+    ) -> int:
+        """Decisão conclusiva com o rótulo que ela deixa em `analyst_labels` (1 = lavagem
+        confirmada, 0 = falso positivo confirmado), como a API grava. Devolve o id da decisão."""
+        decision = decision or ("report" if label == 1 else "archive")
+        decision_id = self.decision(
+            alert_id,
+            decision,
+            analyst=analyst,
+            archive_reason="false_positive" if decision == "archive" else None,
+        )
+        self._exec(
+            "UPDATE alerts SET status = :s WHERE id = :a",
+            s="reported" if decision == "report" else "archived",
+            a=alert_id,
+        )
+        self._exec(
+            "INSERT INTO analyst_labels"
+            " (alert_id, decision_id, account, week, label, origin, source)"
+            " SELECT a.id, :d, a.account, a.week, :l, a.origin, :s FROM alerts a WHERE a.id = :a",
+            d=decision_id,
+            l=label,
+            s=source,
+            a=alert_id,
+        )
+        return decision_id
 
     def report(
         self,

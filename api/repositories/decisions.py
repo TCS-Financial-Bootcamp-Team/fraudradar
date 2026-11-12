@@ -9,6 +9,7 @@ from sqlalchemy import Connection, RowMapping, text
 from api.dependencies import User
 from api.domain import DECISION_STATUS, alert_from_row, get_alert_row, week_start
 from api.schemas.alerts import Alert, ApprovalRequest, DecisionRequest, Report
+from fraudradar.model.feedback import decision_label, store_label
 
 
 def build_report_draft(alert: RowMapping, justification: str, assessment: str | None) -> str:
@@ -103,8 +104,10 @@ def record_decision(conn: Connection, alert_id: int, request: DecisionRequest, u
     )
     decision_id = conn.execute(
         text(
-            "INSERT INTO decisions (alert_id, assessment_id, analyst, decision, justification)"
-            " VALUES (:id, :assessment, :analyst, :decision, :justification) RETURNING id"
+            "INSERT INTO decisions"
+            " (alert_id, assessment_id, analyst, decision, justification, archive_reason)"
+            " VALUES (:id, :assessment, :analyst, :decision, :justification, :reason)"
+            " RETURNING id"
         ),
         {
             "id": alert_id,
@@ -112,12 +115,17 @@ def record_decision(conn: Connection, alert_id: int, request: DecisionRequest, u
             "analyst": user.name,
             "decision": request.decision,
             "justification": request.justification,
+            "reason": request.archive_reason,
         },
     ).scalar_one()
     conn.execute(
         text("UPDATE alerts SET status = :status, updated_at = now() WHERE id = :id"),
         {"status": DECISION_STATUS[request.decision], "id": alert_id},
     )
+    # O retorno para o retreino, na mesma transação: vale a última decisão do alerta, então esta
+    # troca ou apaga o rótulo que a anterior deixou.
+    label = decision_label(request.decision, request.archive_reason)
+    store_label(conn, alert_id, decision_id, label)
     if request.decision == "report":
         draft = build_report_draft(
             alert,
@@ -141,13 +149,10 @@ def record_decision(conn: Connection, alert_id: int, request: DecisionRequest, u
                 ),
                 {"id": alert_id, "decision": decision_id, "draft": draft},
             )
-    _audit(
-        conn,
-        alert_id,
-        user,
-        "decision",
-        {"decision": request.decision, "decision_id": decision_id},
-    )
+    details = {"decision": request.decision, "decision_id": decision_id}
+    if request.archive_reason is not None:
+        details["archive_reason"] = request.archive_reason
+    _audit(conn, alert_id, user, "decision", details)
     return alert_from_row(get_alert_row(conn, alert_id))
 
 
