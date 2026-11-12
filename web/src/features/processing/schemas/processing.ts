@@ -4,6 +4,8 @@ export const processingSettingsUpdateSchema = z.object({
   interval_minutes: z.number().int().min(5).max(1440),
   enabled: z.boolean(),
   demo_mode: z.boolean(),
+  // Amostra de controle: contas sorteadas fora da fila a cada semana (0 desliga).
+  exploration_per_week: z.number().int().min(0).max(50),
 });
 export const processingSettingsSchema = processingSettingsUpdateSchema.extend({
   dataset: z.string(),

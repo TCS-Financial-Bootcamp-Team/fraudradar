@@ -17,6 +17,7 @@ export function processingSettingsMock(): ProcessingSettings {
     interval_minutes: 60,
     enabled: true,
     demo_mode: false,
+    exploration_per_week: 5,
     last_run_at: "2026-11-11T12:00:00Z",
     next_run_at: "2026-11-11T13:00:00Z",
   };

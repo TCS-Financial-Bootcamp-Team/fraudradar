@@ -6,14 +6,21 @@ import { ResourceError } from "@/components/ui/states";
 import { formatNumber, formatPercent } from "@/lib/format";
 import { useModels } from "../hooks/use-models";
 import { jobIsOpen, type Job } from "@/features/jobs/schemas/jobs";
-import type { ModelMetrics, ModelVersion } from "../schemas/models";
+import type {
+  ComparisonMetrics,
+  FeedbackUsage,
+  ModelComparison,
+  ModelVersion,
+  TrainingFeedback,
+  TrainRequest,
+} from "../schemas/models";
 
-type MetricKey = keyof ModelMetrics;
+type MetricKey = keyof ComparisonMetrics;
 
 const COLUMNS: Array<{ key: MetricKey; label: string; percent: boolean }> = [
   { key: "pr_auc", label: "PR-AUC", percent: true },
-  { key: "recall_at_fpr", label: "Recall (0,13% de falso positivo)", percent: true },
   { key: "queue_recall", label: "Recall da fila", percent: true },
+  { key: "queue_precision", label: "Precisão da fila", percent: true },
   { key: "innocents_per_week", label: "Inocentes por semana", percent: false },
 ];
 
@@ -36,6 +43,65 @@ export function metricDelta(
     signDisplay: "exceptZero",
   }).format(diff);
   return `${text.replace("-", "−")}${percent ? " p.p." : ""}`;
+}
+
+/** O resultado da trava de promoção, em uma linha. */
+export function gateText(comparison: ModelComparison) {
+  if (comparison.gate.passed) return "Pode ser promovida";
+  const diff = comparison.recall_difference;
+  if (diff === null) return comparison.gate.reason ?? "Bloqueada pela trava de promoção";
+  const points = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 1 }).format(
+    Math.abs(diff) * 100,
+  );
+  return `Bloqueada: acha ${points} p.p. menos lavadoras na fila que a versão ativa`;
+}
+
+/** Por que a versão não pode ser promovida (a trava falhou); null quando pode. */
+export function promoteBlockReason(version: ModelVersion) {
+  const comparison = version.comparison;
+  if (!comparison || comparison.gate.passed) return null;
+  return comparison.gate.reason ?? gateText(comparison);
+}
+
+/** O retorno que a versão usou no treino, em uma linha; null quando ela não usou retorno. */
+export function feedbackText(feedback: FeedbackUsage | null) {
+  if (!feedback?.used || !feedback.labels) return null;
+  const labels = feedback.labels;
+  const parts = [
+    `${formatNumber(labels.total)} rótulos no treino (${formatNumber(labels.laundering)} lavagem confirmada, ${formatNumber(labels.false_positive)} falso positivo)`,
+  ];
+  if (feedback.labels_in_validation)
+    parts.push(`${formatNumber(feedback.labels_in_validation)} na validação, sem peso`);
+  if (feedback.labels_reserved_for_test)
+    parts.push(`${formatNumber(feedback.labels_reserved_for_test)} reservados para o teste`);
+  if (feedback.conflicts)
+    parts.push(
+      `${formatNumber(feedback.conflicts)} transações em conflito com o gabarito (vale o gabarito)`,
+    );
+  return "Retorno: " + parts.join(" · ");
+}
+
+/** O que a escolha de treino permite: as opções e por que o treino não pode sair. */
+export function trainChoiceState(
+  feedback: TrainingFeedback,
+  choice: TrainRequest,
+) {
+  const analyst = feedback.analyst.laundering + feedback.analyst.false_positive;
+  const simulated = feedback.simulated.laundering + feedback.simulated.false_positive;
+  const reason = !choice.use_feedback
+    ? null
+    : choice.include_simulated
+      ? feedback.blocked_reason_with_simulated
+      : feedback.blocked_reason;
+  return {
+    analystLabel: `Incluir o retorno dos analistas (${formatNumber(analyst)} rótulos: ${formatNumber(feedback.analyst.laundering)} lavagem confirmada, ${formatNumber(feedback.analyst.false_positive)} falso positivo confirmado)`,
+    showSimulated: simulated > 0,
+    simulatedLabel: `Incluir o retorno simulado (${formatNumber(simulated)} rótulos: ${formatNumber(feedback.simulated.laundering)} lavagem confirmada, ${formatNumber(feedback.simulated.false_positive)} falso positivo confirmado)`,
+    // Dá para pedir o retorno se ele basta sozinho ou com o simulado.
+    feedbackPossible:
+      feedback.blocked_reason === null || feedback.blocked_reason_with_simulated === null,
+    blockedReason: reason,
+  };
 }
 
 function formatDate(value: string | null) {
@@ -72,10 +138,90 @@ function TrainingProgress({ job }: { job: Job }) {
   );
 }
 
+function TrainChoice({
+  feedback,
+  busy,
+  onTrain,
+  onCancel,
+}: {
+  feedback: TrainingFeedback;
+  busy: boolean;
+  onTrain: (choice: TrainRequest) => void;
+  onCancel: () => void;
+}) {
+  const [choice, setChoice] = useState<TrainRequest>({
+    use_feedback: false,
+    include_simulated: false,
+  });
+  const state = trainChoiceState(feedback, choice);
+  return (
+    <div
+      role="dialog"
+      aria-label="Treinar nova versão"
+      className="flex flex-col gap-3 rounded-lg border border-border bg-muted p-4"
+    >
+      <p className="m-0 text-sm text-foreground">
+        A versão nova treina com o gabarito e é comparada com a versão ativa no
+        mesmo período de teste antes de poder ser promovida.
+      </p>
+      <label className="flex min-h-11 items-start gap-3 text-sm text-foreground">
+        <input
+          type="checkbox"
+          className="mt-1"
+          checked={choice.use_feedback}
+          disabled={!state.feedbackPossible}
+          onChange={(event) =>
+            setChoice({
+              use_feedback: event.target.checked,
+              include_simulated: event.target.checked && choice.include_simulated,
+            })
+          }
+        />
+        <span>{state.analystLabel}</span>
+      </label>
+      {state.showSimulated && (
+        <label className="flex min-h-11 items-start gap-3 pl-6 text-sm text-foreground">
+          <input
+            type="checkbox"
+            className="mt-1"
+            checked={choice.include_simulated}
+            disabled={!choice.use_feedback}
+            onChange={(event) =>
+              setChoice({ ...choice, include_simulated: event.target.checked })
+            }
+          />
+          <span>{state.simulatedLabel}</span>
+        </label>
+      )}
+      {!state.feedbackPossible && feedback.blocked_reason && (
+        <p className="m-0 text-xs text-muted-foreground">{feedback.blocked_reason}</p>
+      )}
+      {state.blockedReason && (
+        <p role="alert" className="m-0 text-xs text-signal">
+          {state.blockedReason}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          disabled={busy || state.blockedReason !== null}
+          onClick={() => onTrain(choice)}
+        >
+          Treinar
+        </Button>
+        <Button variant="outline" size="sm" onClick={onCancel}>
+          Cancelar
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ModelSection() {
   const { data, error, loading, reload, job, busy, train, promote } =
     useModels();
   const [candidate, setCandidate] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
 
   if (loading && !data)
     return (
@@ -97,50 +243,97 @@ export function ModelSection() {
     : data.train_blocked_reason;
   const toPromote = data.versions.find((v) => v.version === candidate) ?? null;
 
-  const row = (version: ModelVersion) => (
-    <tr key={version.version} className="border-t border-soft align-top">
-      <td className="py-3 pr-4">
-        <span className="flex items-center gap-2">
-          <span
-            aria-hidden="true"
-            className={`size-2 rounded-full ${version.active ? "bg-primary" : "bg-track"}`}
-          />
-          <span className="font-mono text-xs text-foreground">
-            {version.version}
+  const metricCell = (version: ModelVersion, key: MetricKey, percent: boolean) => {
+    const comparison = version.active ? null : version.comparison;
+    const own = comparison ? comparison.candidate[key] : version.metrics[key];
+    return (
+      <td key={key} className="py-3 pr-4 text-right tabular-nums">
+        <span className="font-mono text-xs text-foreground">
+          {metricText(own, percent)}
+        </span>
+        {comparison ? (
+          <span className="block text-xs text-muted-foreground">
+            ativa {metricText(comparison.active[key], percent)} ·{" "}
+            {metricDelta(own, comparison.active[key], percent)}
           </span>
-        </span>
-        <span className="block pl-4 text-xs text-muted-foreground">
-          {version.active ? "Ativa" : "Disponível"} ·{" "}
-          {version.source === "official" ? "oficial" : "retreino"} ·{" "}
-          {formatDate(version.created_at)}
-        </span>
+        ) : (
+          !version.active &&
+          active && (
+            <span
+              className="block text-xs text-muted-foreground"
+              title="Ficha antiga, sem comparação no mesmo período: a diferença compara períodos de teste diferentes."
+            >
+              {metricDelta(own, active.metrics[key], percent)}
+            </span>
+          )
+        )}
       </td>
-      {COLUMNS.map(({ key, percent }) => (
-        <td key={key} className="py-3 pr-4 text-right tabular-nums">
-          <span className="font-mono text-xs text-foreground">
-            {metricText(version.metrics[key], percent)}
+    );
+  };
+
+  const row = (version: ModelVersion) => {
+    const blocked = promoteBlockReason(version);
+    const usage = feedbackText(version.feedback);
+    const comparison = version.active ? null : version.comparison;
+    return (
+      <tr key={version.version} className="border-t border-soft align-top">
+        <td className="py-3 pr-4">
+          <span className="flex flex-wrap items-center gap-2">
+            <span
+              aria-hidden="true"
+              className={`size-2 rounded-full ${version.active ? "bg-primary" : "bg-track"}`}
+            />
+            <span className="font-mono text-xs text-foreground">
+              {version.version}
+            </span>
+            {version.feedback?.used && version.feedback.include_simulated && (
+              <span className="inline-flex h-5 items-center rounded-full border border-border px-2 text-[11px] text-muted-foreground">
+                retorno simulado
+              </span>
+            )}
           </span>
-          {!version.active && active && (
-            <span className="block text-xs text-muted-foreground">
-              {metricDelta(version.metrics[key], active.metrics[key], percent)}
+          <span className="block pl-4 text-xs text-muted-foreground">
+            {version.active ? "Ativa" : "Disponível"} ·{" "}
+            {version.source === "official" ? "oficial" : "retreino"} ·{" "}
+            {formatDate(version.created_at)}
+            {version.train_end ? ` · treino até ${formatDate(version.train_end)}` : ""}
+          </span>
+          {comparison && (
+            <span
+              className={`block pl-4 text-xs ${comparison.gate.passed ? "text-muted-foreground" : "text-signal"}`}
+            >
+              {gateText(comparison)} · comparada com {comparison.active_version}
+              {comparison.period.start
+                ? ` em ${comparison.period.weeks} semanas desde ${formatDate(comparison.period.start)}`
+                : ""}
+            </span>
+          )}
+          {usage && (
+            <span className="block max-w-md pl-4 text-xs text-muted-foreground">
+              {usage}
             </span>
           )}
         </td>
-      ))}
-      <td className="py-3 text-right">
-        {!version.active && (
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => setCandidate(version.version)}
-          >
-            Promover
-          </Button>
-        )}
-      </td>
-    </tr>
-  );
+        {COLUMNS.map(({ key, percent }) => metricCell(version, key, percent))}
+        <td className="py-3 text-right">
+          {!version.active && (
+            <div className="flex flex-col items-end gap-1">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || blocked !== null}
+                title={blocked ?? undefined}
+                onClick={() => setCandidate(version.version)}
+              >
+                Promover
+              </Button>
+              {blocked && <span className="sr-only">{blocked}</span>}
+            </div>
+          )}
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <section
@@ -155,11 +348,15 @@ export function ModelSection() {
             <span className="font-mono text-foreground">
               {active?.version ?? "nenhuma"}
             </span>
-            . Métricas medidas no período de teste, depois do corte no tempo.
+            .
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Button size="sm" disabled={trainDisabled} onClick={() => void train()}>
+          <Button
+            size="sm"
+            disabled={trainDisabled || choosing}
+            onClick={() => setChoosing(true)}
+          >
             Treinar nova versão
           </Button>
           {trainDisabled && reason && (
@@ -170,6 +367,17 @@ export function ModelSection() {
         </div>
       </header>
 
+      {choosing && !trainDisabled && (
+        <TrainChoice
+          feedback={data.training_feedback}
+          busy={busy}
+          onCancel={() => setChoosing(false)}
+          onTrain={(choice) => {
+            setChoosing(false);
+            void train(choice);
+          }}
+        />
+      )}
       {job && training && <TrainingProgress job={job} />}
       {failed && (
         <p role="alert" className="m-0 text-xs text-signal">
@@ -177,13 +385,25 @@ export function ModelSection() {
         </p>
       )}
 
+      <div className="flex flex-col gap-1">
+        <h3 className="m-0 text-[13px] font-medium text-foreground">
+          Validação no período de teste (dados rotulados)
+        </h3>
+        <p className="m-0 text-xs text-muted-foreground">
+          Medidas contra o gabarito nas semanas de teste, depois do corte no
+          tempo, para decidir a promoção. Cada versão nova aparece ao lado da
+          versão ativa medida nas mesmas semanas. Estas métricas não aparecem
+          nas telas de operação: lá não existe gabarito.
+        </p>
+      </div>
+
       {data.versions.length === 0 ? (
         <p className="m-0 text-xs text-muted-foreground">
           Nenhuma versão do modelo encontrada para este conjunto.
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
+          <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="text-xs text-muted-foreground">
                 <th className="pb-2 pr-4 text-left font-normal">Versão</th>

@@ -8,6 +8,7 @@ import { useProfile } from "@/features/auth/hooks/use-profile";
 import { profileSchema, type Profile } from "@/features/auth/schemas/auth";
 import { HealthPanel } from "@/features/health/components/health-panel";
 import { ProcessingSettingsCard } from "@/features/processing/components/processing-settings";
+import { ModelSection } from "@/features/models/components/model-section";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
@@ -135,7 +136,10 @@ export function Settings() {
 
       <ProcessingSettingsCard />
 
-      {/* Card 4: Sistema */}
+      {/* Card 4: Modelo — versões, validação contra o gabarito e trava de promoção */}
+      <ModelSection />
+
+      {/* Card 5: Sistema */}
       <HealthPanel />
     </div>
   );

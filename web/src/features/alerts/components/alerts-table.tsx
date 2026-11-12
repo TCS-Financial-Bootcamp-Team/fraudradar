@@ -17,9 +17,27 @@ export const statusLabels: Record<AlertStatus, string> = {
 };
 
 export function getAlertLinkLabel(
-  alert: Pick<Alert, "id" | "account">,
+  alert: Pick<Alert, "id" | "account"> & Partial<Pick<Alert, "origin">>,
 ): string {
-  return `Abrir alerta ${alert.id}, conta ${alert.account}`;
+  const sample = alert.origin === "exploration" ? " (amostra de controle)" : "";
+  return `Abrir alerta ${alert.id}, conta ${alert.account}${sample}`;
+}
+
+export const CONTROL_SAMPLE_HINT =
+  "Conta sorteada abaixo do corte para medir o que o modelo deixa passar";
+
+/** Selo discreto da amostra de controle; a explicação aparece ao passar o mouse ou focar. */
+export function ControlSampleBadge() {
+  return (
+    <span
+      title={CONTROL_SAMPLE_HINT}
+      tabIndex={0}
+      aria-label={`Amostra de controle: ${CONTROL_SAMPLE_HINT.toLowerCase()}`}
+      className="relative z-20 inline-flex h-5 items-center rounded-full border border-border px-2 text-[11px] font-normal text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      Amostra de controle
+    </span>
+  );
 }
 
 // Status = ponto colorido + texto na cor do texto (nunca texto colorido).
@@ -139,13 +157,16 @@ export function AlertsTable({
                 {alert.queue_position}
               </td>
               <td className={cell}>
-                <Link
-                  href={"/alerts/" + alert.id}
-                  aria-label={getAlertLinkLabel(alert)}
-                  className="font-medium underline decoration-border underline-offset-[3px] after:absolute after:inset-0 after:z-10 after:content-[''] hover:decoration-current focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
-                >
-                  {alert.id}
-                </Link>
+                <span className="inline-flex flex-wrap items-center gap-2">
+                  <Link
+                    href={"/alerts/" + alert.id}
+                    aria-label={getAlertLinkLabel(alert)}
+                    className="font-medium underline decoration-border underline-offset-[3px] after:absolute after:inset-0 after:z-10 after:content-[''] hover:decoration-current focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
+                  >
+                    {alert.id}
+                  </Link>
+                  {alert.origin === "exploration" && <ControlSampleBadge />}
+                </span>
               </td>
               <td className={`${cell} font-mono text-[13px]`}>
                 {alert.account}

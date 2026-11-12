@@ -1,16 +1,21 @@
 import type {
   Alert,
+  ArchiveReason,
   Report,
   AlertDetail,
   AlertFilters,
+  DecisionRequest,
   Monitoring,
   Weeks,
 } from "../schemas/alerts";
 import { getCurrentDataset } from "@/lib/dataset";
 
+// Amostra de controle por semana nos dados simulados: contas sorteadas abaixo do corte.
+const CONTROL_SAMPLE_PER_WEEK = 3;
+
 function makeAlerts(dataset: string): Alert[] {
   const external = dataset === "external-demo";
-  return Array.from({ length: external ? 18 : 36 }, (_, i) => ({
+  const queue: Alert[] = Array.from({ length: external ? 18 : 36 }, (_, i) => ({
     id: "ALT-" + String((external ? 3401 : 2401) + i),
     account: "CTA-" + String((external ? 1810 : 810) + i),
     week: external
@@ -46,7 +51,27 @@ function makeAlerts(dataset: string): Alert[] {
           : i % 4 === 0
             ? "escalated"
             : "pending",
+    origin: "model" as const,
   }));
+  const sampled: Alert[] = [...new Set(queue.map((a) => a.week))].flatMap(
+    (week, w) => {
+      const inWeek = queue.filter((a) => a.week === week).length;
+      return Array.from({ length: CONTROL_SAMPLE_PER_WEEK }, (_, i) => ({
+        id: "ALT-" + String((external ? 3901 : 2901) + w * 10 + i),
+        account: "CTA-" + String((external ? 1950 : 950) + w * 10 + i),
+        week,
+        country: ["Brasil", "Portugal", "Reino Unido"][i % 3],
+        typology: "Indefinida",
+        score: [12.4, 7.9, 3.1][i % 3],
+        queue_position: inWeek + i + 1,
+        amount: 4800 + i * 1230,
+        transaction_count: 6 + i,
+        status: w === 1 && i === 0 ? ("archived" as const) : ("pending" as const),
+        origin: "exploration" as const,
+      }));
+    },
+  );
+  return [...queue, ...sampled];
 }
 
 export const alertsByDataset: Record<string, Alert[]> = {
@@ -59,6 +84,40 @@ export function currentAlertsMock() {
 }
 export const reportsMock = new Map<string, Report>();
 export const assessmentsMock = new Map<string, AlertDetail["assessment"]>();
+
+type MockDecision = {
+  decision: DecisionRequest["decision"];
+  archive_reason?: ArchiveReason;
+};
+// A última decisão de cada alerta (o retorno dos analistas sai daqui). Os status iniciais dos
+// dados simulados contam como decisões já tomadas: arquivado = falso positivo confirmado.
+export const decisionsMock = new Map<string, MockDecision>();
+function seededDecision(alert: Alert): MockDecision | undefined {
+  if (alert.status === "reported") return { decision: "report" };
+  if (alert.status === "archived")
+    return { decision: "archive", archive_reason: "false_positive" };
+  if (alert.status === "escalated") return { decision: "escalate" };
+  return undefined;
+}
+export function decisionOfMock(alert: Alert): MockDecision | undefined {
+  return decisionsMock.get(alert.id) ?? seededDecision(alert);
+}
+export function recordDecisionMock(id: string, request: MockDecision) {
+  const alert = currentAlertsMock().find((a) => a.id === id);
+  if (!alert) throw new Error("Alerta não encontrado.");
+  const statusByDecision = {
+    archive: "archived",
+    escalate: "escalated",
+    report: "reported",
+  } as const;
+  alert.status = statusByDecision[request.decision];
+  decisionsMock.set(id, {
+    decision: request.decision,
+    archive_reason: request.archive_reason,
+  });
+  return alert;
+}
+
 export function queueMock(filters: AlertFilters) {
   const searchTerm = filters.search?.trim();
   const isDigits = searchTerm ? /^\d+$/.test(searchTerm) : false;
@@ -69,6 +128,7 @@ export function queueMock(filters: AlertFilters) {
         (!filters.week || a.week === filters.week) &&
         (!filters.status || a.status === filters.status) &&
         (!filters.country || a.country === filters.country) &&
+        (!filters.origin || a.origin === filters.origin) &&
         (!searchTerm ||
           (isDigits
             ? a.id === searchTerm ||
@@ -77,7 +137,12 @@ export function queueMock(filters: AlertFilters) {
               a.account.startsWith("CTA-" + searchTerm)
             : a.account.startsWith(searchTerm))),
     )
-    .sort((a, b) => b.score - a.score);
+    // A amostra de controle vem sempre depois da fila do modelo.
+    .sort(
+      (a, b) =>
+        Number(a.origin === "exploration") -
+          Number(b.origin === "exploration") || b.score - a.score,
+    );
   const start = ((filters.page ?? 1) - 1) * 10;
   return {
     items: items.slice(start, start + 10),
@@ -86,7 +151,7 @@ export function queueMock(filters: AlertFilters) {
   };
 }
 export function weeksMock(): Weeks {
-  const alerts = currentAlertsMock();
+  const alerts = currentAlertsMock().filter((a) => a.origin === "model");
   const weeks = [...new Set(alerts.map((a) => a.week))].sort().reverse();
   return {
     current: weeks[0] ?? null,
@@ -152,7 +217,10 @@ export function reportMock(id: string): Report {
   };
 }
 export function monitoringMock(week: string): Monitoring {
-  const items = currentAlertsMock().filter((a) => a.week === week);
+  // Alerta é a conta da fila do modelo; a amostra de controle fica fora das contagens.
+  const items = currentAlertsMock().filter(
+    (a) => a.week === week && a.origin === "model",
+  );
   const groupCount = (field: "typology" | "country") =>
     [...new Set(items.map((a) => a[field]))]
       .map((name) => ({
@@ -172,8 +240,6 @@ export function monitoringMock(week: string): Monitoring {
       ).length,
       alert_rate: items.length ? 0.024 : 0,
       flagged_amount: items.reduce((sum, a) => sum + a.amount, 0),
-      recall: items.length ? 0.924 : null,
-      typology_accuracy: items.length ? 0.876 : null,
     },
     weeks: [
       { name: "14 set", value: 12 },
@@ -194,14 +260,6 @@ export function monitoringMock(week: string): Monitoring {
       "Dinheiro",
       "Pagamento digital",
     ].map((name, i) => ({ name, value: [0.032, 0.014, 0.048, 0.021][i] })),
-    recall_series: [
-      { name: "14 set", value: 0.88 },
-      { name: "21 set", value: 0.91 },
-      { name: "28 set", value: 0.89 },
-      { name: "05 out", value: 0.93 },
-      { name: "12 out", value: 0.9 },
-      { name: "19 out", value: 0.924 },
-    ],
     score_histogram: [
       { name: "40", value: items.filter((a) => a.score < 50).length },
       {

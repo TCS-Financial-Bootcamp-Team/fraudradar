@@ -4,6 +4,8 @@ import type { AccountFilters, SuspiciousAccount } from "../schemas/accounts";
 export function suspiciousAccountsMock(filters: AccountFilters) {
   const grouped = new Map<string, ReturnType<typeof currentAlertsMock>>();
   for (const alert of currentAlertsMock()) {
+    // Conta da amostra de controle não é conta suspeita (não passou do corte da fila).
+    if (alert.origin !== "model") continue;
     if (filters.from && alert.week < filters.from) continue;
     if (filters.to && alert.week > filters.to) continue;
     if (filters.status && alert.status !== filters.status) continue;

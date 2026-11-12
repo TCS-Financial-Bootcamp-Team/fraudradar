@@ -2,9 +2,16 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { getAlertLinkLabel } from "../src/features/alerts/components/alerts-table";
-import { formatWeekPeriod } from "../src/features/alerts/components/dashboard";
-import { generateSparklinePath } from "../src/features/alerts/components/charts";
+import {
+  confirmedPrecisionKpi,
+  formatWeekPeriod,
+} from "../src/features/alerts/components/dashboard";
+import {
+  describeRate,
+  generateSparklinePath,
+} from "../src/features/alerts/components/charts";
 import { monitoringMock } from "../src/features/alerts/services/mocks";
+import { feedbackSummaryMock } from "../src/features/feedback/services/mocks";
 
 test("dashboard: formatWeekPeriod formata intervalo semanal em UTC", () => {
   // Semana que cruza meses (exemplo do protótipo aprovado)
@@ -57,12 +64,11 @@ test("dashboard: monitoringMock fornece dados compatíveis com os cards e KPIs",
   assert.equal(typeof data.indicators.alerts, "number");
   assert.equal(typeof data.indicators.alert_rate, "number");
   assert.equal(typeof data.indicators.flagged_amount, "number");
-  assert.ok(data.indicators.recall === null || typeof data.indicators.recall === "number");
+  assert.equal("recall" in data.indicators, false);
 
   // Séries para gráficos
   assert.ok(Array.isArray(data.weeks));
   assert.ok(data.weeks.length > 0);
-  assert.ok(Array.isArray(data.recall_series));
   assert.ok(Array.isArray(data.score_histogram));
   assert.equal(data.score_histogram.length, 8);
 
@@ -82,28 +88,41 @@ test("dashboard: monitoringMock fornece dados compatíveis com os cards e KPIs",
   assert.ok(Array.isArray(data.payment_type_rates));
 });
 
-test("dashboard: tratamento de recall nulo para semanas de ingestão sem gabarito", () => {
-  const data = monitoringMock("2026-10-19");
-  // Simular semana sem gabarito
-  const noRecallData = {
-    ...data,
-    indicators: {
-      ...data.indicators,
-      recall: null,
-    },
-  };
+test("dashboard: precisão confirmada no lugar do recall da fila", () => {
+  const summary = feedbackSummaryMock({ to: "2026-10-19" });
+  const kpi = confirmedPrecisionKpi(summary);
+  const rate = summary.confirmed_precision;
+  assert.ok(rate.denominator > 0);
+  assert.match(kpi.note, new RegExp(`^${rate.numerator} de ${rate.denominator} decididos`));
+  assert.match(kpi.note, /amostra pequena/); // menos de 20 decisões nos dados simulados
+  assert.equal(kpi.spark.length, summary.weekly_confirmed_precision.length);
 
-  const displayValue =
-    noRecallData.indicators.recall !== null
-      ? `${(noRecallData.indicators.recall * 100).toFixed(1)}%`
-      : "—";
-  const note =
-    noRecallData.indicators.recall !== null
-      ? "meta de 95%"
-      : "sem gabarito nesta semana";
+  const empty = confirmedPrecisionKpi({
+    ...summary,
+    confirmed_precision: { value: null, numerator: 0, denominator: 0, low_sample: true },
+  });
+  assert.deepEqual(empty, { value: "—", note: "sem decisões ainda", spark: [] });
+  assert.equal(confirmedPrecisionKpi(null).note, "sem decisões ainda");
 
-  assert.equal(displayValue, "—");
-  assert.equal(note, "sem gabarito nesta semana");
+  assert.equal(
+    describeRate(
+      { name: "19 out", value: 0.75, numerator: 3, denominator: 4, low_sample: true },
+      "decididos",
+    ),
+    "75% · 3 de 4 decididos (amostra pequena)",
+  );
+});
+
+test("telas de operação não mostram recall nem acerto de tipologia", () => {
+  for (const file of ["dashboard.tsx", "monitoring.tsx", "alert-queue.tsx"]) {
+    const source = readFileSync(`src/features/alerts/components/${file}`, "utf8");
+    assert.doesNotMatch(source, /[Rr]ecall|typology_accuracy|Acerto de tipologia/);
+  }
+  const monitoring = readFileSync("src/features/alerts/components/monitoring.tsx", "utf8");
+  assert.match(monitoring, /FeedbackPanel/);
+  assert.doesNotMatch(monitoring, /ModelSection/); // a validação fica em Configurações
+  const settings = readFileSync("src/features/settings/components/settings.tsx", "utf8");
+  assert.match(settings, /<ModelSection \/>/);
 });
 
 test("alertas: linha clicável tem nome acessível e link estendido", () => {
