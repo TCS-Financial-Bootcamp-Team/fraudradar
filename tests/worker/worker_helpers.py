@@ -52,3 +52,40 @@ def execute(engine: Engine, sql: str, **params) -> None:
 def week_bounds(week: date) -> dict:
     start = datetime.combine(week, datetime.min.time())
     return {"start": start, "end": start + timedelta(days=7)}
+
+
+# Rotula as contas-semana dos alertas ainda sem decisão a partir do gabarito, como faria um
+# analista que acerta sempre: comunica a conta que lavou na semana (pelo lado dela, com o CAIXA
+# no outro lado da espécie, como no modelo) e arquiva as outras como falso positivo confirmado.
+LABEL_FROM_TRUTH = """
+WITH truth AS (
+    SELECT a.id AS alert_id, COALESCE(bool_or(g.label = 1), false) AS launders
+    FROM alerts a
+    JOIN transactions t
+      ON t.occurred_at >= a.week AND t.occurred_at < a.week + 7
+     AND ((t.sender = a.account AND t.payment_type <> 'Cash Deposit')
+       OR (t.receiver = a.account AND t.payment_type <> 'Cash Withdrawal'))
+    JOIN ground_truth g ON g.transaction_id = t.id
+    WHERE a.week >= :start AND a.week <= :end
+      AND NOT EXISTS (SELECT 1 FROM decisions d WHERE d.alert_id = a.id)
+    GROUP BY a.id
+), decided AS (
+    INSERT INTO decisions (alert_id, analyst, decision, justification, archive_reason)
+    SELECT alert_id, 'Teste', CASE WHEN launders THEN 'report' ELSE 'archive' END,
+           'Rótulo de teste tirado do gabarito.',
+           CASE WHEN launders THEN NULL ELSE 'false_positive' END
+    FROM truth
+    RETURNING id, alert_id, decision
+)
+INSERT INTO analyst_labels (alert_id, decision_id, account, week, label, origin, source)
+SELECT a.id, d.id, a.account, a.week, CASE WHEN d.decision = 'report' THEN 1 ELSE 0 END,
+       a.origin, :source
+FROM decided d JOIN alerts a ON a.id = d.alert_id
+"""
+
+
+def label_from_truth(engine: Engine, start: date, end: date, source: str = "analyst") -> int:
+    """Rótulos tirados do gabarito para os alertas das semanas de `start` a `end`; devolve
+    quantos rótulos existem depois."""
+    execute(engine, LABEL_FROM_TRUTH, start=start, end=end, source=source)
+    return scalar(engine, "SELECT count(*) FROM analyst_labels")

@@ -14,10 +14,11 @@ from fraudradar.config import ROOT_DIR  # noqa: E402
 from fraudradar.datasets import Dataset  # noqa: E402
 from fraudradar.features.history import CASH_ACCOUNT  # noqa: E402
 from fraudradar.model.evaluation import account_weeks  # noqa: E402
+from fraudradar.model.scoring import model_input  # noqa: E402
 from worker import batch as batch_module  # noqa: E402
 from worker import metrics as metrics_module  # noqa: E402
 from worker.metrics import compute_metrics  # noqa: E402
-from worker.queue import account_scores, model_input, select_queue  # noqa: E402
+from worker.queue import account_scores, select_queue  # noqa: E402
 from worker.summary import account_summary, countries, payment_types, weekly_signals  # noqa: E402
 from worker.weeks import (  # noqa: E402
     first_out_of_sample_week,

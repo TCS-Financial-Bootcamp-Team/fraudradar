@@ -44,6 +44,7 @@ from fraudradar.features.history import (
 )
 from fraudradar.model import OFFICIAL_DATASET
 from fraudradar.model.naming import dataset_version_name, file_stem, parse_dataset_version
+from fraudradar.model.scoring import model_input
 from fraudradar.model.segments import assign_segments
 from fraudradar.model.training import load_model
 from worker import queue, repository, summary
@@ -435,7 +436,7 @@ def _process(
     features = compute_features(tx.drop(columns="ingestion_id"))
     if not np.array_equal(features["id"].to_numpy(), tx["id"].to_numpy()):
         raise RuntimeError("compute_features devolveu as transações em outra ordem")
-    x, unknown = queue.model_input(features, card)
+    x, unknown = model_input(features, card)
     del features
     for column, count in unknown.items():
         if count:

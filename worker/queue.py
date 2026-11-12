@@ -1,8 +1,9 @@
 """A fila da semana a partir do score das transações, com a mesma conta da avaliação do modelo.
 
 O score é o do booster (`booster.predict`) sobre `compute_features`, e a explicação é a de
-`training.explain`: nada de variável ou score é calculado aqui. Este módulo só monta a entrada
-na ordem da ficha e agrupa por conta como `fraudradar.model.evaluation.account_weeks`: cada conta
+`training.explain`: nada de variável ou score é calculado aqui. A entrada na ordem da ficha é
+`fraudradar.model.scoring.model_input`; este módulo agrupa por conta como
+`fraudradar.model.evaluation.account_weeks`: cada conta
 (depois do CAIXA, `with_cash_account`) fica com o maior score das transações que enviou ou
 recebeu na semana, e o CAIXA nunca entra.
 
@@ -20,22 +21,6 @@ import pandas as pd
 
 from fraudradar.features.history import CASH_ACCOUNT
 from fraudradar.model.training import explain
-
-
-def model_input(features: pd.DataFrame, card: dict) -> tuple[pd.DataFrame, dict[str, int]]:
-    """As variáveis do modelo na ordem de `card["features"]`, com as categorias exatas da
-    ficha, na ordem dela.
-
-    Valor que a ficha não conhece (ex.: um meio de pagamento novo vindo da ingestão) vira nulo,
-    nunca categoria nova. Devolve também quantos valores viraram nulo em cada coluna.
-    """
-    x = features[card["features"]].copy()
-    unknown = {}
-    for column, categories in card["categories"].items():
-        before = int(x[column].notna().sum())
-        x[column] = x[column].astype("category").cat.set_categories(categories)
-        unknown[column] = before - int(x[column].notna().sum())
-    return x, unknown
 
 
 def account_scores(sender: np.ndarray, receiver: np.ndarray, score: np.ndarray) -> pd.DataFrame:
