@@ -93,6 +93,9 @@ CREATE TABLE weekly_batches (
 -- movimentado (countries[1] é o país exibido na fila); `typology` é a prevista
 -- pelo modelo, nunca a de `ground_truth`; total_amount e transaction_count resumem as
 -- transações da conta na semana, enviadas e recebidas.
+-- origin: 'model' = a conta passou do corte da fila; 'exploration' = amostra de controle, conta
+-- sorteada FORA da fila para o analista revisar e o sistema medir o que o modelo deixa passar
+-- (docs/analyst-feedback.md). Não é conta suspeita: fica fora das contagens de alertas.
 CREATE TABLE alerts (
     id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     account           BIGINT        NOT NULL REFERENCES accounts (account),
@@ -108,6 +111,8 @@ CREATE TABLE alerts (
     model_version     TEXT          NOT NULL REFERENCES model_versions (version),
     created_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
     updated_at        TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    origin            TEXT          NOT NULL DEFAULT 'model'
+                      CONSTRAINT alerts_origin_check CHECK (origin IN ('model', 'exploration')),
     UNIQUE (account, week)
 );
 CREATE INDEX alerts_queue_idx ON alerts (week, status, queue_position);
@@ -138,6 +143,9 @@ CREATE TABLE assessments (
 );
 CREATE INDEX assessments_alert_idx ON assessments (alert_id, created_at DESC);
 
+-- archive_reason: por que o analista arquivou. Só 'false_positive' (falso positivo confirmado)
+-- ensina o modelo; 'insufficient_evidence' (sem evidência suficiente) não vira rótulo. A API exige
+-- o motivo em todo arquivamento novo; NULL só existe em arquivamentos de antes desta coluna.
 CREATE TABLE decisions (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     alert_id      BIGINT      NOT NULL REFERENCES alerts (id) ON DELETE CASCADE,
@@ -145,7 +153,13 @@ CREATE TABLE decisions (
     analyst       TEXT        NOT NULL CHECK (length(btrim(analyst)) > 0),
     decision      TEXT        NOT NULL CHECK (decision IN ('archive', 'escalate', 'report')),
     justification TEXT        NOT NULL CHECK (length(btrim(justification)) > 0),
-    decided_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    decided_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    archive_reason TEXT
+                  CONSTRAINT decisions_archive_reason_check CHECK (
+                      archive_reason IS NULL
+                      OR (decision = 'archive'
+                          AND archive_reason IN ('false_positive', 'insufficient_evidence'))
+                  )
 );
 CREATE INDEX decisions_alert_idx ON decisions (alert_id, decided_at DESC);
 
@@ -160,6 +174,26 @@ CREATE TABLE reports (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     CHECK (status <> 'approved' OR (approved_by IS NOT NULL AND approved_at IS NOT NULL))
 );
+
+-- Retorno dos analistas: o rótulo que a última decisão de cada alerta deixou, para o retreino e
+-- para o painel do retorno. Nunca se mistura com `ground_truth` (docs/analyst-feedback.md).
+--   label 1 = lavagem confirmada (decisão `report`);
+--   label 0 = falso positivo confirmado (`archive` com archive_reason = 'false_positive').
+-- `escalate` e `archive` sem evidência suficiente não deixam rótulo: a linha é apagada.
+-- origin é copiado do alerta; source separa a decisão de uma pessoa ('analyst') da do analista
+-- simulado da demonstração ('simulated', `python -m worker simulate-analyst`).
+CREATE TABLE analyst_labels (
+    alert_id    BIGINT      PRIMARY KEY REFERENCES alerts (id) ON DELETE CASCADE,
+    decision_id BIGINT      NOT NULL REFERENCES decisions (id) ON DELETE CASCADE,
+    account     BIGINT      NOT NULL,
+    week        DATE        NOT NULL CHECK (extract(isodow FROM week) = 1),
+    label       SMALLINT    NOT NULL CHECK (label IN (0, 1)),
+    origin      TEXT        NOT NULL CHECK (origin IN ('model', 'exploration')),
+    source      TEXT        NOT NULL CHECK (source IN ('analyst', 'simulated')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX analyst_labels_week_idx ON analyst_labels (week);
 
 -- 384 dimensões: embedding multilíngue pequeno (multilingual-e5-small / MiniLM).
 CREATE TABLE rag_documents (

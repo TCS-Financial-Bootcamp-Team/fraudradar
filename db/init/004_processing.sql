@@ -14,7 +14,12 @@ CREATE TABLE public.processing_settings (
     demo_mode         BOOLEAN     NOT NULL DEFAULT false,
     last_run_at       TIMESTAMPTZ,
     next_run_at       TIMESTAMPTZ NOT NULL DEFAULT (now() + INTERVAL '1 hour'),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- Amostra de controle: contas por semana sorteadas FORA da fila do modelo, para medir o que
+    -- ele deixa passar (docs/analyst-feedback.md). 0 desliga.
+    exploration_per_week INTEGER  NOT NULL DEFAULT 5
+                     CONSTRAINT processing_settings_exploration_per_week_check
+                     CHECK (exploration_per_week BETWEEN 0 AND 50)
 );
 
 INSERT INTO public.processing_settings (dataset)
