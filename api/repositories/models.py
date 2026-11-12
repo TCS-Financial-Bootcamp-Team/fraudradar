@@ -3,6 +3,10 @@
 As fichas (``lightgbm_vN.json``) são lidas do disco: ``MODEL_DIR/<slug>/`` tem os retreinos do
 conjunto e ``MODEL_DIR/`` o modelo oficial. A API só lê JSON, nunca carrega o modelo (a imagem
 não tem o LightGBM). ``datasets.active_model_version`` vazio = o oficial mais novo.
+
+O que a tela compara (a versão nova contra a ativa no mesmo período de teste, a trava de promoção
+e o retorno dos analistas usado) vem pronto da ficha, gravado pelo worker no treino. Do banco, a
+API só conta os rótulos de ``analyst_labels``; nunca lê ``ground_truth``.
 """
 
 import json
@@ -11,12 +15,23 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import HTTPException, status
+from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
 from api.dependencies import User
 from api.repositories.datasets import _job_response
 from api.schemas.datasets import JobResponse
-from api.schemas.models import ModelMetrics, ModelsResponse, ModelVersion
+from api.schemas.models import (
+    FeedbackClassCounts,
+    FeedbackUsage,
+    LabelBreakdown,
+    ModelComparison,
+    ModelMetrics,
+    ModelsResponse,
+    ModelVersion,
+    TrainingFeedback,
+    TrainRequest,
+)
 from fraudradar.config import get_settings
 from fraudradar.datasets import (
     Dataset,
@@ -26,6 +41,12 @@ from fraudradar.datasets import (
     use_dataset,
 )
 from fraudradar.model.eligibility import training_block_reason
+from fraudradar.model.feedback import (
+    ANALYST,
+    SIMULATED,
+    closed_label_counts,
+    feedback_block_reason,
+)
 from fraudradar.model.naming import (
     DATASET_PATTERN,
     OFFICIAL_PATTERN,
@@ -76,6 +97,46 @@ def _created_at(card: dict) -> datetime | None:
         return None
 
 
+def comparison_of(card: dict) -> ModelComparison | None:
+    """O bloco ``comparison`` da ficha; ``None`` em ficha antiga (sem ele) ou estragada."""
+    try:
+        return ModelComparison.model_validate(card["comparison"])
+    except (KeyError, TypeError, ValidationError):
+        return None
+
+
+def label_breakdown(raw: dict) -> LabelBreakdown:
+    """Contagens no formato da ficha (``by_class``, ``by_source``, ``by_origin``) → contrato."""
+
+    def part(name: str) -> dict:
+        value = raw.get(name)
+        return value if isinstance(value, dict) else {}
+
+    return LabelBreakdown(
+        total=raw.get("total", 0),
+        **part("by_class"),
+        **part("by_source"),
+        **part("by_origin"),
+    )
+
+
+def feedback_of(card: dict) -> FeedbackUsage | None:
+    """O bloco ``feedback`` da ficha; ``None`` em ficha antiga (sem ele) ou estragada."""
+    raw = card.get("feedback")
+    if not isinstance(raw, dict):
+        return None
+    try:
+        split = raw.get("split")
+        labels = raw.get("labels_used")
+        return FeedbackUsage(
+            **{k: v for k, v in raw.items() if k in FeedbackUsage.model_fields and k != "split"},
+            labels=label_breakdown(labels) if isinstance(labels, dict) else None,
+            split=split.get("kind") if isinstance(split, dict) else None,
+        )
+    except (TypeError, ValidationError):
+        return None
+
+
 def _version(name: str, card: dict, source: str, active: bool) -> ModelVersion:
     metrics = card.get("metrics") if isinstance(card.get("metrics"), dict) else {}
     queue = metrics.get("queue_with_cut") if isinstance(metrics.get("queue_with_cut"), dict) else {}
@@ -96,6 +157,8 @@ def _version(name: str, card: dict, source: str, active: bool) -> ModelVersion:
             innocents_per_week=_number(queue.get("innocents_per_week")),
         ),
         active=active,
+        comparison=comparison_of(card),
+        feedback=feedback_of(card),
     )
 
 
@@ -126,6 +189,27 @@ def _running_train(conn: Connection, slug: str) -> JobResponse | None:
     return None if row is None else _job_response(row)
 
 
+def _training_feedback(conn: Connection, dataset: Dataset, reason: str | None) -> TrainingFeedback:
+    """O retorno dos períodos fechados disponível para o retreino, no schema do conjunto."""
+    use_dataset(conn, dataset)
+    counts = closed_label_counts(conn)
+
+    def blocked(include_simulated: bool) -> str | None:
+        return reason or feedback_block_reason(counts, include_simulated)
+
+    return TrainingFeedback(
+        analyst=FeedbackClassCounts(
+            laundering=counts.laundering(ANALYST), false_positive=counts.false_positive(ANALYST)
+        ),
+        simulated=FeedbackClassCounts(
+            laundering=counts.laundering(SIMULATED),
+            false_positive=counts.false_positive(SIMULATED),
+        ),
+        blocked_reason=blocked(False),
+        blocked_reason_with_simulated=blocked(True),
+    )
+
+
 def list_models(conn: Connection, slug: str) -> ModelsResponse:
     dataset = get_dataset(conn, slug)
     own, official = _catalog(dataset)
@@ -151,6 +235,7 @@ def list_models(conn: Connection, slug: str) -> ModelsResponse:
         can_train=reason is None,
         train_blocked_reason=reason,
         training_job=job,
+        training_feedback=_training_feedback(conn, dataset, reason),
     )
 
 
@@ -169,7 +254,10 @@ def _audit(conn: Connection, user: User, action: str, entity_id: str, details: d
     )
 
 
-def enqueue_train(conn: Connection, slug: str, user: User) -> JobResponse:
+def enqueue_train(
+    conn: Connection, slug: str, user: User, request: TrainRequest | None = None
+) -> JobResponse:
+    request = request or TrainRequest()
     dataset = get_dataset(conn, slug)
     # Serializa pedidos simultâneos do mesmo conjunto: o segundo vê o job do primeiro.
     conn.execute(
@@ -183,19 +271,25 @@ def enqueue_train(conn: Connection, slug: str, user: User) -> JobResponse:
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Já existe um treino em andamento para este conjunto."
         )
-    use_dataset(conn, dataset)  # a auditoria é do schema do conjunto
+    use_dataset(conn, dataset)  # a auditoria e os rótulos são do schema do conjunto
+    if request.use_feedback:
+        # A mesma regra que o worker confere de novo antes de treinar.
+        reason = feedback_block_reason(closed_label_counts(conn), request.include_simulated)
+        if reason is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    options = request.model_dump()
     row = (
         conn.execute(
             text(
                 "INSERT INTO public.jobs (kind, dataset, payload, created_by) "
-                "VALUES ('train', :dataset, '{}'::jsonb, :actor) RETURNING *"
+                "VALUES ('train', :dataset, CAST(:payload AS jsonb), :actor) RETURNING *"
             ),
-            {"dataset": dataset.slug, "actor": user.name},
+            {"dataset": dataset.slug, "payload": json.dumps(options), "actor": user.name},
         )
         .mappings()
         .one()
     )
-    _audit(conn, user, "train_enqueued", str(row["id"]), {"dataset": dataset.slug})
+    _audit(conn, user, "train_enqueued", str(row["id"]), {"dataset": dataset.slug, **options})
     return _job_response(row)
 
 
@@ -206,6 +300,14 @@ def promote(conn: Connection, slug: str, version: str, user: User) -> ModelsResp
     own, official = _catalog(dataset)
     if version in own:
         new_value: str | None = version
+        # Trava de promoção: a ficha guarda a comparação com a versão ativa no mesmo período de
+        # teste. Ficha antiga, sem comparação, promove como antes.
+        comparison = comparison_of(own[version])
+        if comparison is not None and not comparison.gate.passed:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                comparison.gate.reason or "A trava de promoção bloqueou esta versão.",
+            )
     elif official is not None and official[0] == version:
         new_value = None  # volta a seguir o modelo oficial mais novo
     else:

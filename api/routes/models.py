@@ -5,7 +5,7 @@ from fastapi import APIRouter, status
 from api.dependencies import CurrentUser, PublicDbConnection
 from api.repositories import models as repository
 from api.schemas.datasets import JobResponse
-from api.schemas.models import ModelsResponse
+from api.schemas.models import ModelsResponse, TrainRequest
 
 router = APIRouter(tags=["models"])
 
@@ -20,8 +20,12 @@ def list_models(slug: str, conn: PublicDbConnection) -> ModelsResponse:
     response_model=JobResponse,
     status_code=status.HTTP_202_ACCEPTED,
 )
-def train_dataset(slug: str, conn: PublicDbConnection, user: CurrentUser) -> JobResponse:
-    return repository.enqueue_train(conn, slug, user)
+def train_dataset(
+    slug: str, conn: PublicDbConnection, user: CurrentUser, request: TrainRequest | None = None
+) -> JobResponse:
+    """Enfileira um retreino. Sem corpo, só com o gabarito; ``use_feedback`` inclui o retorno
+    dos analistas (409 quando ainda não há retorno suficiente)."""
+    return repository.enqueue_train(conn, slug, user, request)
 
 
 # ``path``: a versão de um conjunto tem barra (``saml-d/v2``).
