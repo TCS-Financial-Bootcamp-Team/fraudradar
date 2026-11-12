@@ -6,8 +6,9 @@ Uma semana vai de segunda 00:00 à segunda seguinte. Para cada pedido (`batch`, 
 1. lê do Postgres as transações desde `history_start` da ficha até o fim da última semana pedida
    (as contagens do histórico das variáveis dependem desse início; em outro conjunto, desde a
    primeira transação dele) e calcula as variáveis uma vez só, com `compute_features`;
-2. em cada semana: score de cada transação com o booster, fila por conta (`worker.queue`),
-   contribuições da transação de maior score de cada conta da fila, regras de `db/rules/`,
+2. em cada semana: score de cada transação com o booster, fila por conta (`worker.queue`), a
+   amostra de controle (contas sorteadas fora da fila, `alerts.origin = 'exploration'`),
+   contribuições da transação de maior score de cada conta escolhida, regras de `db/rules/`,
    sinais da semana (`worker.summary`) e segmento das contas ativas;
 3. grava a semana numa transação: `model_versions`, `transaction_scores`, `accounts`, `alerts` e
    `evidence`; depois as métricas contra o gabarito (`worker.metrics`, o único que lê
@@ -78,8 +79,9 @@ class WeekResult:
     week: date
     transactions: int
     active_accounts: int
-    alerts: int
+    alerts: int  # contas na fila do modelo
     metrics: dict
+    exploration: int = 0  # contas da amostra de controle, sorteadas fora da fila
 
 
 @dataclass
@@ -413,9 +415,11 @@ def _process(
 ):
     clock = perf_counter()
     _, end = repository.week_window(max(weeks))
+    slug = dataset.slug if dataset is not None else OFFICIAL_DATASET
     with engine.connect() as conn:
         _scope(conn, dataset)
         history_start = _history_start(conn, card, dataset)
+        exploration = repository.exploration_per_week(conn, slug)
         tx = repository.read_transactions(conn, history_start, end)
     log.info(
         "%s transações lidas, de %s a %s (%.0f s)",
@@ -446,7 +450,9 @@ def _process(
     for week in weeks:
         clock = perf_counter()
         begin, stop = np.searchsorted(times, np.array(repository.week_window(week), times.dtype))
-        prepared = _prepare_week(week, tx, x, begin, stop, booster, card)
+        prepared = _prepare_week(
+            week, tx, x, begin, stop, booster, card, exploration=exploration, dataset_slug=slug
+        )
         with engine.begin() as conn:
             _scope(conn, dataset)
             outcome = _write_week(
@@ -463,11 +469,13 @@ def _process(
             continue
         result.processed.append(outcome)
         log.info(
-            "semana %s: %s transações, %s contas ativas, %d alertas; %s (%.0f s)",
+            "semana %s: %s transações, %s contas ativas, %d alertas e %d contas na amostra de"
+            " controle; %s (%.0f s)",
             week.isoformat(),
             f"{outcome.transactions:,}".replace(",", "."),
             f"{outcome.active_accounts:,}".replace(",", "."),
             outcome.alerts,
+            outcome.exploration,
             _describe(outcome.metrics),
             perf_counter() - clock,
         )
@@ -480,14 +488,32 @@ def _describe(metrics: dict) -> str:
     return f"recall {pct(metrics['recall'])}, precisão {pct(metrics['precision'])}"
 
 
-def _prepare_week(week, tx, x, begin, stop, booster, card) -> _Week:
-    """Tudo o que não depende do banco: score, fila, contribuições, sinais e segmentos."""
+def _prepare_week(
+    week, tx, x, begin, stop, booster, card, *, exploration: int = 0, dataset_slug: str
+) -> _Week:
+    """Tudo o que não depende do banco: score, fila, amostra de controle, contribuições, sinais
+    e segmentos.
+
+    A amostra de controle são `exploration` contas ativas sorteadas fora da fila
+    (`queue.select_exploration`): viram alertas com `origin = 'exploration'`, com a nota de
+    verdade, a posição depois da fila e as mesmas evidências de qualquer alerta.
+    """
     week_tx = tx.iloc[begin:stop].reset_index(drop=True)
     week_x = x.iloc[begin:stop]
     scores = booster.predict(week_x)
     cash = with_cash_account(week_tx[["sender", "receiver", "payment_type"]])
     best = queue.account_scores(cash["sender"].to_numpy(), cash["receiver"].to_numpy(), scores)
     chosen = queue.select_queue(best, card["queue_cut"], card["queue_size"])
+    chosen = chosen.assign(origin="model")
+    sampled = queue.select_exploration(
+        best,
+        chosen["account"],
+        exploration,
+        queue.exploration_seed(dataset_slug, week),
+        first_position=len(chosen) + 1,
+    )
+    if len(sampled):
+        chosen = pd.concat([chosen, sampled.assign(origin="exploration")], ignore_index=True)
     contributions = queue.contributions(booster, week_x.iloc[chosen["row"].to_numpy()])
     stats = summary.account_summary(week_tx)
     countries = summary.countries(week_tx, chosen["account"])
@@ -504,6 +530,7 @@ def _prepare_week(week, tx, x, begin, stop, booster, card) -> _Week:
                 "countries": countries[account],
                 "total_amount": int(row["total_cents"]) / 100,
                 "transaction_count": int(row["transaction_count"]),
+                "origin": item.origin,
             }
         )
         evidence.append(
@@ -595,22 +622,25 @@ def _write_week(
     metrics["transaction_count"] = len(w.tx)
     repository.insert_weekly_batch(conn, w.week, version, w.active_accounts, metrics)
     repository.update_ingestions(conn, w.ingestions)
+    queued = sum(1 for row in w.alerts if row["origin"] == "model")
     repository.audit_batch(
         conn,
         w.week,
         {
-            "alerts": len(w.alerts),
+            "alerts": queued,
+            "exploration_alerts": len(w.alerts) - queued,
             "model_version": version,
             "active_accounts": w.active_accounts,
             "forced": force,
             "preserved_decided_alerts": len(decided_accounts),
         },
     )
-    alert_count = repository.count_alerts(conn, w.week)
+    alert_count, exploration_count = repository.count_alerts(conn, w.week)
     return WeekResult(
         week=w.week,
         transactions=len(w.tx),
         active_accounts=w.active_accounts,
         alerts=alert_count,
         metrics=metrics,
+        exploration=exploration_count,
     )

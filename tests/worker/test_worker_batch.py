@@ -57,15 +57,19 @@ def batch(loaded, model_dir, no_rules):
     return run
 
 
-def _alerts(engine, week=FIRST_WEEK) -> list[dict]:
+def _alerts(engine, week=FIRST_WEEK, origin="model") -> list[dict]:
+    """Os alertas da fila do modelo (a amostra de controle tem os testes dela em
+    test_worker_exploration.py)."""
     return rows(
         engine,
         "SELECT a.id, a.account, a.score, a.queue_position, a.status, a.countries, a.typology,"
         " a.total_amount, a.transaction_count, a.model_version, e.contributions, e.rules,"
         " e.weekly_signals, e.graph"
-        " FROM alerts a JOIN evidence e ON e.alert_id = a.id WHERE a.week = :week"
+        " FROM alerts a JOIN evidence e ON e.alert_id = a.id"
+        " WHERE a.week = :week AND a.origin = :origin"
         " ORDER BY a.queue_position",
         week=week,
+        origin=origin,
     )
 
 
@@ -164,6 +168,7 @@ def test_batch_writes_the_week(batch, loaded, card):
         "entity_id": "2023-05-22",
         "details": {
             "alerts": len(alerts),
+            "exploration_alerts": week.exploration,
             "model_version": "lightgbm_v1",
             "active_accounts": active,
             "forced": False,
@@ -343,7 +348,8 @@ def test_week_with_an_empty_queue_is_processed(loaded, model_dir, no_rules, clie
 
     [week] = run_batch(loaded, FIRST_WEEK, model_dir=folder, rules_dir=no_rules).processed
 
-    assert week.alerts == 0 and scalar(loaded, "SELECT count(*) FROM alerts") == 0
+    assert week.alerts == 0
+    assert scalar(loaded, "SELECT count(*) FROM alerts WHERE origin = 'model'") == 0
     metrics = scalar(loaded, "SELECT metrics FROM weekly_batches")
     assert metrics["queue_size"] == 0 and metrics["recall"] == 0 and metrics["precision"] is None
     assert client.post("/replay/next-week").json()["alerts_generated"] == 0

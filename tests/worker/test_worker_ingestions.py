@@ -74,13 +74,15 @@ def test_uploaded_transactions_stay_out_of_the_metrics(client, loaded, model_dir
     assert after["laundering_accounts"] == before["laundering_accounts"]
     labeled_in_queue = scalar(
         loaded,
-        "SELECT count(*) FROM alerts a WHERE a.week = :week AND EXISTS ("
+        "SELECT count(*) FROM alerts a WHERE a.week = :week AND a.origin = 'model' AND EXISTS ("
         " SELECT 1 FROM transactions t JOIN ground_truth g ON g.transaction_id = t.id"
         " WHERE (t.sender = a.account OR t.receiver = a.account)"
         " AND t.occurred_at >= :week AND t.occurred_at < CAST(:week AS date) + 7)",
         week=FIRST_WEEK,
     )
     assert after["queue_size"] == labeled_in_queue
-    in_queue = {r["account"] for r in rows(loaded, "SELECT account FROM alerts")}
+    in_queue = {
+        r["account"] for r in rows(loaded, "SELECT account FROM alerts WHERE origin = 'model'")
+    }
     if {NEW_ACCOUNT, NEW_ACCOUNT + 1} & in_queue:  # a conta nova está na fila e fora da métrica
         assert after["queue_size"] < len(in_queue)
