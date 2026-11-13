@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { notify } from "@/lib/notify";
 import { getErrorMessage } from "@/lib/format";
+import { translateServerMessage } from "@/i18n/server-messages";
 import * as ingestionService from "../services/ingestion-service";
 import type { CsvPreview, TransactionRequest } from "../schemas/ingestion";
 
@@ -53,7 +54,13 @@ export function useCsvUpload() {
         controller.signal,
       );
       if (!controller.signal.aborted) {
-        notify.success(receipt.message);
+        notify.success(
+          translateServerMessage(
+            receipt.message_code,
+            receipt.message_params,
+            receipt.message,
+          ) ?? receipt.message,
+        );
         setCompleted(true);
       }
     } catch (e) {
@@ -106,7 +113,13 @@ export function useManualTransaction() {
           },
           ...current,
         ]);
-        notify.success(receipt.message);
+        notify.success(
+          translateServerMessage(
+            receipt.message_code,
+            receipt.message_params,
+            receipt.message,
+          ) ?? receipt.message,
+        );
         return true;
       } catch (error) {
         notify.error(getErrorMessage(error));

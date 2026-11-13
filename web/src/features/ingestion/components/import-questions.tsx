@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { useValidationText } from "@/i18n/use-validation-text";
 import type { CompatibilityReport, ImportRequest } from "../schemas/ingestion";
 import {
   buildImportRequest,
@@ -70,6 +72,9 @@ export function ImportQuestions({
   serverError: string;
   onConfirm: (request: ImportRequest) => void;
 }) {
+  const t = useTranslations("ingestion.questions");
+  const locale = useLocale();
+  const text = useValidationText();
   const [answers, setAnswers] = useState<ImportAnswers>({
     // A sugestão só pré-seleciona; a resposta continua sendo da pessoa.
     relation: report.suggestion?.relation ?? "extend",
@@ -88,7 +93,7 @@ export function ImportQuestions({
       setFormError("");
     } catch (error) {
       const issues = (error as { issues?: Array<{ message: string }> }).issues;
-      setFormError(issues?.[0]?.message ?? "Confira as respostas.");
+      setFormError(text(issues?.[0]?.message) ?? t("checkAnswers"));
     }
   }
 
@@ -98,20 +103,19 @@ export function ImportQuestions({
       className="flex flex-col gap-4 pt-3 border-t border-border"
     >
       <Choice
-        legend="1. Qual a relação com os dados atuais?"
+        legend={t("q1")}
         name="relation"
-        options={relationOptions}
+        options={relationOptions(locale)}
         value={answers.relation}
         onChange={(relation) => setAnswers((a) => ({ ...a, relation }))}
       />
       {answers.relation === "extend" ? (
         <p className="m-0 text-xs text-muted-foreground">
-          Destino: conjunto <span className="font-mono">{currentDataset}</span>.
-          Datas que cruzam semanas já fechadas são recusadas.
+          {t("destination", { dataset: currentDataset })}
         </p>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Nome do novo conjunto">
+          <Field label={t("newName")}>
             <Input
               value={answers.datasetName}
               onChange={(e) => {
@@ -124,10 +128,10 @@ export function ImportQuestions({
                     : slugFromName(datasetName),
                 }));
               }}
-              placeholder="Ex.: Banco do parceiro"
+              placeholder={t("newNamePlaceholder")}
             />
           </Field>
-          <Field label="Slug">
+          <Field label={t("slug")}>
             <Input
               value={answers.datasetSlug}
               onChange={(e) => {
@@ -135,26 +139,26 @@ export function ImportQuestions({
                 setAnswers((a) => ({ ...a, datasetSlug: e.target.value }));
               }}
               className="font-mono"
-              placeholder="banco-do-parceiro"
+              placeholder={t("slugPlaceholder")}
             />
           </Field>
         </div>
       )}
       <Choice
-        legend="2. Como processar?"
+        legend={t("q2")}
         name="mode"
-        options={modeOptions}
+        options={modeOptions(locale)}
         value={answers.mode}
         onChange={(mode) => setAnswers((a) => ({ ...a, mode }))}
       />
-      <Field label="Coluna de controle (para ler só o que for novo)">
+      <Field label={t("control")}>
         <Input
           value={answers.controlColumn}
           onChange={(e) =>
             setAnswers((a) => ({ ...a, controlColumn: e.target.value }))
           }
           className="font-mono"
-          placeholder="id ou created_at"
+          placeholder={t("controlPlaceholder")}
         />
       </Field>
       {(formError || serverError) && (
@@ -164,7 +168,7 @@ export function ImportQuestions({
       )}
       <div>
         <Button type="submit" disabled={busy}>
-          {busy ? "Enviando…" : "Confirmar e importar"}
+          {busy ? t("sending") : t("confirm")}
         </Button>
       </div>
     </form>

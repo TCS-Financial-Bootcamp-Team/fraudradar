@@ -1,6 +1,6 @@
 """Contrato da ingestão: espelha web/src/features/ingestion/schemas/ingestion.ts."""
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -30,3 +30,6 @@ class Receipt(BaseModel):
     id: str
     status: Literal["received", "processing", "completed"]
     message: str
+    # Código e parâmetros de ``message``: o front traduz por eles.
+    message_code: str | None = None
+    message_params: dict[str, Any] | None = None

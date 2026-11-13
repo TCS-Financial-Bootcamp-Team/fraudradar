@@ -1,1 +1,186 @@
-{}
+{
+  "page": {
+    "eyebrow": "Entrada de transações",
+    "title": "Fontes de dados"
+  },
+  "csv": {
+    "title": "Importar CSV",
+    "drag": "Arraste o arquivo até aqui",
+    "hint": "CSV no formato do SAML-D, sem as colunas de avaliação. Até 20 MB ou 200 mil linhas; tudo ou nada.",
+    "ariaFile": "Arquivo CSV",
+    "choose": "Escolher arquivo",
+    "columns": "Ver as 11 colunas obrigatórias",
+    "validating": "Validando a prévia…",
+    "previewRows": "{count} linhas na prévia",
+    "confirmed": "Recebimento confirmado",
+    "waiting": "Arquivo enviado. Aguardando confirmação…",
+    "sending": "Enviando arquivo…",
+    "sendBusy": "Enviando…",
+    "sendDone": "Arquivo recebido",
+    "send": "Enviar arquivo para ingestão",
+    "cancel": "Cancelar",
+    "errors": {
+      "selectFile": "Selecione um arquivo CSV não vazio.",
+      "noTransactions": "O CSV não contém transações.",
+      "headerInvalid": "Cabeçalho inválido ou excessivamente longo.",
+      "linesTooLong": "Linhas excessivamente longas. Revise o formato do CSV.",
+      "invalid": "CSV inválido: verifique delimitadores, aspas e colunas.",
+      "cannotRead": "Não foi possível ler o CSV.",
+      "headers": "O CSV deve conter exatamente as 11 colunas transacionais SAML-D. Faltando: {missing}. Remova colunas extras ou duplicadas.",
+      "none": "nenhuma",
+      "https": "Credenciais de conexão exigem uma API HTTPS. HTTP é permitido apenas em localhost."
+    }
+  },
+  "recent": {
+    "title": "Envios recentes",
+    "none": "Nenhum envio nesta sessão.",
+    "number": "Nº",
+    "file": "Arquivo",
+    "sent": "Enviado",
+    "status": "Status",
+    "sentStatus": "Enviado"
+  },
+  "manual": {
+    "summary": "Adicionar transação individual (registro manual)",
+    "search": "Digite para buscar…",
+    "submit": "Registrar transação",
+    "submitting": "Registrando…",
+    "origin": "Origem",
+    "destination": "Destino",
+    "amount": "Valor",
+    "status": "Status",
+    "received": "Recebido",
+    "fields": {
+      "Date": "Data",
+      "Time": "Horário",
+      "Sender_account": "Conta de origem",
+      "Receiver_account": "Conta de destino",
+      "Amount": "Valor",
+      "Payment_currency": "Moeda do pagamento",
+      "Received_currency": "Moeda do recebimento",
+      "Sender_bank_location": "País do banco de origem",
+      "Receiver_bank_location": "País do banco de destino",
+      "Payment_type": "Meio de pagamento"
+    }
+  },
+  "connections": {
+    "title": "Conexões com bancos externos",
+    "intro": "Lê transações de uma tabela Postgres no formato do SAML-D, sempre em modo somente leitura. Teste antes: o relatório mostra o que bate com o formato e se os dados continuam o conjunto atual.",
+    "dataset": "Conjunto ",
+    "lastRead": "Última leitura: {date}",
+    "test": "Testar",
+    "remove": "Remover",
+    "removeAria": "Remover {name}",
+    "removeQuestion": "Remover a conexão “{name}”?",
+    "removeNote": "A conexão e a senha cifrada deixam de existir e o acompanhamento desta fonte para. As transações que já entraram no conjunto de dados continuam lá. A remoção fica registrada na auditoria.",
+    "confirmRemove": "Confirmar remoção",
+    "cancel": "Cancelar",
+    "testing": "Testando “{name}”…",
+    "linked": "Esta conexão já está ligada ao conjunto {dataset}.",
+    "new": "Nova conexão",
+    "saved": "Conexão salva. A senha foi cifrada e não volta mais.",
+    "removed": "Conexão “{name}” removida.",
+    "importDone": "Importação concluída. O processamento foi enfileirado.",
+    "importFailed": "A importação falhou.",
+    "status": {
+      "untested": "Não testada",
+      "connected": "Conectada",
+      "incompatible": "Incompatível",
+      "error": "Com erro",
+      "syncing": "Importando"
+    }
+  },
+  "form": {
+    "name": "Nome da conexão",
+    "namePlaceholder": "Ex.: Banco do parceiro",
+    "host": "Host",
+    "hostPlaceholder": "localhost",
+    "port": "Porta",
+    "database": "Banco de dados",
+    "user": "Usuário",
+    "password": "Senha",
+    "table": "Tabela de origem",
+    "tablePlaceholder": "schema.tabela",
+    "control": "Coluna de controle",
+    "controlPlaceholder": "id ou created_at",
+    "note": "A senha é cifrada ao salvar e nunca aparece de novo. A coluna de controle (data/hora ou número crescente) permite ler só o que for novo. A leitura é sempre somente leitura.",
+    "save": "Salvar conexão",
+    "saving": "Salvando…",
+    "cancel": "Cancelar"
+  },
+  "questions": {
+    "q1": "1. Qual a relação com os dados atuais?",
+    "q2": "2. Como processar?",
+    "destination": "Destino: conjunto {dataset}. Datas que cruzam semanas já fechadas são recusadas.",
+    "newName": "Nome do novo conjunto",
+    "newNamePlaceholder": "Ex.: Banco do parceiro",
+    "slug": "Slug",
+    "slugPlaceholder": "banco-do-parceiro",
+    "control": "Coluna de controle (para ler só o que for novo)",
+    "controlPlaceholder": "id ou created_at",
+    "confirm": "Confirmar e importar",
+    "sending": "Enviando…",
+    "checkAnswers": "Confira as respostas.",
+    "relation": {
+      "extend": {
+        "label": "Continua os dados atuais",
+        "hint": "Mesmas contas, períodos seguintes. As transações entram no conjunto selecionado."
+      },
+      "new_dataset": {
+        "label": "Outro dataset com a mesma estrutura",
+        "hint": "Cria um conjunto separado, com fila, períodos e histórico próprios."
+      }
+    },
+    "mode": {
+      "history": {
+        "label": "Analisar o histórico agora",
+        "hint": "Importa tudo o que já está na tabela e processa."
+      },
+      "follow": {
+        "label": "Acompanhar só o que entrar",
+        "hint": "Ignora o que já existe; cada rodada lê as linhas novas pela coluna de controle."
+      },
+      "both": {
+        "label": "Os dois",
+        "hint": "Importa o histórico e continua lendo as linhas novas."
+      }
+    }
+  },
+  "report": {
+    "title": "Relatório de compatibilidade",
+    "tone": {
+      "ok": "Passou",
+      "fail": "Falhou",
+      "info": "Informação"
+    },
+    "truth": "Gabarito",
+    "rows": "Linhas na tabela",
+    "range": "Intervalo de datas",
+    "common": "Contas em comum",
+    "dates": "Datas",
+    "suggestion": "Sugestão (quem decide é você): ",
+    "checks": {
+      "connection": "Conexão",
+      "table": "Tabela de origem",
+      "columns": "Colunas obrigatórias",
+      "types": "Tipos das colunas",
+      "control": "Coluna de controle",
+      "sample": "Amostra validada",
+      "ground_truth": "Gabarito (Is_laundering)"
+    },
+    "datesText": {
+      "continue": "As datas continuam logo depois do fim dos dados atuais.",
+      "overlap": "As datas cruzam períodos do conjunto atual.",
+      "other_era": "As datas são de outra época.",
+      "empty_dataset": "O conjunto atual ainda não tem transações para comparar.",
+      "unknown": "Não foi possível comparar as datas."
+    },
+    "accountsKnown": "{pct} das {count} contas da amostra já existem no conjunto atual.",
+    "noAccounts": "Sem contas para comparar na amostra.",
+    "rowsUncounted": "Não contado (a tabela é grande demais para contar agora)",
+    "noDates": "Sem datas lidas",
+    "dateRange": "{from} a {to}",
+    "truthYes": "Sim: dá para medir o modelo e, depois, retreinar.",
+    "truthNo": "Não: o modelo dá as notas, mas não há como medir nem retreinar."
+  }
+}

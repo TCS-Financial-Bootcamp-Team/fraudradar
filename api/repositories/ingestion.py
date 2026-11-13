@@ -108,6 +108,8 @@ def _build_receipt(ingestion_id: int, row_count: int) -> Receipt:
         id=str(ingestion_id),
         status="received",
         message=f"{count_text}. O score sai no processamento semanal.",
+        message_code="ingestion.received",
+        message_params={"count": row_count},
     )
 
 
@@ -126,7 +128,7 @@ def save_csv(conn: Connection, file: BinaryIO, file_name: str | None, user: User
             status.HTTP_413_CONTENT_TOO_LARGE,
             "ingestion.too_many_rows",
             msg,
-            {"limit": _format_thousands(exc.limit)},
+            {"limit": exc.limit},
         ) from exc
     except ingestion.InvalidTransactionsError as exc:
         raise _validation_error(exc.errors, "body", "file") from exc

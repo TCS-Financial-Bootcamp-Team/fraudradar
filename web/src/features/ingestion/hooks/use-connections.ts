@@ -1,6 +1,8 @@
 "use client";
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useResource } from "@/hooks/use-resource";
+import { useJobMessage } from "@/features/jobs/hooks/use-job-message";
 import { useJob } from "@/features/jobs/hooks/use-job";
 import { getErrorMessage } from "@/lib/format";
 import { notify } from "@/lib/notify";
@@ -14,8 +16,9 @@ import type {
 
 const POLL_MS = 1500;
 
-// Os erros da API já chegam explicados em português (campo `detail`): a tela só os mostra.
+// Os erros da API chegam explicados (`detail` em português, ou traduzidos por `code`): a tela só os mostra.
 export function useConnections() {
+  const t = useTranslations("ingestion.connections");
   const resource = useResource(
     useCallback(
       (signal: AbortSignal) => ingestionService.listConnections(signal),
@@ -29,7 +32,7 @@ export function useConnections() {
     setError("");
     try {
       const created = await ingestionService.createConnection(form);
-      notify.success("Conexão salva. A senha foi cifrada e não volta mais.");
+      notify.success(t("saved"));
       resource.reload();
       return created;
     } catch (e) {
@@ -43,7 +46,7 @@ export function useConnections() {
     setBusy(true);
     try {
       await ingestionService.deleteConnection(connection.id);
-      notify.success(`Conexão “${connection.name}” removida.`);
+      notify.success(t("removed", { name: connection.name }));
       resource.reload();
       return true;
     } catch (e) {
@@ -82,6 +85,8 @@ export function useConnectionTest(onTested: () => void) {
 
 // Acompanha o trabalho de importação (GET /jobs/{id}, hook compartilhado) até terminar.
 export function useImportJob(onFinished: () => void) {
+  const t = useTranslations("ingestion.connections");
+  const jobMessage = useJobMessage();
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState("");
   const [failure, setFailure] = useState("");
@@ -89,10 +94,8 @@ export function useImportJob(onFinished: () => void) {
     intervalMs: POLL_MS,
     onFinished: (finished) => {
       if (finished.status === "done")
-        notify.success(
-          "Importação concluída. O processamento foi enfileirado.",
-        );
-      else setFailure(finished.message ?? "A importação falhou.");
+        notify.success(t("importDone"));
+      else setFailure(jobMessage(finished) ?? t("importFailed"));
       onFinished();
     },
   });
