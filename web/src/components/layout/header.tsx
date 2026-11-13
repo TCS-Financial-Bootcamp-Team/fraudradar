@@ -9,9 +9,11 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { Bell, Menu, PanelLeft, Palette, Sparkles, X } from "lucide-react";
 import { cn } from "cn";
 import { AppearancePanel } from "@/components/theme";
+import { LocaleSwitcher } from "@/i18n/locale-switcher";
 import { DatasetSelector } from "@/features/datasets/components/dataset-selector";
 import { getBreadcrumb } from "@/lib/sidebar";
 import { HeaderAccountMenu } from "./account-menu";
@@ -47,7 +49,9 @@ export function Header({
   onOpenNotifications,
 }: HeaderProps) {
   const pathname = usePathname();
-  const breadcrumb = getBreadcrumb(pathname);
+  const t = useTranslations("shell");
+  const locale = useLocale();
+  const breadcrumb = getBreadcrumb(pathname, locale);
   const [isAppearanceOpen, setIsAppearanceOpen] = useState(false);
   const [appearanceTop, setAppearanceTop] = useState(68);
   const [appearanceRight, setAppearanceRight] = useState(16);
@@ -91,7 +95,7 @@ export function Header({
             type="button"
             onClick={onToggleSidebar}
             className={cn(TOPBAR_BUTTON, "hidden md:grid")}
-            aria-label="Recolher ou expandir menu"
+            aria-label={t("nav.toggleSidebar")}
             aria-expanded={isSidebarOpen}
             aria-controls={sidebarId}
           >
@@ -103,7 +107,7 @@ export function Header({
             type="button"
             onClick={onMobileMenuToggle}
             className={cn(TOPBAR_BUTTON, "md:hidden")}
-            aria-label={isMobileMenuOpen ? "Fechar menu" : "Abrir menu"}
+            aria-label={isMobileMenuOpen ? t("nav.closeMenu") : t("nav.openMenu")}
             aria-expanded={Boolean(isMobileMenuOpen)}
             aria-controls={sidebarId}
           >
@@ -135,7 +139,9 @@ export function Header({
           )}
         >
           <Sparkles className="size-4" strokeWidth={1.5} />
-          <span className="hidden min-[360px]:inline">Assistente</span>
+          <span className="hidden min-[360px]:inline">
+            {t("header.assistant")}
+          </span>
         </button>
 
         <div className="relative">
@@ -146,9 +152,9 @@ export function Header({
               updateAppearancePosition();
               setIsAppearanceOpen((open) => !open);
             }}
-            aria-label="Aparência"
+            aria-label={t("header.appearance")}
             aria-expanded={isAppearanceOpen}
-            title="Aparência"
+            title={t("header.appearance")}
             className={cn(
               TOPBAR_BUTTON,
               isAppearanceOpen && "bg-topbar-border text-topbar-foreground",
@@ -162,7 +168,7 @@ export function Header({
               <section
                 ref={appearancePanelRef}
                 role="dialog"
-                aria-label="Aparência"
+                aria-label={t("header.appearance")}
                 aria-modal={false}
                 style={{ top: appearanceTop, right: appearanceRight }}
                 className={cn(
@@ -173,11 +179,13 @@ export function Header({
                 )}
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="text-[15px] font-semibold">Aparência</h2>
+                  <h2 className="text-[15px] font-semibold">
+                    {t("header.appearance")}
+                  </h2>
                   <button
                     type="button"
                     onClick={() => setIsAppearanceOpen(false)}
-                    aria-label="Fechar aparência"
+                    aria-label={t("header.closeAppearance")}
                     className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <X className="size-3.5" strokeWidth={1.5} />
@@ -194,10 +202,10 @@ export function Header({
           onClick={onOpenNotifications}
           aria-label={
             pendingCount > 0
-              ? `Notificações, ${pendingCount} alertas pendentes`
-              : "Notificações"
+              ? t("header.notificationsPending", { count: pendingCount })
+              : t("header.notifications")
           }
-          title="Notificações"
+          title={t("header.notifications")}
           className={cn(TOPBAR_BUTTON, "relative")}
         >
           <Bell className="size-[18px]" strokeWidth={1.5} />
@@ -208,6 +216,7 @@ export function Header({
             />
           )}
         </button>
+        <LocaleSwitcher variant="topbar" className="mx-0.5 hidden min-[420px]:inline-flex" />
         <HeaderAccountMenu />
       </div>
     </header>

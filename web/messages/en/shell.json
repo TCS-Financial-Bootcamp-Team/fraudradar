@@ -2,5 +2,91 @@
   "meta": {
     "title": "FraudRadar AML",
     "description": "Anti-money-laundering monitoring on SAML-D"
+  },
+  "brand": {
+    "homeLabel": "FraudRadar — suspicious accounts",
+    "footer": "FraudRadar AML · {dataset}",
+    "footerWeek": "FraudRadar AML · {dataset} · Week of {week}"
+  },
+  "nav": {
+    "groups": {
+      "analysis": "Analysis",
+      "quality": "Quality",
+      "data": "Data",
+      "account": "Account"
+    },
+    "items": {
+      "accounts": "Suspicious accounts",
+      "dashboard": "Overview",
+      "alerts": "Alert queue",
+      "monitoring": "Monitoring",
+      "ingestion": "Data sources",
+      "settings": "Settings"
+    },
+    "alertPage": "Alert {id}",
+    "itemWithCount": "{label}, {count} pending",
+    "sidebarLabel": "Sidebar",
+    "mainNav": "Main navigation",
+    "closeSidebar": "Close sidebar",
+    "closeMenu": "Close menu",
+    "openMenu": "Open menu",
+    "toggleSidebar": "Collapse or expand menu"
+  },
+  "skipToContent": "Skip to content",
+  "demoBanner": "Demo environment · simulated data · no report is sent",
+  "header": {
+    "assistant": "Assistant",
+    "appearance": "Appearance",
+    "closeAppearance": "Close appearance",
+    "notifications": "Notifications",
+    "notificationsPending": "Notifications, {count, plural, =1 {# pending alert} other {# pending alerts}}",
+    "toggleTheme": "Switch between light and dark theme"
+  },
+  "account": {
+    "myAccount": "My account",
+    "role": "AML analyst",
+    "menuLabel": "Account menu",
+    "menu": "Account",
+    "tooltip": "{name} · account",
+    "settings": "Settings",
+    "signOut": "Sign out"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "intro": "Pending alerts in the selected week.",
+    "loading": "Loading…",
+    "retry": "Try again",
+    "alert": "Alert {id}",
+    "alertMeta": "{typology} · Score {score} · {position}",
+    "seeAll": "See all {count} pending alerts",
+    "none": "No pending alerts."
+  },
+  "states": {
+    "loadingLabel": "Loading data",
+    "loading": "Loading…",
+    "loadFailedTitle": "Could not load the data",
+    "retry": "Try again",
+    "emptyTitle": "No results",
+    "emptyDescription": "Adjust the filters to widen your search.",
+    "loadingSession": "Loading session…",
+    "openingPanel": "Opening dashboard…",
+    "loadingLogin": "Loading sign-in…",
+    "loadingSignup": "Loading sign-up…",
+    "loadingRecovery": "Loading recovery…"
+  },
+  "toast": {
+    "region": "Notifications",
+    "hint": "Hover to pause · right-click to close",
+    "close": "Close notification"
+  },
+  "sidePanel": {
+    "close": "Close panel"
+  },
+  "errorPages": {
+    "unexpected": "An unexpected error occurred. Try loading the page again.",
+    "area": "Something went wrong opening this area. Try again.",
+    "notFoundTitle": "Page off the radar",
+    "notFoundBody": "This address does not exist or is no longer available.",
+    "backHome": "Back to overview"
   }
 }

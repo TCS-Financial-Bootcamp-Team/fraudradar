@@ -1,22 +1,26 @@
+import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
+import { getT } from "@/i18n/runtime";
+
 export const SIDEBAR_COOKIE = "fraudradar-sidebar";
 const ONE_YEAR_IN_SECONDS = 60 * 60 * 24 * 365;
 
+// Os rótulos ficam em messages/<idioma>/shell.json (`nav.groups.*` e `nav.items.*`).
 export const SIDEBAR_NAV_GROUPS = [
   {
-    label: "Análise",
+    group: "analysis",
     items: [
-      { href: "/accounts", label: "Contas suspeitas" },
-      { href: "/dashboard", label: "Visão geral" },
-      { href: "/alerts", label: "Fila de alertas" },
+      { href: "/accounts", item: "accounts" },
+      { href: "/dashboard", item: "dashboard" },
+      { href: "/alerts", item: "alerts" },
     ],
   },
   {
-    label: "Qualidade",
-    items: [{ href: "/monitoring", label: "Monitoramento" }],
+    group: "quality",
+    items: [{ href: "/monitoring", item: "monitoring" }],
   },
   {
-    label: "Dados",
-    items: [{ href: "/ingestion", label: "Fontes de dados" }],
+    group: "data",
+    items: [{ href: "/ingestion", item: "ingestion" }],
   },
 ] as const;
 
@@ -52,8 +56,8 @@ export interface BreadcrumbInfo {
 }
 
 /**
- * Resolve o caminho de navegação "<grupo> / <página>" a partir da rota atual.
- * Exemplos:
+ * Resolve o caminho de navegação "<grupo> / <página>" a partir da rota atual, no idioma pedido.
+ * Exemplos (pt-BR):
  * - "/dashboard" -> { group: "Análise", page: "Visão geral" }
  * - "/alerts" -> { group: "Análise", page: "Fila de alertas" }
  * - "/alerts/3126" -> { group: "Fila de alertas", page: "Alerta 3126" }
@@ -61,30 +65,39 @@ export interface BreadcrumbInfo {
  * - "/ingestion" -> { group: "Dados", page: "Fontes de dados" }
  * - "/settings" -> { group: "Conta", page: "Configurações" }
  */
-export function getBreadcrumb(pathname: string): BreadcrumbInfo {
+export function getBreadcrumb(
+  pathname: string,
+  locale: AppLocale = DEFAULT_LOCALE,
+): BreadcrumbInfo {
+  const t = getT("shell.nav", locale);
   if (!pathname || pathname === "/" || pathname === "/accounts") {
-    return { group: "Análise", page: "Contas suspeitas" };
+    return { group: t("groups.analysis"), page: t("items.accounts") };
   }
   if (pathname === "/dashboard") {
-    return { group: "Análise", page: "Visão geral" };
+    return { group: t("groups.analysis"), page: t("items.dashboard") };
   }
   if (pathname === "/alerts") {
-    return { group: "Análise", page: "Fila de alertas" };
+    return { group: t("groups.analysis"), page: t("items.alerts") };
   }
   const alertMatch = pathname.match(/^\/alerts\/([^/]+)/);
   if (alertMatch) {
-    return { group: "Fila de alertas", page: `Alerta ${alertMatch[1]}` };
+    return {
+      group: t("items.alerts"),
+      page: t("alertPage", { id: alertMatch[1] }),
+    };
   }
   if (pathname.startsWith("/settings")) {
-    return { group: "Conta", page: "Configurações" };
+    return { group: t("groups.account"), page: t("items.settings") };
   }
 
   for (const group of SIDEBAR_NAV_GROUPS) {
     const item = group.items.find(({ href }) => isNavItemActive(pathname, href));
-    if (item) return { group: group.label, page: item.label };
+    if (item) {
+      return { group: t(`groups.${group.group}`), page: t(`items.${item.item}`) };
+    }
   }
 
-  return { group: "Análise", page: "Visão geral" };
+  return { group: t("groups.analysis"), page: t("items.dashboard") };
 }
 
 /**

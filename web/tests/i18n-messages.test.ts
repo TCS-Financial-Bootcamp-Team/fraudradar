@@ -36,7 +36,8 @@ function load(locale: string): Map<string, string> {
 }
 
 // Argumentos ICU de uma mensagem: `{name}`, `{n, plural, ...}`, `{x, select, ...}`, inclusive
-// os aninhados dentro das ramificações. Devolve "nome:tipo", ordenado.
+// os aninhados dentro das ramificações. Devolve os nomes dos argumentos, ordenados: um idioma
+// pode usar `{n}` onde o outro usa plural (`{n, plural, ...}`) sobre o mesmo argumento.
 export function icuArguments(message: string): string[] {
   const found = new Set<string>();
   const scan = (text: string) => {
@@ -61,10 +62,27 @@ export function icuArguments(message: string): string[] {
       const body = text.slice(i + 1, j - 1);
       const head = /^\s*([A-Za-z_][\w]*)\s*(?:,\s*(\w+))?/.exec(body);
       if (head) {
-        found.add(`${head[1]}:${head[2] ?? "arg"}`);
-        const rest = body.slice(head[0].length);
-        // ramificações do plural/select têm mensagens próprias
-        scan(rest);
+        found.add(head[1]);
+        // plural/select: cada ramificação `{...}` é uma mensagem com argumentos próprios
+        if (["plural", "select", "selectordinal"].includes(head[2] ?? "")) {
+          const rest = body.slice(head[0].length);
+          let k = 0;
+          while (k < rest.length) {
+            if (rest[k] !== "{") {
+              k++;
+              continue;
+            }
+            let d = 1;
+            let m = k + 1;
+            while (m < rest.length && d > 0) {
+              if (rest[m] === "{") d++;
+              else if (rest[m] === "}") d--;
+              m++;
+            }
+            scan(rest.slice(k + 1, m - 1));
+            k = m;
+          }
+        }
       } else {
         scan(body);
       }
@@ -117,10 +135,10 @@ for (const locale of OTHERS) {
 }
 
 test("marcadores ICU: o extrator enxerga argumento simples, plural e aninhado", () => {
-  assert.deepEqual(icuArguments("Olá, {name}"), ["name:arg"]);
+  assert.deepEqual(icuArguments("Olá, {name}"), ["name"]);
   assert.deepEqual(
-    icuArguments("{count, plural, one {# alerta de {kind}} other {# alertas}}"),
-    ["count:plural", "kind:arg"],
+    icuArguments("{count, plural, =1 {# alerta de {kind}} other {# alertas}}"),
+    ["count", "kind"],
   );
   assert.deepEqual(icuArguments("sem marcador"), []);
 });

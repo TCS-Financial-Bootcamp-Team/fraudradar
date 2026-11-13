@@ -1,3 +1,18 @@
 {
-  "generic": "Não foi possível concluir. Tente novamente."
+  "generic": "Não foi possível concluir. Tente novamente.",
+  "validation": {
+    "nameFull": "Informe seu nome completo.",
+    "passwordMin": "Use pelo menos 8 caracteres.",
+    "passwordLetter": "Inclua uma letra.",
+    "passwordNumber": "Inclua um número.",
+    "emailInvalid": "Informe um e-mail válido.",
+    "passwordRequired": "Informe sua senha.",
+    "passwordMismatch": "As senhas não coincidem.",
+    "justificationMin": "Descreva a justificativa com pelo menos 10 caracteres.",
+    "archiveReasonRequired": "Escolha o motivo do arquivamento.",
+    "draftMin": "Revise o rascunho: mínimo de 30 caracteres."
+  },
+  "api": {
+    "placeholder": "(sem texto)"
+  }
 }

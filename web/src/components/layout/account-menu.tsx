@@ -2,6 +2,7 @@
 
 import { useId, useRef, useState } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { ChevronsUpDown, LogOut, SlidersHorizontal } from "lucide-react";
 import { cn } from "cn";
 import { CollapsedTooltip } from "@/components/ui/tooltip";
@@ -29,6 +30,7 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuId = useId();
+  const t = useTranslations("shell.account");
   const profile = useProfile();
   const auth = useAuth();
 
@@ -37,9 +39,9 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
     if (reason === "escape") triggerRef.current?.focus();
   });
 
-  const name = profile.data?.name || "Minha conta";
+  const name = profile.data?.name || t("myAccount");
   // O contrato atual do perfil não expõe cargo; este é o papel único do produto.
-  const role = "Analista PLD";
+  const role = t("role");
   const isHeader = placement === "header";
   const isExpanded = placement === "sidebar-expanded";
 
@@ -56,7 +58,7 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
       aria-controls={menuId}
       aria-expanded={isOpen}
       aria-haspopup="menu"
-      aria-label="Menu da conta"
+      aria-label={t("menuLabel")}
       className={cn(
         "focus-visible:outline-none focus-visible:ring-2",
         isHeader
@@ -98,7 +100,7 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
       className={cn("relative", isHeader ? "shrink-0" : "w-full")}
     >
       {placement === "sidebar-collapsed" ? (
-        <CollapsedTooltip label={`${name} · conta`} enabled={!isOpen}>
+        <CollapsedTooltip label={t("tooltip", { name })} enabled={!isOpen}>
           {trigger}
         </CollapsedTooltip>
       ) : (
@@ -108,7 +110,7 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
       <div
         id={menuId}
         role="menu"
-        aria-label="Conta"
+        aria-label={t("menu")}
         className={cn(
           "absolute z-[80] flex origin-bottom-left flex-col gap-0.5 rounded-xl border border-border bg-card p-1.5 text-card-foreground shadow-xl transition duration-150 motion-reduce:transition-none",
           placement === "header" &&
@@ -135,7 +137,7 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
           className="flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
         >
           <SlidersHorizontal className="size-4" strokeWidth={1.5} />
-          Configurações
+          {t("settings")}
         </Link>
         <button
           type="button"
@@ -149,7 +151,7 @@ function AccountMenu({ placement, onNavigate }: AccountMenuProps) {
           className="flex h-10 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-sm text-foreground transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50"
         >
           <LogOut className="size-4" strokeWidth={1.5} />
-          Sair
+          {t("signOut")}
         </button>
       </div>
     </div>

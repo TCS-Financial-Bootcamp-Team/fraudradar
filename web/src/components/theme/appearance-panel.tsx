@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useId } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import {
   PRESETS,
   type ThemeMode,
@@ -22,6 +23,7 @@ export function ThemePreviewCards({
   onSelectMode: (mode: ThemeMode) => void;
   custom: CustomTheme;
 }) {
+  const t = useTranslations("settings.appearance");
   const themeKeys: ThemeMode[] = [
     "grafite",
     "oceano",
@@ -37,7 +39,7 @@ export function ThemePreviewCards({
           k === "custom"
             ? custom
             : PRESETS[k];
-        const label = k === "custom" ? "Personalizado" : PRESETS[k].label;
+        const label = t(`themes.${k}`);
         const isActive = mode === k;
 
         return (
@@ -83,6 +85,8 @@ export function ThemePreviewCards({
 
 export function AppearancePanel({ className }: { className?: string }) {
   const { config, setConfig } = useAppTheme();
+  const t = useTranslations("settings.appearance");
+  const locale = useLocale();
   const baseId = useId();
 
   const isCustom = config.mode === "custom";
@@ -109,7 +113,7 @@ export function AppearancePanel({ className }: { className?: string }) {
     ink: autoInk,
   };
 
-  const warnings = contrastWarnings(config);
+  const warnings = contrastWarnings(config, locale);
 
   const handleModeChange = (mode: ThemeMode) => {
     setConfig((prev) => ({
@@ -167,27 +171,27 @@ export function AppearancePanel({ className }: { className?: string }) {
   };
 
   const colorFields: { key: keyof CustomTheme; label: string }[] = [
-    { key: "primary", label: "Primária" },
-    { key: "accent", label: "Destaque (risco)" },
-    { key: "sidebar", label: "Barra lateral" },
-    { key: "topbar", label: "Barra superior" },
-    { key: "bg", label: "Fundo" },
+    { key: "primary", label: t("fields.primary") },
+    { key: "accent", label: t("fields.accent") },
+    { key: "sidebar", label: t("fields.sidebar") },
+    { key: "topbar", label: t("fields.topbar") },
+    { key: "bg", label: t("fields.bg") },
   ];
 
   const textFields: {
     key: "sidebarInk" | "topbarInk" | "ink";
     label: string;
   }[] = [
-    { key: "sidebarInk", label: "Barra lateral" },
-    { key: "topbarInk", label: "Barra superior" },
-    { key: "ink", label: "Conteúdo" },
+    { key: "sidebarInk", label: t("fields.sidebar") },
+    { key: "topbarInk", label: t("fields.topbar") },
+    { key: "ink", label: t("fields.content") },
   ];
 
   return (
     <div className={`flex flex-col gap-4 text-foreground ${className ?? ""}`}>
       <fieldset className="m-0 p-0 border-0">
         <legend className="mb-2.5 p-0 text-[13px] text-muted-foreground">
-          Tema
+          {t("theme")}
         </legend>
         <ThemePreviewCards
           mode={config.mode}
@@ -199,7 +203,9 @@ export function AppearancePanel({ className }: { className?: string }) {
       {isCustom && (
         <div className="flex flex-col gap-3 pt-4 border-t border-border">
           <div className="flex items-center justify-between">
-            <span className="text-[13px] text-muted-foreground">Base</span>
+            <span className="text-[13px] text-muted-foreground">
+              {t("base")}
+            </span>
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 type="button"
@@ -211,7 +217,7 @@ export function AppearancePanel({ className }: { className?: string }) {
                     : "bg-transparent text-foreground hover:bg-muted"
                 }`}
               >
-                Clara
+                {t("light")}
               </button>
               <button
                 type="button"
@@ -223,13 +229,13 @@ export function AppearancePanel({ className }: { className?: string }) {
                     : "bg-transparent text-foreground hover:bg-muted"
                 }`}
               >
-                Escura
+                {t("dark")}
               </button>
             </div>
           </div>
 
           <p className="mt-1.5 mb-0 text-[11px] font-medium tracking-[0.06em] uppercase text-muted-foreground">
-            Cores
+            {t("colors")}
           </p>
 
           {colorFields.map((field) => {
@@ -266,7 +272,7 @@ export function AppearancePanel({ className }: { className?: string }) {
           })}
 
           <p className="mt-1.5 mb-0 text-[11px] font-medium tracking-[0.06em] uppercase text-muted-foreground">
-            Cor do texto
+            {t("textColor")}
           </p>
 
           {textFields.map((field) => {
@@ -290,11 +296,11 @@ export function AppearancePanel({ className }: { className?: string }) {
                       onClick={() => handleResetTextColor(field.key)}
                       className="h-[26px] px-2 rounded-md border border-border bg-transparent text-[11px] text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-colors"
                     >
-                      Automático
+                      {t("auto")}
                     </button>
                   ) : (
                     <span className="text-[11px] text-muted-foreground">
-                      automático
+                      {t("autoLower")}
                     </span>
                   )}
                   <span className="font-mono text-xs text-muted-foreground">
@@ -304,7 +310,7 @@ export function AppearancePanel({ className }: { className?: string }) {
                     id={inputId}
                     type="color"
                     value={currentVal}
-                    aria-label={`Cor do texto: ${field.label}`}
+                    aria-label={t("textColorOf", { field: field.label })}
                     onChange={(e) =>
                       handleCustomColorChange(field.key, e.target.value)
                     }
@@ -331,7 +337,7 @@ export function AppearancePanel({ className }: { className?: string }) {
       )}
 
       <p className="m-0 text-xs text-muted-foreground">
-        Cada analista escolhe o próprio tema. Fica salvo neste navegador, inclusive no login.
+        {t("savedNote")}
       </p>
     </div>
   );

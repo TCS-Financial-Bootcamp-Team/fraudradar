@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { getT } from "../src/i18n/runtime";
 import {
   SIDEBAR_COOKIE,
   getAlertIdFromPathname,
@@ -108,5 +109,6 @@ test("sidebar: tooltip recolhido usa portal acima da moldura e alinhado ao item"
   assert.match(tooltip, /className="z-\[90\]"/);
   assert.match(tooltip, /bg-foreground/);
   assert.match(tooltip, /text-background/);
-  assert.match(accountMenu, /<CollapsedTooltip label=\{`\$\{name\} .* conta`\}/);
+  assert.match(accountMenu, /<CollapsedTooltip label=\{t\("tooltip", \{ name \}\)\}/);
+  assert.match(getT("shell.account")("tooltip", { name: "Ana" }), /Ana · conta/);
 });

@@ -1,3 +1,5 @@
+import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
+import { getT } from "@/i18n/runtime";
 import { PRESETS, type ThemeConfig } from "./presets";
 
 export function hex(c: string): [number, number, number] {
@@ -156,7 +158,11 @@ export function computeTokens(config: ThemeConfig): Record<string, string> {
   };
 }
 
-export function contrastWarnings(config: ThemeConfig): string[] {
+export function contrastWarnings(
+  config: ThemeConfig,
+  locale: AppLocale = DEFAULT_LOCALE,
+): string[] {
+  const t = getT("settings.appearance.contrast", locale);
   if (config.mode !== "custom") return [];
 
   const tokens = computeTokens(config);
@@ -169,21 +175,25 @@ export function contrastWarnings(config: ThemeConfig): string[] {
   const accent = tokens["--signal"];
 
   const checks: [string, string, number, string][] = [
-    [ink, surface, 4.5, "O texto do conteúdo"],
-    [sidebarInk, sidebar, 4.5, "O texto da barra lateral"],
-    [topbarInk, topbar, 4.5, "O texto da barra superior"],
-    [accent, surface, 3, "O destaque"],
+    [ink, surface, 4.5, t("content")],
+    [sidebarInk, sidebar, 4.5, t("sidebar")],
+    [topbarInk, topbar, 4.5, t("topbar")],
+    [accent, surface, 3, t("accent")],
   ];
+  const number = (value: number, digits: number) =>
+    new Intl.NumberFormat(locale, {
+      minimumFractionDigits: digits,
+      maximumFractionDigits: digits,
+    }).format(value);
 
   return checks
     .filter(([a, b, min]) => contrastRatio(a, b) < min)
     .map(
       ([a, b, min, what]) =>
-        `${what} fica difícil de ler (contraste de ${contrastRatio(a, b)
-          .toFixed(1)
-          .replace(".", ",")} para 1; o mínimo é ${String(min).replace(
-          ".",
-          ","
-        )} para 1).`
+        t("warning", {
+          what,
+          ratio: number(contrastRatio(a, b), 1),
+          min: number(min, 1).replace(/[.,]0$/, ""),
+        })
     );
 }

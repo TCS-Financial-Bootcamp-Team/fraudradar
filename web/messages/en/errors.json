@@ -1,3 +1,18 @@
 {
-  "generic": "Could not complete the request. Please try again."
+  "generic": "Could not complete the request. Please try again.",
+  "validation": {
+    "nameFull": "Enter your full name.",
+    "passwordMin": "Use at least 8 characters.",
+    "passwordLetter": "Include a letter.",
+    "passwordNumber": "Include a number.",
+    "emailInvalid": "Enter a valid email.",
+    "passwordRequired": "Enter your password.",
+    "passwordMismatch": "The passwords do not match.",
+    "justificationMin": "Describe the justification in at least 10 characters.",
+    "archiveReasonRequired": "Choose the archive reason.",
+    "draftMin": "Review the draft: at least 30 characters."
+  },
+  "api": {
+    "placeholder": "(no text)"
+  }
 }
