@@ -10,7 +10,8 @@
     "passwordMismatch": "As senhas não coincidem.",
     "justificationMin": "Descreva a justificativa com pelo menos 10 caracteres.",
     "archiveReasonRequired": "Escolha o motivo do arquivamento.",
-    "draftMin": "Revise o rascunho: mínimo de 30 caracteres."
+    "draftMin": "Revise o rascunho: mínimo de 30 caracteres.",
+    "simulatedNeedsFeedback": "O retorno simulado só entra num retreino com o retorno dos analistas."
   },
   "api": {
     "auth_not_configured": "Autenticação não configurada na API (defina SUPABASE_URL).",

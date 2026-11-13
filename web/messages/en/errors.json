@@ -10,7 +10,8 @@
     "passwordMismatch": "The passwords do not match.",
     "justificationMin": "Describe the justification in at least 10 characters.",
     "archiveReasonRequired": "Choose the archive reason.",
-    "draftMin": "Review the draft: at least 30 characters."
+    "draftMin": "Review the draft: at least 30 characters.",
+    "simulatedNeedsFeedback": "Simulated feedback only goes into a retraining that also uses analyst feedback."
   },
   "api": {
     "auth_not_configured": "Authentication is not configured on the API (set SUPABASE_URL).",

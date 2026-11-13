@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { v } from "@/i18n/validation";
 import { jobSchema } from "@/features/jobs/schemas/jobs";
 import { labelBreakdownSchema } from "@/features/feedback/schemas/feedback";
 
@@ -33,7 +34,13 @@ export const comparisonSchema = z.object({
   active: comparisonMetricsSchema,
   recall_difference: z.number().nullable(),
   tolerance: z.number(),
-  gate: z.object({ passed: z.boolean(), reason: z.string().nullable() }),
+  gate: z.object({
+    passed: z.boolean(),
+    reason: z.string().nullable(),
+    // Código e parâmetros do motivo: o front traduz por eles e cai em `reason` (português).
+    reason_code: z.string().nullish(),
+    reason_params: z.record(z.string(), z.unknown()).nullish(),
+  }),
 });
 
 // O retorno dos analistas que a versão usou no treino.
@@ -74,7 +81,11 @@ export const trainingFeedbackSchema = z.object({
   analyst: classCountsSchema,
   simulated: classCountsSchema,
   blocked_reason: z.string().nullable(),
+  blocked_reason_code: z.string().nullish(),
+  blocked_reason_params: z.record(z.string(), z.unknown()).nullish(),
   blocked_reason_with_simulated: z.string().nullable(),
+  blocked_reason_with_simulated_code: z.string().nullish(),
+  blocked_reason_with_simulated_params: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export const modelsSchema = z.object({
@@ -83,6 +94,8 @@ export const modelsSchema = z.object({
   versions: z.array(modelVersionSchema),
   can_train: z.boolean(),
   train_blocked_reason: z.string().nullable(),
+  train_blocked_reason_code: z.string().nullish(),
+  train_blocked_reason_params: z.record(z.string(), z.unknown()).nullish(),
   training_job: jobSchema.nullable(),
   training_feedback: trainingFeedbackSchema,
 });
@@ -93,7 +106,7 @@ export const trainRequestSchema = z
     include_simulated: z.boolean(),
   })
   .refine((value) => value.use_feedback || !value.include_simulated, {
-    message: "O retorno simulado só entra num retreino com o retorno dos analistas.",
+    message: v("simulatedNeedsFeedback"),
   });
 
 export type ModelMetrics = z.infer<typeof modelMetricsSchema>;
