@@ -1,5 +1,6 @@
 """Executor persistente dos trabalhos registrados em ``public.jobs``."""
 
+import json
 import logging
 import signal
 from collections.abc import Callable, Mapping
@@ -13,6 +14,7 @@ from sqlalchemy import Engine, text
 
 from fraudradar.data.simulation import SimulationError, simulate_transactions
 from fraudradar.datasets import Dataset, DatasetNotFoundError, resolve_dataset, use_dataset
+from fraudradar.messages import Msg, msg
 from worker.errors import WorkerError
 from worker.import_job import import_handler, pull_new_rows
 from worker.train_job import train_handler
@@ -53,7 +55,8 @@ def claim_next_job(engine: Engine) -> Job | None:
                     )
                     UPDATE public.jobs AS job
                     SET status = 'running', progress = 0,
-                        message = 'Trabalho iniciado.', started_at = now(), finished_at = NULL
+                        message = 'Trabalho iniciado.', message_code = 'job.started',
+                        message_params = NULL, started_at = now(), finished_at = NULL
                     FROM next_job
                     WHERE job.id = next_job.id
                     RETURNING job.id, job.kind, job.dataset, job.payload, job.created_by
@@ -73,29 +76,56 @@ def claim_next_job(engine: Engine) -> Job | None:
     )
 
 
-def update_progress(engine: Engine, job_id: int, progress: int, message: str | None) -> None:
+def _message_columns(
+    message: str | None, code: str | None = None, params: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """``message`` (texto em português), ``message_code`` e ``message_params`` de um trabalho. Uma
+    ``Msg`` já traz código e parâmetros; texto puro fica sem código (o front mostra o texto)."""
+    code = code or getattr(message, "code", None)
+    params = params if params is not None else getattr(message, "params", None)
+    return {
+        "message": None if message is None else str(message),
+        "code": code,
+        "params": json.dumps(params) if code and params else None,
+    }
+
+
+def update_progress(
+    engine: Engine, job_id: int, progress: int, message: "str | Msg | None"
+) -> None:
     with engine.begin() as conn:
         conn.execute(
             text(
-                "UPDATE public.jobs SET progress = :progress, message = :message "
+                "UPDATE public.jobs SET progress = :progress, message = :message,"
+                " message_code = :code, message_params = CAST(:params AS jsonb) "
                 "WHERE id = :id AND status = 'running'"
             ),
-            {"id": job_id, "progress": max(0, min(100, progress)), "message": message},
+            {"id": job_id, "progress": max(0, min(100, progress)), **_message_columns(message)},
         )
 
 
-def _finish(engine: Engine, job_id: int, *, failed: bool, message: str) -> None:
+def _finish(
+    engine: Engine,
+    job_id: int,
+    *,
+    failed: bool,
+    message: "str | Msg",
+    code: str | None = None,
+    params: dict[str, Any] | None = None,
+) -> None:
     with engine.begin() as conn:
         conn.execute(
             text(
                 "UPDATE public.jobs SET status = :status, progress = :progress, "
-                "message = :message, finished_at = now() WHERE id = :id AND status = 'running'"
+                "message = :message, message_code = :code,"
+                " message_params = CAST(:params AS jsonb), finished_at = now() "
+                "WHERE id = :id AND status = 'running'"
             ),
             {
                 "id": job_id,
                 "status": "failed" if failed else "done",
                 "progress": 0 if failed else 100,
-                "message": message,
+                **_message_columns(message, code, params),
             },
         )
 
@@ -115,7 +145,10 @@ def process_handler(engine: Engine, job: Job, progress: Progress) -> str:
     dataset = _resolve_dataset(engine, job.dataset)
     for hook in PRE_PROCESS_HOOKS:
         hook(engine, dataset)
-    progress(10, "Preparando o processamento do conjunto de dados.")
+    progress(
+        10,
+        msg("job.process_preparing", "Preparando o processamento do conjunto de dados."),
+    )
     mode = job.payload.get("mode", "continuous")
     if mode == "continuous":
         result = batch.run_continuous(engine, dataset=dataset)
@@ -141,9 +174,17 @@ def process_handler(engine: Engine, job: Job, progress: Progress) -> str:
             {"dataset": dataset.slug},
         )
     if not result.processed:
-        message = result.notes[0] if result.notes else "Nada novo para processar."
+        message = (
+            result.notes[0]
+            if result.notes
+            else msg("job.process_nothing", "Nada novo para processar.")
+        )
     else:
-        message = f"Processamento concluído: {len(result.processed)} período(s) processado(s)."
+        message = msg(
+            "job.process_done",
+            f"Processamento concluído: {len(result.processed)} período(s) processado(s).",
+            count=len(result.processed),
+        )
     progress(95, message)
     return message
 
@@ -160,7 +201,7 @@ def simulate_handler(engine: Engine, job: Job, progress: Progress) -> str:
     if not 50 <= transactions <= 5000 or not 1 <= days <= 7:
         raise WorkerError("a simulação aceita de 50 a 5.000 transações e de 1 a 7 dias")
 
-    progress(10, "Preparando a amostra do conjunto de dados.")
+    progress(10, msg("job.simulate_preparing", "Preparando a amostra do conjunto de dados."))
     with engine.begin() as conn:
         use_dataset(conn, dataset)
         last_at = conn.execute(text("SELECT max(occurred_at) FROM transactions")).scalar()
@@ -242,8 +283,9 @@ def simulate_handler(engine: Engine, job: Job, progress: Progress) -> str:
             ),
             {"dataset": dataset.slug, "actor": job.created_by},
         )
-    progress(95, "Transações simuladas; processamento enfileirado.")
-    return "Transações simuladas; processamento enfileirado."
+    done = msg("job.simulate_done", "Transações simuladas; processamento enfileirado.")
+    progress(95, done)
+    return done
 
 
 DEFAULT_HANDLERS: Mapping[str, Handler] = {
@@ -270,7 +312,7 @@ def process_next_job(engine: Engine, handlers: Mapping[str, Handler] = DEFAULT_H
         final_message = handler(engine, job, progress)
     except WorkerError as exc:
         log.error("trabalho %s falhou: %s", job.id, exc)
-        _finish(engine, job.id, failed=True, message=str(exc))
+        _finish(engine, job.id, failed=True, message=str(exc), code=exc.code, params=exc.params)
     except Exception:  # noqa: BLE001 - falha inesperada fica completa somente no log interno
         log.exception("trabalho %s falhou de forma inesperada", job.id)
         _finish(
@@ -278,9 +320,13 @@ def process_next_job(engine: Engine, handlers: Mapping[str, Handler] = DEFAULT_H
             job.id,
             failed=True,
             message="O trabalho falhou. Consulte os logs do worker.",
+            code="job.failed_generic",
         )
     else:
-        _finish(engine, job.id, failed=False, message=final_message or "Trabalho concluído.")
+        if final_message:
+            _finish(engine, job.id, failed=False, message=final_message)
+        else:
+            _finish(engine, job.id, failed=False, message="Trabalho concluído.", code="job.done")
     return True
 
 
@@ -290,7 +336,8 @@ def recover_stale_jobs(engine: Engine) -> int:
         rows = conn.execute(
             text(
                 "UPDATE public.jobs SET status = 'failed', progress = 0,"
-                " message = 'Trabalho interrompido', finished_at = now()"
+                " message = 'Trabalho interrompido',"
+                " message_code = 'job.interrupted', message_params = NULL, finished_at = now()"
                 " WHERE status = 'running'"
                 " AND started_at < now() - INTERVAL '2 hours' RETURNING id"
             )
