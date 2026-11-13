@@ -609,7 +609,7 @@ export function ChartCard({
               <XAxis
                 type="number"
                 tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-                tickFormatter={isRate ? formatPercent : undefined}
+                tickFormatter={isRate ? (value: number) => formatPercent(value) : undefined}
                 axisLine={false}
                 tickLine={false}
               />

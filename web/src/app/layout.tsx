@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
 
 import { Providers } from "@/components/providers";
 import { LoadingState } from "@/components/ui/states";
@@ -17,15 +19,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "FraudRadar PLD",
-  description: "Monitoramento antilavagem sobre o SAML-D",
-};
+// O idioma vem do cookie NEXT_LOCALE (dado da requisição): a raiz renderiza sob demanda,
+// o que já era o caso, porque toda tela exige sessão.
+export const instant = false;
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("shell.meta");
+  return { title: t("title"), description: t("description") };
+}
+
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const locale = await getLocale();
   return (
     <html
-      lang="pt-BR"
+      lang={locale}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
@@ -56,6 +63,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         />
       </head>
       <body className="min-h-full flex flex-col">
+        <NextIntlClientProvider>
         <Providers>
           <Suspense
             fallback={
@@ -67,6 +75,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             {children}
           </Suspense>
         </Providers>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
