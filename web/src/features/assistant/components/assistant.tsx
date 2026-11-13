@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { ArrowUp, Sparkles, X } from "lucide-react";
 import { useAppContext } from "@/components/app-context";
-import { formatShortDate } from "@/lib/format";
+import { useFormatters } from "@/i18n/use-formatters";
 import { getAlertIdFromPathname } from "@/lib/sidebar";
 import { useAssistant } from "../hooks/use-assistant";
 
@@ -48,17 +49,14 @@ function FormattedContent({ content }: { content: string }) {
   );
 }
 
-const DEFAULT_SUGGESTIONS = [
-  "Resuma os alertas da semana",
-  "Explique a tipologia fan-out",
-  "Quais regras têm maior taxa de alerta?",
-];
+const DEFAULT_SUGGESTIONS = ["summary", "typology", "rules"] as const;
 
 /**
  * Componente Chat inline preservado para compatibilidade enquanto
  * alert-detail.tsx não for atualizado pelo agente responsável pela tela.
  */
 export function Chat({ alertId }: { alertId?: string }) {
+  const t = useTranslations("assistant");
   const { messages, busy, send } = useAssistant(alertId);
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -78,31 +76,31 @@ export function Chat({ alertId }: { alertId?: string }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <p className="border-b border-border bg-soft px-4 py-2.5 text-xs text-muted-foreground">
-        Contas pseudonimizadas. A IA auxilia a análise; a decisão é humana.
+        {t("pseudonymized")}
       </p>
       <div
         role="log"
-        aria-label="Mensagens do assistente"
+        aria-label={t("logAssistant")}
         aria-live="polite"
         className="flex-1 space-y-4 overflow-y-auto p-4"
       >
         {messages.length === 0 && (
           <div className="py-4">
             <h3 className="text-base font-semibold text-foreground">
-              Uma segunda leitura para sua análise.
+              {t("emptyTitle")}
             </h3>
             <p className="mt-1 text-xs text-muted-foreground">
-              Pergunte sobre padrões, tipologias e próximos passos.
+              {t("emptyShort")}
             </p>
             <div className="mt-4 flex flex-col gap-2">
-              {DEFAULT_SUGGESTIONS.slice(0, 2).map((sug) => (
+              {DEFAULT_SUGGESTIONS.slice(0, 2).map((key) => (
                 <button
-                  key={sug}
+                  key={key}
                   type="button"
-                  onClick={() => void handleSend(sug)}
+                  onClick={() => void handleSend(t(`suggestions.${key}`))}
                   className="rounded-lg border border-border bg-card p-3 text-left text-xs text-foreground transition-colors hover:bg-muted/60"
                 >
-                  {sug}
+                  {t(`suggestions.${key}`)}
                 </button>
               ))}
             </div>
@@ -140,7 +138,7 @@ export function Chat({ alertId }: { alertId?: string }) {
             role="status"
             className="animate-pulse text-xs text-muted-foreground"
           >
-            Consultando as fontes…
+            {t("consulting")}
           </p>
         )}
         <div ref={endRef} />
@@ -154,16 +152,16 @@ export function Chat({ alertId }: { alertId?: string }) {
       >
         <textarea
           rows={2}
-          aria-label="Sua pergunta ao assistente"
+          aria-label={t("questionToAssistant")}
           className="min-h-16 flex-1 resize-none rounded-lg border border-border bg-background p-2 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:text-sm"
           maxLength={2000}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Pergunte sobre sua análise…"
+          placeholder={t("placeholderShort")}
         />
         <button
           type="submit"
-          aria-label="Enviar pergunta"
+          aria-label={t("send")}
           disabled={busy || !draft.trim()}
           className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
         >
@@ -184,6 +182,8 @@ export interface AssistantDrawerProps {
  * Alinha o contexto automaticamente a partir da rota (/alerts/[id] ou semana ativa).
  */
 export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
+  const t = useTranslations("assistant");
+  const format = useFormatters();
   const pathname = usePathname();
   const alertId = getAlertIdFromPathname(pathname);
   const { week } = useAppContext();
@@ -215,17 +215,17 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
   if (!isOpen) return null;
 
   const contextChip = alertId
-    ? `Alerta ${alertId}`
+    ? t("alertContext", { id: alertId })
     : week
-      ? `Semana de ${formatShortDate(week)}`
-      : "Geral";
-  const suggestions = alertId
-    ? [
-        DEFAULT_SUGGESTIONS[0],
-        DEFAULT_SUGGESTIONS[1],
-        `Por que o alerta ${alertId} entrou na fila?`,
-      ]
-    : DEFAULT_SUGGESTIONS;
+      ? t("weekContext", { week: format.shortDate(week) })
+      : t("general");
+  const suggestions = [
+    t(`suggestions.${DEFAULT_SUGGESTIONS[0]}`),
+    t(`suggestions.${DEFAULT_SUGGESTIONS[1]}`),
+    alertId
+      ? t("suggestions.whyAlert", { id: alertId })
+      : t(`suggestions.${DEFAULT_SUGGESTIONS[2]}`),
+  ];
 
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
@@ -245,7 +245,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
   return (
     <aside
       role="dialog"
-      aria-label="Assistente"
+      aria-label={t("title")}
       aria-modal={false}
       data-assistant-drawer="open"
       className="fixed inset-y-0 right-0 z-40 flex h-screen w-[400px] max-w-full flex-col border-l border-border bg-card text-foreground shadow-xl [animation:assistant-drawer-in_0.2s_ease-out]"
@@ -255,7 +255,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
         <div className="flex min-w-0 items-center gap-2.5">
           <Sparkles className="size-4 shrink-0 text-foreground" strokeWidth={1.5} />
           <span className="text-sm font-semibold text-foreground">
-            Assistente
+            {t("title")}
           </span>
           <span className="truncate rounded-full bg-soft px-2 py-0.5 text-xs font-normal text-muted-foreground">
             {contextChip}
@@ -264,7 +264,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Fechar assistente"
+          aria-label={t("close")}
           className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X className="size-4" strokeWidth={1.5} />
@@ -274,18 +274,17 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
       {/* Histórico de mensagens / estado vazio */}
       <div
         role="log"
-        aria-label="Mensagens"
+        aria-label={t("log")}
         aria-live="polite"
         className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 sm:p-5"
       >
         {messages.length === 0 ? (
           <div className="flex flex-col gap-2.5 pt-6">
             <h3 className="m-0 text-lg font-semibold tracking-tight text-foreground">
-              Uma segunda leitura para sua análise.
+              {t("emptyTitle")}
             </h3>
             <p className="m-0 text-xs leading-relaxed text-muted-foreground">
-              Pergunte sobre padrões, tipologias e próximos passos. As contas
-              chegam pseudonimizadas e a decisão continua sua.
+              {t("emptyLong")}
             </p>
             <div className="mt-3 flex flex-col gap-2">
               {suggestions.map((suggestion) => (
@@ -341,7 +340,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
             role="status"
             className="m-0 flex items-center gap-1 text-xs text-muted-foreground animate-pulse"
           >
-            Consultando as fontes…
+            {t("consulting")}
           </p>
         )}
         <div ref={endRef} />
@@ -351,14 +350,14 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
       <div className="flex shrink-0 flex-col gap-2 border-t border-border p-3.5 sm:p-4">
         <div className="flex items-end gap-2 rounded-xl border border-border bg-background p-1.5 pl-3 focus-within:ring-2 focus-within:ring-ring">
           <label className="flex flex-1">
-            <span className="sr-only">Sua pergunta</span>
+            <span className="sr-only">{t("question")}</span>
             <textarea
               ref={textareaRef}
               rows={2}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
               onKeyDown={onTextareaKeyDown}
-              placeholder="Pergunte sobre a análise…"
+              placeholder={t("placeholder")}
               maxLength={2000}
               className="w-full resize-none border-0 bg-transparent py-1 text-xs text-foreground placeholder:text-muted-foreground outline-none sm:text-sm"
             />
@@ -366,7 +365,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
           <button
             type="button"
             onClick={() => void handleSend(draft)}
-            aria-label="Enviar pergunta"
+            aria-label={t("send")}
             disabled={busy || !draft.trim()}
             className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-opacity disabled:cursor-not-allowed disabled:opacity-40"
           >
@@ -374,7 +373,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
           </button>
         </div>
         <p className="m-0 text-[11px] leading-normal text-muted-foreground text-center sm:text-left">
-          A IA auxilia a análise; a decisão é humana.
+          {t("disclaimer")}
         </p>
       </div>
     </aside>

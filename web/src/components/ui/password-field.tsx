@@ -2,9 +2,11 @@
 
 import { useState, type ComponentProps } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Input } from "./field";
 
 export function PasswordField(props: Omit<ComponentProps<"input">, "type">) {
+  const t = useTranslations("auth.password");
   const [visible, setVisible] = useState(false);
   return (
     <span className="relative block">
@@ -16,7 +18,7 @@ export function PasswordField(props: Omit<ComponentProps<"input">, "type">) {
       <button
         type="button"
         className="absolute right-1 top-1/2 -translate-y-1/2 rounded p-2 focus-visible:ring-2 focus-visible:ring-ring"
-        aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
+        aria-label={visible ? t("hidePassword") : t("showPassword")}
         aria-pressed={visible}
         onClick={() => setVisible(!visible)}
       >

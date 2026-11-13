@@ -1,7 +1,7 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/i18n/page-metadata";
 import { SuspiciousAccountsView } from "@/features/accounts/components/suspicious-accounts";
 
-export const metadata: Metadata = { title: "Contas suspeitas · FraudRadar PLD" };
+export const generateMetadata = () => pageMetadata("accounts");
 
 export default function Page() {
   return <SuspiciousAccountsView />;

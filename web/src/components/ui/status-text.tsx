@@ -12,7 +12,8 @@ export function StatusText({
     | "openingPanel"
     | "loadingLogin"
     | "loadingSignup"
-    | "loadingRecovery";
+    | "loadingRecovery"
+    | "loadingAlert";
   className?: string;
 }) {
   const t = useTranslations("shell.states");

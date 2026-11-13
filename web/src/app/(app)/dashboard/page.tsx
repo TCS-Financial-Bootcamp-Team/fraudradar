@@ -1,9 +1,7 @@
-import type { Metadata } from "next";
+import { pageMetadata } from "@/i18n/page-metadata";
 import { Dashboard } from "@/features/alerts/components/dashboard";
 
-export const metadata: Metadata = {
-  title: "Visão geral · FraudRadar PLD",
-};
+export const generateMetadata = () => pageMetadata("dashboard");
 
 export default function Page() {
   return <Dashboard />;

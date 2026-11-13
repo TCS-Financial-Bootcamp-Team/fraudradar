@@ -1,1 +1,27 @@
-{}
+{
+  "title": "Assistant",
+  "general": "General",
+  "alertContext": "Alert {id}",
+  "weekContext": "Week of {week}",
+  "close": "Close assistant",
+  "suggestions": {
+    "summary": "Summarize this week's alerts",
+    "typology": "Explain the fan-out typology",
+    "rules": "Which rules have the highest alert rate?",
+    "whyAlert": "Why did alert {id} enter the queue?"
+  },
+  "disclaimer": "AI supports the analysis; the decision is human.",
+  "pseudonymized": "Pseudonymized accounts. AI supports the analysis; the decision is human.",
+  "emptyTitle": "A second reading for your analysis.",
+  "emptyShort": "Ask about patterns, typologies and next steps.",
+  "emptyLong": "Ask about patterns, typologies and next steps. Accounts arrive pseudonymized and the decision stays yours.",
+  "log": "Messages",
+  "logAssistant": "Assistant messages",
+  "consulting": "Consulting the sources…",
+  "question": "Your question",
+  "questionToAssistant": "Your question to the assistant",
+  "placeholder": "Ask about the analysis…",
+  "placeholderShort": "Ask about your analysis…",
+  "send": "Send question",
+  "failed": "Could not answer. Try sending your question again."
+}

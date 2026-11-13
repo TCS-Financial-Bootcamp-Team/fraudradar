@@ -72,7 +72,8 @@
     "openingPanel": "Opening dashboard…",
     "loadingLogin": "Loading sign-in…",
     "loadingSignup": "Loading sign-up…",
-    "loadingRecovery": "Loading recovery…"
+    "loadingRecovery": "Loading recovery…",
+    "loadingAlert": "Loading alert…"
   },
   "toast": {
     "region": "Notifications",

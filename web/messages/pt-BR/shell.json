@@ -72,7 +72,8 @@
     "openingPanel": "Abrindo painel…",
     "loadingLogin": "Carregando login…",
     "loadingSignup": "Carregando cadastro…",
-    "loadingRecovery": "Carregando recuperação…"
+    "loadingRecovery": "Carregando recuperação…",
+    "loadingAlert": "Carregando alerta…"
   },
   "toast": {
     "region": "Notificações",

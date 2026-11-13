@@ -1,1 +1,27 @@
-{}
+{
+  "title": "Assistente",
+  "general": "Geral",
+  "alertContext": "Alerta {id}",
+  "weekContext": "Semana de {week}",
+  "close": "Fechar assistente",
+  "suggestions": {
+    "summary": "Resuma os alertas da semana",
+    "typology": "Explique a tipologia fan-out",
+    "rules": "Quais regras têm maior taxa de alerta?",
+    "whyAlert": "Por que o alerta {id} entrou na fila?"
+  },
+  "disclaimer": "A IA auxilia a análise; a decisão é humana.",
+  "pseudonymized": "Contas pseudonimizadas. A IA auxilia a análise; a decisão é humana.",
+  "emptyTitle": "Uma segunda leitura para sua análise.",
+  "emptyShort": "Pergunte sobre padrões, tipologias e próximos passos.",
+  "emptyLong": "Pergunte sobre padrões, tipologias e próximos passos. As contas chegam pseudonimizadas e a decisão continua sua.",
+  "log": "Mensagens",
+  "logAssistant": "Mensagens do assistente",
+  "consulting": "Consultando as fontes…",
+  "question": "Sua pergunta",
+  "questionToAssistant": "Sua pergunta ao assistente",
+  "placeholder": "Pergunte sobre a análise…",
+  "placeholderShort": "Pergunte sobre sua análise…",
+  "send": "Enviar pergunta",
+  "failed": "Não foi possível responder. Tente enviar sua pergunta novamente."
+}
