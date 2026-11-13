@@ -3,12 +3,15 @@
 Desde 30/10/2026 o **código é em inglês**: identificadores, arquivos, pastas,
 tabelas e colunas, valores gravados no banco, rotas da API e do front, campos
 JSON, variáveis de ambiente e comandos de CLI. Ficam em **português** os textos
-que uma pessoa lê: telas do front (inclusive o `detail` de erro da API, que
-aparece na tela), documentação em Markdown, comentários e docstrings, mensagens
-de log e de CLI e descrições de teste.
+que uma pessoa lê: documentação em Markdown, comentários e docstrings, mensagens
+de log e de CLI e descrições de teste. As telas do front seguem o idioma escolhido
+(PT-BR é o padrão e a fonte das traduções; o inglês fica nos arquivos de
+`web/messages/en/`). O `detail` de erro da API continua em português, com um `code`
+estável ao lado para o front traduzir (veja `api/AGENTS.md`).
 
-Este arquivo é o mapa entre o vocabulário do time (português) e os nomes do
-código. Nome novo segue estas tabelas; termo que não está aqui, traduza pelo
+Este arquivo é o mapa entre o vocabulário do time (português), os nomes do
+código e os termos da tela em inglês (coluna **EN (tela)**: use sempre estes nas
+mensagens em inglês). Nome novo segue estas tabelas; termo que não está aqui, traduza pelo
 sentido e acrescente a linha.
 
 ## O que não muda
@@ -28,89 +31,92 @@ sentido e acrescente a linha.
 
 ## Vocabulário do domínio
 
-| Português | Inglês | Observação |
-| --- | --- | --- |
-| alerta | alert | |
-| fila (de alertas) | queue | `posicao_fila` → `queue_position` |
-| nota de risco | score | 0 a 100 na tela (0 a 1 no banco); ordena a fila, não é probabilidade |
-| conta | account | número da conta do SAML-D |
-| transação | transaction | |
-| movimentação (lista do detalhe) | movement | não confundir com `transaction_count` |
-| remetente / recebedor | sender / receiver | |
-| semana | week | sempre a segunda-feira |
-| segunda-feira (da semana) | week start | |
-| lote (semanal) | batch | `lotes_semana` → `weekly_batches` |
-| liberar (semana no replay) | release | |
-| carga (do SAML-D no banco) | load | `python -m worker load` |
-| processar várias semanas de uma vez | backfill | `python -m worker backfill` |
-| reprocessar (semana já processada) | force | flag `--force` do worker |
-| dentro / fora do treino (semana) | in-sample / out-of-sample | flag `--allow-in-sample` do worker |
-| sinais semanais | weekly signals | `evidence.weekly_signals` |
-| contraparte | counterparty | `distinct_counterparties` nos sinais semanais |
-| parecer (texto da IA) | assessment | |
-| decisão | decision | |
-| arquivar / aprofundar / comunicar | archive / escalate / report | verbo da decisão |
-| motivo do arquivamento | archive reason | `decisions.archive_reason`; obrigatório ao arquivar |
-| falso positivo confirmado | false_positive | motivo do arquivamento; vira rótulo 0 |
-| sem evidência suficiente | insufficient_evidence | motivo do arquivamento; não vira rótulo |
-| lavagem confirmada | confirmed laundering | a decisão de comunicar; vira rótulo 1 |
-| retorno dos analistas | analyst feedback | rótulos das decisões, tabela `analyst_labels` (docs/analyst-feedback.md) |
-| amostra de controle | exploration sample | contas sorteadas abaixo do corte; `alerts.origin = 'exploration'`, `exploration_per_week` |
-| origem do alerta | alert origin | `model` (fila do modelo) ou `exploration` (amostra de controle) |
-| precisão confirmada | confirmed precision | alertas da fila confirmados como lavagem ÷ alertas da fila com decisão conclusiva |
-| lavagem encontrada fora da fila | found outside the queue | lavagem confirmada na amostra de controle |
-| analista simulado | simulated analyst | `python -m worker simulate-analyst`; `analyst_labels.source = 'simulated'` |
-| trava de promoção | promotion gate | `comparison.gate` na ficha; até 1 p.p. a menos de recall da fila que a versão ativa |
-| métricas de validação | validation metrics | as do período de teste rotulado, só em Configurações > Modelo |
-| arquivado / aprofundado / comunicado | archived / escalated / reported | status |
-| comunicação (ao COAF) | report | tabela `reports` |
-| rascunho / aprovada | draft / approved | |
-| justificativa | justification | |
-| evidência | evidence | incontável: tabela `evidence` |
-| contribuição (SHAP) | contribution | |
-| regra (de cenário) | rule | |
-| tipologia | typology | |
-| país | country | |
-| valor (dinheiro) | amount | |
-| valor (genérico, série, contribuição) | value | |
-| moeda | currency | |
-| meio / tipo de pagamento | payment type | |
-| gabarito (`avaliacao`) | ground truth | tabela `ground_truth` |
-| rótulo | label | |
-| limiar | threshold | |
-| métricas | metrics | |
-| acerto de tipologia | typology accuracy | |
-| taxa | rate | |
-| sinalizado | flagged | |
-| indicadores | indicators | |
-| monitoramento | monitoring | |
-| saúde (healthcheck) | health | |
-| grafo / nó / aresta / salto | graph / node / edge / hop | |
-| origem / destino (aresta do grafo) | source / target | como no Cytoscape |
-| fonte (citação do parecer) | source | `titulo`/`trecho` → `title`/`excerpt` |
-| fonte de dados (conexão externa) | data source | |
-| conjunto de dados | dataset | schema isolado com fila, semanas e histórico próprios |
-| trabalho (em segundo plano) | job | pedido persistido e executado por `worker serve` |
-| período aberto / fechado | open / closed period | o aberto é a semana da transação mais recente |
-| processamento automático | automatic processing | configuração em `public.processing_settings` |
-| processar agora | process now | enfileira um trabalho `process` |
-| simulação | simulation | ingestão sintética sem gabarito |
-| contas suspeitas | suspicious accounts | visão consolidada por conta entre períodos |
-| conexão | connection | |
-| ingestão / envio | ingestion / upload | |
-| recibo | receipt | |
-| recebido / processando / concluído | received / processing / completed | |
-| auditoria | audit log | tabela `audit_log` |
-| analista | analyst | |
-| usuário atual | current user | |
-| banco (de dados) | database (`db` em nomes curtos) | |
-| semente (fixture de teste) | seed | |
-| pseudonimizar | pseudonymize | |
-| assistente | assistant | |
-| autenticação / cadastro | auth / signup | |
-| recuperar / redefinir senha | reset password | |
-| manter conectado | keep signed in | |
-| configurações | settings | |
+| Português | Inglês (código) | EN (tela) | Observação |
+| --- | --- | --- | --- |
+| alerta | alert | alert |  |
+| fila (de alertas) | queue | queue | `posicao_fila` → `queue_position` |
+| nota de risco | score | risk score | 0 a 100 na tela (0 a 1 no banco); ordena a fila, não é probabilidade |
+| conta | account | account | número da conta do SAML-D |
+| transação | transaction | transaction |  |
+| movimentação (lista do detalhe) | movement | transaction (detail list) | não confundir com `transaction_count` |
+| remetente / recebedor | sender / receiver | sender / receiver |  |
+| semana | week | week | sempre a segunda-feira |
+| segunda-feira (da semana) | week start | week start (Monday) |  |
+| lote (semanal) | batch | batch | `lotes_semana` → `weekly_batches` |
+| liberar (semana no replay) | release | release |  |
+| carga (do SAML-D no banco) | load | load | `python -m worker load` |
+| processar várias semanas de uma vez | backfill | backfill | `python -m worker backfill` |
+| reprocessar (semana já processada) | force | reprocess | flag `--force` do worker |
+| dentro / fora do treino (semana) | in-sample / out-of-sample | in-sample / out-of-sample | flag `--allow-in-sample` do worker |
+| sinais semanais | weekly signals | weekly signals | `evidence.weekly_signals` |
+| contraparte | counterparty | counterparty | `distinct_counterparties` nos sinais semanais |
+| parecer (texto da IA) | assessment | AI assessment |  |
+| decisão | decision | decision |  |
+| arquivar / aprofundar / comunicar | archive / escalate / report | Archive / Escalate / Report to COAF | verbo da decisão |
+| motivo do arquivamento | archive reason | archive reason | `decisions.archive_reason`; obrigatório ao arquivar |
+| falso positivo confirmado | false_positive | Confirmed false positive | motivo do arquivamento; vira rótulo 0 |
+| sem evidência suficiente | insufficient_evidence | Insufficient evidence | motivo do arquivamento; não vira rótulo |
+| lavagem confirmada | confirmed laundering | confirmed laundering | a decisão de comunicar; vira rótulo 1 |
+| retorno dos analistas | analyst feedback | Analyst feedback | rótulos das decisões, tabela `analyst_labels` (docs/analyst-feedback.md) |
+| amostra de controle | exploration sample | Control sample | contas sorteadas abaixo do corte; `alerts.origin = 'exploration'`, `exploration_per_week` |
+| origem do alerta | alert origin | alert origin | `model` (fila do modelo) ou `exploration` (amostra de controle) |
+| precisão confirmada | confirmed precision | Confirmed precision | alertas da fila confirmados como lavagem ÷ alertas da fila com decisão conclusiva |
+| lavagem encontrada fora da fila | found outside the queue | laundering found outside the queue | lavagem confirmada na amostra de controle |
+| analista simulado | simulated analyst | simulated analyst | `python -m worker simulate-analyst`; `analyst_labels.source = 'simulated'` |
+| trava de promoção | promotion gate | Promotion gate | `comparison.gate` na ficha; até 1 p.p. a menos de recall da fila que a versão ativa |
+| métricas de validação | validation metrics | validation metrics | as do período de teste rotulado, só em Configurações > Modelo |
+| arquivado / aprofundado / comunicado | archived / escalated / reported | archived / under investigation / ready to report | status |
+| comunicação (ao COAF) | report | COAF report (in Portuguese) | tabela `reports` |
+| rascunho / aprovada | draft / approved | draft / approved |  |
+| justificativa | justification | justification |  |
+| evidência | evidence | evidence | incontável: tabela `evidence` |
+| contribuição (SHAP) | contribution | contribution (SHAP) |  |
+| regra (de cenário) | rule | scenario rule |  |
+| tipologia | typology | Typology |  |
+| país | country | country |  |
+| valor (dinheiro) | amount | amount |  |
+| valor (genérico, série, contribuição) | value | value |  |
+| moeda | currency | currency |  |
+| meio / tipo de pagamento | payment type | payment type |  |
+| gabarito (`avaliacao`) | ground truth | ground truth | tabela `ground_truth` |
+| rótulo | label | label |  |
+| limiar | threshold | threshold |  |
+| métricas | metrics | metrics |  |
+| acerto de tipologia | typology accuracy | typology accuracy |  |
+| taxa | rate | rate |  |
+| sinalizado | flagged | flagged |  |
+| indicadores | indicators | indicators |  |
+| monitoramento | monitoring | monitoring |  |
+| saúde (healthcheck) | health | system health |  |
+| grafo / nó / aresta / salto | graph / node / edge / hop | graph / node / edge / hop |  |
+| origem / destino (aresta do grafo) | source / target | source / target | como no Cytoscape |
+| fonte (citação do parecer) | source | source (assessment citation) | `titulo`/`trecho` → `title`/`excerpt` |
+| fonte de dados (conexão externa) | data source | Data sources |  |
+| conjunto de dados | dataset | Dataset | schema isolado com fila, semanas e histórico próprios |
+| trabalho (em segundo plano) | job | job | pedido persistido e executado por `worker serve` |
+| período aberto / fechado | open / closed period | open / closed period | o aberto é a semana da transação mais recente |
+| processamento automático | automatic processing | automatic processing | configuração em `public.processing_settings` |
+| processar agora | process now | Process now | enfileira um trabalho `process` |
+| simulação | simulation | simulation | ingestão sintética sem gabarito |
+| contas suspeitas | suspicious accounts | Suspicious accounts | visão consolidada por conta entre períodos |
+| conexão | connection | connection |  |
+| ingestão / envio | ingestion / upload | ingestion / upload |  |
+| recibo | receipt | receipt |  |
+| recebido / processando / concluído | received / processing / completed | received / processing / completed |  |
+| auditoria | audit log | audit log | tabela `audit_log` |
+| analista | analyst | analyst |  |
+| usuário atual | current user | current user |  |
+| banco (de dados) | database (`db` em nomes curtos) | database |  |
+| semente (fixture de teste) | seed | seed |  |
+| pseudonimizar | pseudonymize | pseudonymize |  |
+| assistente | assistant | assistant |  |
+| autenticação / cadastro | auth / signup | authentication / sign-up |  |
+| recuperar / redefinir senha | reset password | reset password |  |
+| manter conectado | keep signed in | keep signed in |  |
+| configurações | settings | settings |  |
+| PLD (prevenção à lavagem de dinheiro) | — | AML (anti-money laundering) | Nome do produto na tela: FraudRadar PLD → FraudRadar AML |
+| COAF (UF: unidade de inteligência financeira do Brasil) | — | COAF | Fica como está (a FIU brasileira); o texto do relato ao COAF é sempre em português |
+| simular novas transações | — | Simulate new transactions | Botão do simulador, no modo demonstração |
 
 ## Banco (`db/init/002_tables.sql`)
 

@@ -40,12 +40,22 @@ mostram o padrão completo (rota fina, repositório, auditoria, 409).
   `CurrentUser`; o nome vai para `decisions.analyst`,
   `reports.approved_by` e `audit_log.actor`. **Toda ação que muda estado
   grava em `audit_log`.** Em dev e nos testes, `AUTH_DISABLED=true`.
-- Erros: `HTTPException` com mensagem em PT-BR que o analista entenda. 404 para
+- Erros: `AppError(status, code, mensagem, params)` (`api/errors.py`, subclasse de `HTTPException`):
+  `detail` em PT-BR que o analista entenda, como sempre, mais `code` estável (`area.codigo`) e `params`
+  no corpo, para o front traduzir (`web/messages/<idioma>/errors.json`, `errors.api`). Código novo =
+  texto novo nos dois idiomas do front; o teste `web/tests/i18n-server-codes.test.ts` confere. Erro
+  que não usa `AppError` segue devolvendo só `detail`. Motivo de bloqueio que o front mostra (retreino,
+  trava de promoção, sugestão de compatibilidade) é uma `fraudradar.messages.Msg` (texto + `code` +
+  `params`) e a resposta carrega `<campo>_code` e `<campo>_params` ao lado do texto.
+  Status: 404 para
   recurso inexistente, 409 para conflito de estado (comunicação aprovada encerra
   o alerta), 413 para envio acima do limite, 422 vem do Pydantic, 501 para o que
   ainda não existe, 503 quando a dependência (IA) está fora. Erro de conteúdo
   (linha de CSV, regra de campo) também é 422, no formato do Pydantic
   (`[{type, loc, msg}]`), com linha e coluna em `loc` e no começo da `msg`.
+- Mensagem de trabalho (`public.jobs`): o worker grava `message` (PT-BR) e, junto, `message_code` e
+  `message_params` (`worker/jobs.py`); mensagem que aparece na tela leva código. Semana: onde a API
+  manda um rótulo pronto (`week_label`), manda também a data ISO (`week`), e o front formata pelo idioma.
 - Listas: ordene antes de paginar e limite `page`/`size` na rota.
 - LLM e RAG ficam em `src/fraudradar/ai`; a rota só chama. O LLM nunca recebe
   número de conta: pseudonimize antes do prompt. Chave do LLM só na API.

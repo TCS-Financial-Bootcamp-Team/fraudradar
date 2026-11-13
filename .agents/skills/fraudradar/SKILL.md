@@ -62,7 +62,7 @@ O processamento de referência é em lote semanal, não em tempo real. Confirme 
 ## 6. Como desenvolver
 
 - Código, identificadores, nomes de arquivos, pastas, tabelas, colunas, rotas, campos JSON, flags e variáveis de ambiente: **inglês**.
-- Textos de interface, documentação, comentários, docstrings e mensagens destinadas às pessoas: **português brasileiro**, salvo convenção já existente no módulo.
+- Documentação, comentários, docstrings e mensagens de log e de erro do servidor: **português brasileiro**, salvo convenção já existente no módulo. Textos de interface: PT-BR é o idioma padrão e a fonte das traduções; todo texto de tela novo entra nos dois arquivos de mensagens (`web/messages/pt-BR/` e `web/messages/en/`), veja `web/AGENTS.md`.
 - Consulte `docs/glossary.md` antes de criar termos que cruzem banco, API e frontend.
 - Não duplique lógica de features ou scoring em API, Worker, frontend ou notebooks. Reutilize o pacote compartilhado em `src/fraudradar/`.
 - Respeite os padrões locais e leia `api/AGENTS.md`, `web/AGENTS.md` ou `vibelog/AGENTS.md` antes de alterar essas áreas.

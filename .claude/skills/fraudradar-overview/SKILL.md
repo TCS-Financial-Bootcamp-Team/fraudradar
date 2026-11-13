@@ -187,8 +187,10 @@ fraudradar/
 │   ├── src/app/(app)/       telas logadas (layout com a barra lateral)
 │   ├── src/features/<m>/    components → hooks → services → API, e schemas (zod)
 │   ├── src/components/      shell, layout/ (sidebar, header, menu da conta), ui/
+│   ├── src/i18n/            idioma: config, request (cookie), runtime, seletor, formatação, validação
 │   ├── src/lib/             api.ts (cliente e USE_MOCKS), format.ts, supabase/, sidebar.ts
-│   └── tests/               node:test: contratos, fluxos com mock, API real, sidebar
+│   ├── messages/            textos das telas: pt-BR/ (fonte) e en/, um JSON por módulo
+│   └── tests/               node:test: contratos, fluxos com mock, API real, sidebar, mensagens
 │
 ├── vibelog/                 APP À PARTE: árvore dos prompts do vibe-coding (leia vibelog/AGENTS.md)
 ├── infra/
@@ -269,6 +271,13 @@ Detalhes (limites, códigos de erro, padrões de código): `README.md` e `api/AG
 
 - Camadas: componente → hook → service → API. Componente não faz fetch. Os schemas
   zod de cada feature são o contrato com a API (`web/API_CONTRACTS.md`).
+- Idioma: PT-BR (padrão e fonte) e inglês, com o seletor "PT | EN" no cabeçalho, no login/cadastro e
+  em Configurações > Aparência. `next-intl` sem idioma na URL: cookie `NEXT_LOCALE`, `<html lang>`
+  acompanha. Mensagens em `web/messages/<idioma>/<módulo>.json` (tipadas pelo pt-BR; teste confere as
+  chaves e os marcadores ICU); infraestrutura em `web/src/i18n/`. O servidor manda `code` + `params`
+  nos erros e nas mensagens dos trabalhos (`jobs.message_code`), e o front traduz, com o texto em
+  português como reserva. Não se traduz: texto digitado, dados do SAML-D, o relato ao COAF (sempre em
+  português), o conteúdo da IA. Regras: `web/AGENTS.md`; vocabulário em inglês: `docs/glossary.md`.
 - `NEXT_PUBLIC_USE_MOCKS=true` troca a API por dados simulados (faixa "Ambiente
   demonstrativo" no topo). Com `false`, o front lê o banco que o worker preparou
   (`load` e `backfill`) e as semanas que o replay liberou.

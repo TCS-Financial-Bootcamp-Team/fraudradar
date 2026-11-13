@@ -3,8 +3,9 @@
 FraudRadar PLD: monitoramento antilavagem sobre o SAML-D. Projeto de bootcamp,
 5 pessoas. Código em inglês: identificadores, arquivos, pastas, tabelas e
 colunas, valores gravados, rotas, campos JSON, variáveis de ambiente e comandos.
-Em PT-BR: textos de tela, documentação, comentários e mensagens de log e de
-erro. O mapa entre os termos do time e os nomes do código está em
+Em PT-BR: documentação, comentários e mensagens de log e de erro do servidor. Os textos
+de tela: PT-BR é o idioma padrão e a fonte das traduções; todo texto de tela novo entra nos dois
+arquivos de mensagens (`web/messages/pt-BR/` e `web/messages/en/`) — veja `web/AGENTS.md`. O mapa entre os termos do time e os nomes do código está em
 docs/glossary.md; nome novo segue o glossário.
 
 **Antes de qualquer tarefa, leia a skill `.agents/skills/fraudradar/SKILL.md`**
