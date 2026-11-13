@@ -6,12 +6,13 @@ A validação é a de fraudradar.data.ingestion, a mesma que o worker vai usar. 
 
 import json
 import re
-from typing import BinaryIO
+from typing import Any, BinaryIO
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import Connection, text
 
 from api.dependencies import User
+from api.errors import AppError
 from api.schemas.ingestion import Receipt, TransactionRequest
 from fraudradar.config import get_settings
 from fraudradar.data import ingestion
@@ -26,9 +27,11 @@ def _format_thousands(number: int) -> str:
     return f"{number:,}".replace(",", ".")
 
 
-def _validation_error(errors: list[ValidationError], *loc_prefix: str) -> HTTPException:
-    """422 no formato do Pydantic ({type, loc, msg}); no arquivo, a msg traz linha e coluna."""
+def _validation_error(errors: list[ValidationError], *loc_prefix: str) -> AppError:
+    """422 no formato do Pydantic ({type, loc, msg}); no arquivo, a msg traz linha e coluna.
+    Erro de estrutura do arquivo leva também ``code`` e ``params`` (o front traduz por eles)."""
     details = []
+    coded: list[dict[str, Any] | None] = []
     for err in errors:
         msg = err.message
         if err.line is not None:
@@ -36,7 +39,26 @@ def _validation_error(errors: list[ValidationError], *loc_prefix: str) -> HTTPEx
             msg = f"{where}: {msg}"
         loc = [*loc_prefix, *(p for p in (err.line, err.column) if p is not None)]
         details.append({"type": "value_error", "loc": loc, "msg": msg})
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, details)
+        coded.append(
+            {
+                "code": err.code,
+                "params": {
+                    **(err.params or {}),
+                    **({"line": err.line} if err.line is not None else {}),
+                    **({"column": err.column} if err.column else {}),
+                },
+            }
+            if err.code
+            else None
+        )
+    # `detail` segue no formato do Pydantic; o código de cada item vai em `params.errors`, na
+    # mesma ordem (None nos erros sem código, como os de campo).
+    return AppError(
+        status.HTTP_422_UNPROCESSABLE_CONTENT,
+        "ingestion.invalid",
+        details,
+        {"count": len(details), "errors": coded},
+    )
 
 
 def _sanitize_file_name(name: str | None) -> str | None:
@@ -100,7 +122,12 @@ def save_csv(conn: Connection, file: BinaryIO, file_name: str | None, user: User
             f"O arquivo passa de {_format_thousands(exc.limit)} linhas."
             " Divida o CSV em partes menores."
         )
-        raise HTTPException(status.HTTP_413_CONTENT_TOO_LARGE, msg) from exc
+        raise AppError(
+            status.HTTP_413_CONTENT_TOO_LARGE,
+            "ingestion.too_many_rows",
+            msg,
+            {"limit": _format_thousands(exc.limit)},
+        ) from exc
     except ingestion.InvalidTransactionsError as exc:
         raise _validation_error(exc.errors, "body", "file") from exc
     sanitized_name = _sanitize_file_name(file_name)

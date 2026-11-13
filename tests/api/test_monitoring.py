@@ -128,7 +128,11 @@ def test_weeks_series_up_to_requested_week(client, seed):
     series = _monitoring(client, weeks[12])["weeks"]
     assert len(series) == 12  # a 13ª semana para trás e a 14ª (depois da pedida) ficam fora
     assert series[0]["name"] == week_label(weeks[1])
-    assert series[-1] == {"name": week_label(weeks[12]), "value": 2}
+    assert series[-1] == {
+        "name": week_label(weeks[12]),
+        "value": 2,
+        "week": weeks[12].isoformat(),
+    }
     assert series[-2]["value"] == 0
 
 

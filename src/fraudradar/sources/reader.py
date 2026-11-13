@@ -263,7 +263,9 @@ def read_batches(
     mesmo valor de controle não se perdem na fronteira entre lotes.
     """
     if info.control is None:
-        raise SourceError("A coluna de controle não existe na tabela de origem.")
+        raise SourceError(
+            "A coluna de controle não existe na tabela de origem.", "source.control_missing"
+        )
     query, params = _select(source, info, after=after, limit=None, ordered=True)
     chosen = [c for c in SOURCE_COLUMNS if c in info.columns]
     line = 1

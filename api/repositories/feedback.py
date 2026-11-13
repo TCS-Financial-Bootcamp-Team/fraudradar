@@ -16,8 +16,9 @@ from api.repositories.models import _catalog, _created_at, get_dataset
 from api.repositories.monitoring import week_label
 from api.schemas.feedback import ControlSample, FeedbackSummary, Rate, RetrainStatus, WeeklyRate
 from api.schemas.models import LabelBreakdown
-from fraudradar.model.eligibility import training_block_reason
-from fraudradar.model.feedback import closed_label_counts, feedback_block_reason
+from fraudradar.messages import Msg
+from fraudradar.model.eligibility import TRAIN_RUNNING, training_block_message
+from fraudradar.model.feedback import closed_label_counts, feedback_block_message
 
 # Abaixo disto o percentual ainda diz pouco: a tela avisa que a amostra é pequena.
 LOW_SAMPLE = 20
@@ -131,7 +132,7 @@ def _active_training_time(slug: str, conn: Connection) -> tuple[str | None, date
 
 
 def _retrain(conn: Connection, slug: str) -> RetrainStatus:
-    base = training_block_reason(conn, slug)
+    base = training_block_message(conn, slug)
     if base is None:
         running = conn.execute(
             text(
@@ -141,15 +142,21 @@ def _retrain(conn: Connection, slug: str) -> RetrainStatus:
             {"slug": slug},
         ).scalar()
         if running:
-            base = "Já existe um treino em andamento para este conjunto."
+            base = TRAIN_RUNNING
     counts = closed_label_counts(conn)
-    reason = base or feedback_block_reason(counts, include_simulated=False)
-    with_simulated = base or feedback_block_reason(counts, include_simulated=True)
+    reason: Msg | None = base or feedback_block_message(counts, include_simulated=False)
+    with_simulated: Msg | None = base or feedback_block_message(counts, include_simulated=True)
     return RetrainStatus(
         can_retrain=reason is None,
-        reason=reason,
+        reason=None if reason is None else reason.text,
+        reason_code=None if reason is None else reason.code,
+        reason_params=None if reason is None else dict(reason.params),
         can_retrain_with_simulated=with_simulated is None,
-        reason_with_simulated=with_simulated,
+        reason_with_simulated=None if with_simulated is None else with_simulated.text,
+        reason_with_simulated_code=None if with_simulated is None else with_simulated.code,
+        reason_with_simulated_params=(
+            None if with_simulated is None else dict(with_simulated.params)
+        ),
     )
 
 

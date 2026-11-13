@@ -6,10 +6,11 @@ from functools import lru_cache
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import Connection
 
+from api.errors import AppError
 from fraudradar.config import get_settings
 from fraudradar.datasets import (
     DatasetNotFoundError,
@@ -40,9 +41,11 @@ def _get_dataset_connection(
         try:
             dataset = resolve_dataset(conn, x_dataset)
         except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
-            raise HTTPException(
+            raise AppError(
                 status.HTTP_404_NOT_FOUND,
+                "dataset.not_found",
                 f"Conjunto de dados '{x_dataset}' não encontrado.",
+                {"slug": x_dataset},
             ) from exc
         use_dataset(conn, dataset)
         yield conn
@@ -62,9 +65,9 @@ LOCAL_USER = User(id="local", name="Analista local")
 _bearer = HTTPBearer(auto_error=False)
 
 
-def _unauthorized(detail: str) -> HTTPException:
-    return HTTPException(
-        status.HTTP_401_UNAUTHORIZED, detail, headers={"WWW-Authenticate": "Bearer"}
+def _unauthorized(code: str, detail: str) -> AppError:
+    return AppError(
+        status.HTTP_401_UNAUTHORIZED, code, detail, headers={"WWW-Authenticate": "Bearer"}
     )
 
 
@@ -83,12 +86,13 @@ def get_current_user(
     if s.auth_disabled:
         return LOCAL_USER
     if not s.supabase_url:
-        raise HTTPException(
+        raise AppError(
             status.HTTP_503_SERVICE_UNAVAILABLE,
+            "auth.not_configured",
             "Autenticação não configurada na API (defina SUPABASE_URL).",
         )
     if credentials is None:
-        raise _unauthorized("Sessão ausente. Entre novamente.")
+        raise _unauthorized("auth.missing", "Sessão ausente. Entre novamente.")
     url = s.supabase_url.rstrip("/")
     token = credentials.credentials
     try:
@@ -108,14 +112,18 @@ def get_current_user(
             options={"require": ["exp", "sub"]},
         )
     except jwt.PyJWKClientConnectionError as exc:
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "Não foi possível validar a sessão agora."
+        raise AppError(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "auth.unavailable",
+            "Não foi possível validar a sessão agora.",
         ) from exc
     except (jwt.PyJWTError, KeyError) as exc:  # KeyError: kid fora do conjunto
-        raise _unauthorized("Sessão inválida ou expirada. Entre novamente.") from exc
+        raise _unauthorized(
+            "auth.invalid", "Sessão inválida ou expirada. Entre novamente."
+        ) from exc
     # Login anônimo do Supabase também recebe role "authenticated": não é analista.
     if claims.get("role") != "authenticated" or claims.get("is_anonymous") is True:
-        raise _unauthorized("Sessão sem acesso de analista.")
+        raise _unauthorized("auth.no_analyst", "Sessão sem acesso de analista.")
     profile = claims.get("user_metadata")
     name = (
         str(profile.get("name") or "").strip() or str(profile.get("nome") or "").strip()

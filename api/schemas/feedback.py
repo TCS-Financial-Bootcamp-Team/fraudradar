@@ -7,6 +7,7 @@ sobre menos de 20 casos vem com ``low_sample = true``.
 """
 
 from datetime import date
+from typing import Any
 
 from pydantic import BaseModel, Field
 
@@ -22,7 +23,7 @@ class Rate(BaseModel):
 
 class WeeklyRate(Rate):
     week: date
-    name: str  # rótulo curto da semana ("22 mai"), como no monitoramento
+    name: str  # rótulo curto da semana ("22 mai"), como no monitoramento; o front usa `week`
 
 
 class ControlSample(BaseModel):
@@ -38,8 +39,12 @@ class RetrainStatus(BaseModel):
 
     can_retrain: bool
     reason: str | None
+    reason_code: str | None = None
+    reason_params: dict[str, Any] | None = None
     can_retrain_with_simulated: bool
     reason_with_simulated: str | None
+    reason_with_simulated_code: str | None = None
+    reason_with_simulated_params: dict[str, Any] | None = None
 
 
 class FeedbackSummary(BaseModel):

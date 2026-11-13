@@ -29,6 +29,7 @@ from fraudradar.features.history import (
     week_start,
     with_cash_account,
 )
+from fraudradar.messages import Msg, msg
 from fraudradar.model import (
     FEEDBACK_POSITIVE_TOP,
     FEEDBACK_WEIGHT,
@@ -182,7 +183,7 @@ class FeedbackPlan:
     def training_labels(self) -> pd.DataFrame:
         return self.labels[self.labels["part"] == "train"]
 
-    def block_reason(self) -> str | None:
+    def block_message(self) -> Msg | None:
         """Por que, depois do corte, o retorno não serve para treinar; ``None`` quando serve."""
         used = self.training_labels()
         launderings = int((used["label"] == 1).sum())
@@ -193,15 +194,30 @@ class FeedbackPlan:
             if reserved
             else ""
         )
+        where_params = {"reserved": reserved, "train_end": str(self.split.train_end)}
         if len(used) < MIN_FEEDBACK_LABELS:
-            return (
+            return msg(
+                "retrain.plan_few_labels",
                 f"Sobram {len(used)} rótulos do retorno nas semanas de treino{where}; o retreino"
-                f" com retorno precisa de pelo menos {MIN_FEEDBACK_LABELS}."
+                f" com retorno precisa de pelo menos {MIN_FEEDBACK_LABELS}.",
+                used=len(used),
+                min_labels=MIN_FEEDBACK_LABELS,
+                **where_params,
             )
         if not launderings or not false_positives:
             missing = "lavagem confirmada" if not launderings else "falso positivo confirmado"
-            return f"As semanas de treino não têm nenhum rótulo de {missing}{where}."
+            return msg(
+                "retrain.plan_missing_class",
+                f"As semanas de treino não têm nenhum rótulo de {missing}{where}.",
+                missing="laundering" if not launderings else "false_positive",
+                **where_params,
+            )
         return None
+
+    def block_reason(self) -> str | None:
+        """O texto de ``block_message`` (em português); ``None`` quando serve."""
+        message = self.block_message()
+        return None if message is None else message.text
 
     def missing_ids(self) -> list[int]:
         """Transações cobertas pelo retorno que não têm gabarito: entram no treino com o rótulo
@@ -464,25 +480,47 @@ def promotion_gate(candidate: dict, active: dict, active_name: str) -> dict:
     mesmo período de teste, além de ``PROMOTION_RECALL_TOLERANCE``."""
     new, current = candidate["queue_recall"], active["queue_recall"]
     if new is None or current is None:
-        return {
-            "passed": False,
-            "reason": "Não há lavagem com gabarito no período de teste comum às duas versões; sem"
-            " essa medida, a versão nova não pode ser comparada com a ativa.",
-        }
+        return _gate(
+            False,
+            msg(
+                "model.gate_no_laundering",
+                "Não há lavagem com gabarito no período de teste comum às duas versões; sem"
+                " essa medida, a versão nova não pode ser comparada com a ativa.",
+            ),
+        )
     if new >= current - PROMOTION_RECALL_TOLERANCE:
-        return {
-            "passed": True,
-            "reason": f"Acha {_pct(new)} das contas lavadoras na fila, contra {_pct(current)} da"
-            f" versão ativa ({active_name}) no mesmo período de teste.",
-        }
+        return _gate(
+            True,
+            msg(
+                "model.gate_passed",
+                f"Acha {_pct(new)} das contas lavadoras na fila, contra {_pct(current)} da"
+                f" versão ativa ({active_name}) no mesmo período de teste.",
+                new_pct=round(new * 100, 1),
+                current_pct=round(current * 100, 1),
+                active_version=active_name,
+            ),
+        )
     gap = f"{(current - new) * 100:.1f}".replace(".", ",")
     limit = f"{PROMOTION_RECALL_TOLERANCE * 100:.0f}"
-    return {
-        "passed": False,
-        "reason": f"Bloqueada: acha {gap} p.p. menos lavadoras na fila que a versão ativa"
-        f" ({active_name}) no mesmo período de teste ({_pct(new)} contra {_pct(current)}); o"
-        f" limite é {limit} p.p.",
-    }
+    return _gate(
+        False,
+        msg(
+            "model.gate_blocked",
+            f"Bloqueada: acha {gap} p.p. menos lavadoras na fila que a versão ativa"
+            f" ({active_name}) no mesmo período de teste ({_pct(new)} contra {_pct(current)}); o"
+            f" limite é {limit} p.p.",
+            gap_pp=round((current - new) * 100, 1),
+            new_pct=round(new * 100, 1),
+            current_pct=round(current * 100, 1),
+            active_version=active_name,
+            limit_pp=round(PROMOTION_RECALL_TOLERANCE * 100),
+        ),
+    )
+
+
+def _gate(passed: bool, message: Msg) -> dict:
+    """O bloco ``gate`` da ficha: o texto em português e, ao lado, o código e os parâmetros."""
+    return {"passed": passed, "reason": message.text, **message.as_fields("reason_")}
 
 
 def compare_with_active(
@@ -507,11 +545,13 @@ def compare_with_active(
             "active": empty,
             "recall_difference": None,
             "tolerance": PROMOTION_RECALL_TOLERANCE,
-            "gate": {
-                "passed": False,
-                "reason": "Não há semanas com gabarito fora do treino das duas versões para"
-                " compará-las.",
-            },
+            "gate": _gate(
+                False,
+                msg(
+                    "model.gate_no_weeks",
+                    "Não há semanas com gabarito fora do treino das duas versões para compará-las.",
+                ),
+            ),
         }
     candidate = period_metrics(score[rows], rows, data, truth, cut=cut, size=QUEUE_SIZE)
     current = period_metrics(

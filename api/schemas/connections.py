@@ -4,7 +4,7 @@ A senha só entra em ``ConnectionCreate`` (``SecretStr``) e nunca existe em uma 
 """
 
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr, model_validator
 
@@ -32,6 +32,9 @@ class CheckItem(BaseModel):
     label: str
     status: Literal["ok", "fail", "info"]
     detail: str
+    # Código e parâmetros de ``detail``: o front traduz por eles (``label`` pela ``key``).
+    code: str | None = None
+    params: dict[str, Any] | None = None
 
 
 class WrongType(BaseModel):
@@ -58,6 +61,9 @@ class OverlapReport(BaseModel):
 class Suggestion(BaseModel):
     relation: Literal["extend", "new_dataset"] | None
     message: str
+    # Código e parâmetros de ``message``: o front traduz por eles.
+    code: str | None = None
+    params: dict[str, Any] | None = None
 
 
 class CompatibilityReport(BaseModel):

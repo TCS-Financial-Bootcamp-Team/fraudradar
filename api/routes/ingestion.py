@@ -16,12 +16,13 @@ EXTERNAL_DB_ALLOWED_HOSTS (proteção contra SSRF) e toda leitura na fonte é so
 from collections.abc import Callable, Coroutine
 from typing import Annotated, Any
 
-from fastapi import APIRouter, File, Header, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, File, Header, Request, Response, UploadFile, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.routing import APIRoute
 from starlette.types import Message
 
 from api.dependencies import CurrentUser, DbConnection, PublicDbConnection
+from api.errors import AppError
 from api.repositories import connections as connections_repository
 from api.repositories import ingestion
 from api.schemas.connections import (
@@ -38,11 +39,13 @@ from fraudradar.config import get_settings
 router = APIRouter(prefix="/ingestion", tags=["ingestion"])
 
 
-def _payload_too_large(limit: int) -> HTTPException:
+def _payload_too_large(limit: int) -> AppError:
     size = f"{limit // 2**20} MiB" if limit % 2**20 == 0 else f"{limit} bytes"
-    return HTTPException(
+    return AppError(
         status.HTTP_413_CONTENT_TOO_LARGE,
+        "ingestion.payload_too_large",
         f"O envio passa do limite de {size}. Divida o CSV em partes menores.",
+        {"size": size},
     )
 
 

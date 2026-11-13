@@ -3,9 +3,10 @@
 from datetime import date, timedelta
 from typing import Annotated
 
-from fastapi import HTTPException, Path, status
+from fastapi import Path, status
 from sqlalchemy import Connection, RowMapping, text
 
+from api.errors import AppError
 from api.schemas.alerts import Alert, AlertStatus, DecisionType
 
 # Banco -> front. O front não distingue "new" de "in_review": os dois são pendentes.
@@ -78,5 +79,10 @@ def get_alert_row(conn: Connection, alert_id: int, *, for_update: bool = False) 
         sql += " FOR UPDATE"
     row = conn.execute(text(sql), {"id": alert_id}).mappings().first()
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"Alerta {alert_id} não encontrado.")
+        raise AppError(
+            status.HTTP_404_NOT_FOUND,
+            "alert.not_found",
+            f"Alerta {alert_id} não encontrado.",
+            {"id": alert_id},
+        )
     return row

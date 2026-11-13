@@ -26,6 +26,7 @@ from datetime import date
 
 from sqlalchemy import Connection, text
 
+from fraudradar.messages import Msg, msg
 from fraudradar.model import MIN_FEEDBACK_LABELS
 
 ARCHIVE_REASONS = ("false_positive", "insufficient_evidence")
@@ -131,9 +132,9 @@ def closed_label_counts(conn: Connection, before: date | None = None) -> LabelCo
     return counts
 
 
-def feedback_block_reason(counts: LabelCounts, include_simulated: bool) -> str | None:
-    """Por que o retreino com o retorno dos analistas não pode rodar, em português; ``None``
-    quando pode.
+def feedback_block_message(counts: LabelCounts, include_simulated: bool) -> Msg | None:
+    """Por que o retreino com o retorno dos analistas não pode rodar (texto em português, código
+    e parâmetros); ``None`` quando pode.
 
     Precisa de pelo menos ``MIN_FEEDBACK_LABELS`` rótulos de períodos fechados e de rótulos das
     duas classes: só falsos positivos (ou só lavagens) puxariam o modelo para um lado só.
@@ -142,18 +143,30 @@ def feedback_block_reason(counts: LabelCounts, include_simulated: bool) -> str |
     total = false_positives + launderings
     which = "do retorno dos analistas e do simulado" if include_simulated else "dos analistas"
     if total < MIN_FEEDBACK_LABELS:
-        return (
+        return msg(
+            "retrain.feedback_few_labels",
             f"O retreino com o retorno precisa de pelo menos {MIN_FEEDBACK_LABELS} rótulos"
-            f" {which} em períodos fechados; há {total}."
+            f" {which} em períodos fechados; há {total}.",
+            min_labels=MIN_FEEDBACK_LABELS,
+            total=total,
+            scope="analysts_and_simulated" if include_simulated else "analysts",
         )
     if launderings == 0:
-        return (
+        return msg(
+            "retrain.feedback_no_laundering",
             "O retorno ainda não tem nenhuma lavagem confirmada (alerta comunicado): o modelo"
-            " aprenderia só com falsos positivos."
+            " aprenderia só com falsos positivos.",
         )
     if false_positives == 0:
-        return (
+        return msg(
+            "retrain.feedback_no_false_positive",
             "O retorno ainda não tem nenhum falso positivo confirmado: o modelo aprenderia só"
-            " com lavagens."
+            " com lavagens.",
         )
     return None
+
+
+def feedback_block_reason(counts: LabelCounts, include_simulated: bool) -> str | None:
+    """O texto de ``feedback_block_message`` (em português); ``None`` quando pode."""
+    message = feedback_block_message(counts, include_simulated)
+    return None if message is None else message.text

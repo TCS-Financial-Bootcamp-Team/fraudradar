@@ -15,6 +15,13 @@ class Series(BaseModel):
     value: float = Field(ge=0)
 
 
+class WeekSeries(Series):
+    """Série semanal: ``name`` segue com o rótulo curto em português (compatibilidade) e ``week``
+    traz a data ISO, para o front formatar pelo idioma."""
+
+    week: date
+
+
 class Indicators(BaseModel):
     alerts: int
     reviewed: int
@@ -33,7 +40,7 @@ class StatusCounts(BaseModel):
 class Monitoring(BaseModel):
     week: date
     indicators: Indicators
-    weeks: list[Series]
+    weeks: list[WeekSeries]
     typologies: list[Series]
     countries: list[Series]
     country_rates: list[Series]
