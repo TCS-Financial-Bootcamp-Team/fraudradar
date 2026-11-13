@@ -216,7 +216,7 @@ export function Header({
             />
           )}
         </button>
-        <LocaleSwitcher variant="topbar" className="mx-0.5 hidden min-[420px]:inline-flex" />
+        <LocaleSwitcher variant="topbar" className="mx-0.5" />
         <HeaderAccountMenu />
       </div>
     </header>
