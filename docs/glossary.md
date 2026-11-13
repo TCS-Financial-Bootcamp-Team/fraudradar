@@ -50,6 +50,18 @@ sentido e acrescente a linha.
 | parecer (texto da IA) | assessment | |
 | decisão | decision | |
 | arquivar / aprofundar / comunicar | archive / escalate / report | verbo da decisão |
+| motivo do arquivamento | archive reason | `decisions.archive_reason`; obrigatório ao arquivar |
+| falso positivo confirmado | false_positive | motivo do arquivamento; vira rótulo 0 |
+| sem evidência suficiente | insufficient_evidence | motivo do arquivamento; não vira rótulo |
+| lavagem confirmada | confirmed laundering | a decisão de comunicar; vira rótulo 1 |
+| retorno dos analistas | analyst feedback | rótulos das decisões, tabela `analyst_labels` (docs/analyst-feedback.md) |
+| amostra de controle | exploration sample | contas sorteadas abaixo do corte; `alerts.origin = 'exploration'`, `exploration_per_week` |
+| origem do alerta | alert origin | `model` (fila do modelo) ou `exploration` (amostra de controle) |
+| precisão confirmada | confirmed precision | alertas da fila confirmados como lavagem ÷ alertas da fila com decisão conclusiva |
+| lavagem encontrada fora da fila | found outside the queue | lavagem confirmada na amostra de controle |
+| analista simulado | simulated analyst | `python -m worker simulate-analyst`; `analyst_labels.source = 'simulated'` |
+| trava de promoção | promotion gate | `comparison.gate` na ficha; até 1 p.p. a menos de recall da fila que a versão ativa |
+| métricas de validação | validation metrics | as do período de teste rotulado, só em Configurações > Modelo |
 | arquivado / aprofundado / comunicado | archived / escalated / reported | status |
 | comunicação (ao COAF) | report | tabela `reports` |
 | rascunho / aprovada | draft / approved | |
@@ -146,7 +158,10 @@ JSON gravado pelo worker (contrato worker → API):
 - `weekly_batches.metrics`: `{"recall", "typology_accuracy", "country_rates": {país: taxa}, "payment_type_rates": {meio: taxa}}`.
   O worker grava também `precision`, `laundering_accounts` (contas lavadoras), `queue_size`
   (contas na fila) e `innocents_in_queue` (inocentes na fila), e deixa `typology_accuracy`
-  de fora enquanto o modelo não prevê tipologia.
+  de fora enquanto o modelo não prevê tipologia. O recall é avaliação de desenvolvimento: a API
+  não o serve às telas.
+- ficha do modelo, blocos novos: `feedback` (o retorno dos analistas usado no treino) e
+  `comparison` (a versão ativa medida nas mesmas semanas de teste e a trava de promoção, `gate`).
 - `model_versions.metrics`: as métricas da ficha, com `transaction_threshold` (limiar da
   transação); `model_versions.threshold` é o corte da fila (`queue_cut`).
 
@@ -172,6 +187,7 @@ JSON gravado pelo worker (contrato worker → API):
 | `POST /conjuntos/{slug}/simular` | `POST /datasets/{slug}/simulate` |
 | `DELETE /ingestoes/{id}` | `DELETE /ingestions/{id}` |
 | `GET /monitoramento?semana=` | `GET /monitoring?week=` |
+| resumo do retorno dos analistas (não existia) | `GET /feedback/summary?from=&to=` |
 | `POST /ingestao/csv` (campo multipart `arquivo`) | `POST /ingestion/csv` (campo `file`) |
 | `POST /ingestao/transacoes` | `POST /ingestion/transactions` |
 | `GET`/`POST /ingestao/conexoes` | `GET`/`POST /ingestion/connections` |
@@ -184,7 +200,7 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 
 | Modelo (Pydantic / zod) | Antes | Campos depois |
 | --- | --- | --- |
-| `Alert` / `alertSchema` | `Alerta` | `id`, `account`, `week`, `country`, `typology`, `score`, `amount`, `transaction_count`, `status`, `queue_position` |
+| `Alert` / `alertSchema` | `Alerta` | `id`, `account`, `week`, `country`, `typology`, `score`, `amount`, `transaction_count`, `status`, `queue_position`, `origin` (`model`, `exploration`) |
 | `AlertStatus` / `statusSchema` | `pendente`, `aprofundar`, `arquivado`, `comunicar` | `pending`, `escalated`, `archived`, `reported` |
 | `AlertQueue` / `queueSchema` | `Fila {itens, total, paises}` | `items`, `total`, `countries` |
 | `AlertDetail` / `alertDetailSchema` | `Detalhe` | campos do `Alert` + `contributions`, `rules`, `movements`, `assessment` (anulável) |
@@ -196,14 +212,15 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 | `Graph` / `graphSchema` | `Grafo {nos, arestas}` | `nodes`, `edges` |
 | `Node` | `No {id, rotulo, central}` | `id`, `label`, `central` |
 | `Edge` | `Aresta {id, origem, destino, valor}` | `id`, `source`, `target`, `amount` |
-| `DecisionRequest` / `decisionSchema` | `PedidoDecisao {decisao, justificativa}` | `decision` (`archive`, `escalate`, `report`), `justification` |
+| `DecisionRequest` / `decisionSchema` | `PedidoDecisao {decisao, justificativa}` | `decision` (`archive`, `escalate`, `report`), `justification`, `archive_reason` (`false_positive`, `insufficient_evidence`; só ao arquivar) |
 | `Report` / `reportSchema` | `Comunicacao {alerta_id, texto, status, atualizado_em}` | `alert_id`, `content`, `status` (`draft`, `approved`), `updated_at` |
 | `ApprovalRequest` / `approvalSchema` | `PedidoAprovacao {texto}` | `content` |
 | `Replay` / `replaySchema` | `{semana, alertas_gerados}` | `week`, `alerts_generated` |
 | `Weeks` | `Semanas {atual, proxima_liberacao, itens}` | `current`, `next_release`, `items` |
 | `ProcessedWeek` | `SemanaProcessada {semana, alertas, pendentes}` | `week`, `alerts`, `pending` |
 | `Monitoring` / `monitoringSchema` | `Monitoramento {semana, indicadores, semanas, tipologias, paises, taxa_paises, taxa_meios}` | `week`, `indicators`, `weeks`, `typologies`, `countries`, `country_rates`, `payment_type_rates` |
-| `Indicators` | `{alertas, revisados, comunicados, taxa_alerta, valor_sinalizado, recall, acerto_tipologia}` | `alerts`, `reviewed`, `reported`, `alert_rate`, `flagged_amount`, `recall`, `typology_accuracy` |
+| `Indicators` | `{alertas, revisados, comunicados, taxa_alerta, valor_sinalizado, recall, acerto_tipologia}` | `alerts`, `reviewed`, `reported`, `alert_rate`, `flagged_amount` (recall e acerto de tipologia saíram das telas: registro 108) |
+| `FeedbackSummary` / `feedbackSummarySchema` | (não existia) | `labels`, `confirmed_precision`, `weekly_confirmed_precision`, `control_sample`, `active_version`, `new_since_active`, `retrain` |
 | `Series` / `seriesSchema` | `Serie {nome, valor}` | `name`, `value` |
 | `Health` / `healthSchema` | `Saude {status, banco, modelo, llm}` | `status` (`ok`, `degraded`), `database {ok, detail}`, `model {ok, file}`, `llm {ok, provider}` |
 | `ChatRequest` / `chatRequestSchema` | `PedidoChat {mensagem, contexto, historico}` | `message`, `context`, `history` |
@@ -288,6 +305,8 @@ Constantes citadas na documentação: `MOEDA_DOS_VALORES` → `AMOUNT_CURRENCY`,
 | carga do SAML-D (não existia) | `python -m worker load [--csv CAMINHO]` |
 | várias semanas de uma vez (não existia) | `python -m worker backfill [--from AAAA-MM-DD] [--to AAAA-MM-DD]` |
 | reprocessar / aceitar semana do treino (não existiam) | `--force` / `--allow-in-sample` (em `batch` e `backfill`) |
+| decidir pelo gabarito, para a demonstração (não existia) | `python -m worker simulate-analyst [--from] [--to] [--error-rate] [--insufficient-rate] [--seed] [--undo]` |
+| medir o efeito do retorno (não existia) | `python -m worker feedback-eval [--include-simulated]` |
 | `pnpm vibelog no` | `pnpm vibelog node` |
 | `pnpm vibelog evidencia` | `pnpm vibelog evidence` |
 | `pnpm vibelog importar-md`, `importar-claude`, `importar-codex` | `pnpm vibelog import-md`, `import-claude`, `import-codex` |

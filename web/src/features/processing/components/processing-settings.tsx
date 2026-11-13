@@ -26,7 +26,7 @@ export function ProcessingSettingsCard() {
         <ResourceError message={processing.error ?? "Configuração indisponível."} onRetry={processing.reload} />
       ) : (
         <ProcessingSettingsForm
-          key={`${settings.dataset}-${settings.interval_minutes}-${settings.enabled}-${settings.demo_mode}`}
+          key={`${settings.dataset}-${settings.interval_minutes}-${settings.enabled}-${settings.demo_mode}-${settings.exploration_per_week}`}
           settings={settings}
           onSave={processing.saveSettings}
         />
@@ -45,12 +45,19 @@ function ProcessingSettingsForm({
   const [interval, setInterval] = useState(settings.interval_minutes);
   const [enabled, setEnabled] = useState(settings.enabled);
   const [demoMode, setDemoMode] = useState(settings.demo_mode);
+  const [sample, setSample] = useState(settings.exploration_per_week);
+  const sampleValid = Number.isInteger(sample) && sample >= 0 && sample <= 50;
   return (
     <form
       className="grid gap-4"
       onSubmit={(event) => {
         event.preventDefault();
-        void onSave({ interval_minutes: interval, enabled, demo_mode: demoMode });
+        void onSave({
+          interval_minutes: interval,
+          enabled,
+          demo_mode: demoMode,
+          exploration_per_week: sample,
+        });
       }}
     >
       <Field label="Intervalo automático (minutos)">
@@ -64,7 +71,26 @@ function ProcessingSettingsForm({
         <input type="checkbox" checked={demoMode} onChange={(event) => setDemoMode(event.target.checked)} />
         Modo demonstração
       </label>
-      <div><Button type="submit" disabled={interval < 5 || interval > 1440}>Salvar processamento</Button></div>
+      <div className="grid gap-1.5">
+        <Field label="Amostra de controle por semana">
+          <Input
+            type="number"
+            min={0}
+            max={50}
+            value={sample}
+            onChange={(event) => setSample(Number(event.target.value))}
+          />
+        </Field>
+        <span className="text-xs text-muted-foreground">
+          Contas sorteadas abaixo do corte a cada semana, para os analistas revisarem e o sistema
+          medir a lavagem que o modelo deixa passar. 0 desliga.
+        </span>
+      </div>
+      <div>
+        <Button type="submit" disabled={interval < 5 || interval > 1440 || !sampleValid}>
+          Salvar processamento
+        </Button>
+      </div>
     </form>
   );
 }

@@ -9,6 +9,8 @@ import {
   ResourceError,
 } from "@/components/ui/states";
 import { ProcessingControls } from "@/features/processing/components/processing-controls";
+import { useFeedbackSummary } from "@/features/feedback/hooks/use-feedback";
+import type { FeedbackSummary } from "@/features/feedback/schemas/feedback";
 import {
   formatCurrency,
   formatNumber,
@@ -19,11 +21,11 @@ import { useAlertQueue, useMonitoring } from "../hooks/use-alerts";
 import type { AlertStatus } from "../schemas/alerts";
 import {
   HorizontalBarList,
-  QueueRecallChart,
   ReviewProgressCard,
   ScoreHistogramChart,
   Sparkline,
   WeeklyAlertsChart,
+  WeeklyRateChart,
 } from "./charts";
 import { getAlertLinkLabel } from "./alerts-table";
 
@@ -60,6 +62,22 @@ export function formatWeekPeriod(weekStr: string): string {
   return `Semana de ${startDay} ${startMonth} a ${endDay} ${endMonth} ${endYear}`;
 }
 
+/** O indicador "Precisão confirmada": alertas da fila confirmados como lavagem ÷ alertas da fila
+ * com decisão conclusiva, até a semana em exibição. */
+export function confirmedPrecisionKpi(summary: FeedbackSummary | null | undefined) {
+  const rate = summary?.confirmed_precision;
+  if (!rate || rate.value === null)
+    return { value: "—", note: "sem decisões ainda", spark: [] as number[] };
+  const lowSample = rate.low_sample ? " · amostra pequena" : "";
+  return {
+    value: formatPercent(rate.value),
+    note: `${formatNumber(rate.numerator)} de ${formatNumber(rate.denominator)} decididos${lowSample}`,
+    spark: (summary?.weekly_confirmed_precision ?? [])
+      .filter((w) => w.value !== null)
+      .map((w) => (w.value ?? 0) * 100),
+  };
+}
+
 const STATUS_CONFIG: Record<
   AlertStatus,
   { label: string; dotClass: string }
@@ -90,6 +108,7 @@ export function Dashboard() {
   const { week } = useAppContext();
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
+  const feedback = useFeedbackSummary();
 
   const weekRangeText = week ? formatWeekPeriod(week) : "";
 
@@ -159,9 +178,9 @@ export function Dashboard() {
   })();
 
   const weekValues = data.weeks.map((w) => w.value);
-  const recallValues =
-    data.recall_series?.map((s) => (s.value <= 1 ? s.value * 100 : s.value)) ??
-    [];
+  const precision = feedback.loading
+    ? { value: "…", note: "carregando o retorno", spark: [] as number[] }
+    : confirmedPrecisionKpi(feedback.data);
 
   const kpis = [
     {
@@ -186,17 +205,11 @@ export function Dashboard() {
       sparkLabel: "Valor sinalizado: evolução nas últimas semanas",
     },
     {
-      label: "Recall da fila",
-      value:
-        data.indicators.recall !== null
-          ? formatPercent(data.indicators.recall)
-          : "—",
-      note:
-        data.indicators.recall !== null
-          ? "meta de 95%"
-          : "sem gabarito nesta semana",
-      spark: recallValues,
-      sparkLabel: "Recall da fila: evolução nas últimas semanas",
+      label: "Precisão confirmada",
+      value: precision.value,
+      note: precision.note,
+      spark: precision.spark,
+      sparkLabel: "Precisão confirmada pelos analistas: evolução por semana",
     },
   ];
 
@@ -245,20 +258,29 @@ export function Dashboard() {
           <WeeklyAlertsChart data={data.weeks} />
         </article>
 
-        {/* Card 2: Recall da fila */}
+        {/* Card 2: Precisão confirmada pelos analistas */}
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              Recall da fila
+              Precisão confirmada
             </h2>
             <span className="text-xs text-muted-foreground">
-              lavadoras que entraram na fila
+              alertas da fila confirmados como lavagem
             </span>
           </header>
-          <QueueRecallChart
-            data={data.recall_series}
-            currentWeekRecall={data.indicators.recall}
-          />
+          {feedback.error ? (
+            <ResourceError message={feedback.error} onRetry={feedback.reload} />
+          ) : (
+            <WeeklyRateChart
+              data={feedback.data?.weekly_confirmed_precision ?? []}
+              unit="decididos"
+              emptyText={
+                feedback.loading
+                  ? "Carregando o retorno dos analistas…"
+                  : "Sem decisões dos analistas ainda. Arquivar como falso positivo ou comunicar alimenta este gráfico."
+              }
+            />
+          )}
         </article>
 
         {/* Card 3: Distribuição da nota de risco */}

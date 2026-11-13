@@ -18,6 +18,9 @@ from psycopg import sql
 from sqlalchemy import Connection, text
 
 ACTOR = "worker"
+# Contas por semana na amostra de controle quando o conjunto ainda não tem linha em
+# public.processing_settings (o mesmo padrão da coluna exploration_per_week).
+DEFAULT_EXPLORATION_PER_WEEK = 5
 
 # Colunas lidas de `transactions`: as 10 do SAML-D com o `id`, e o envio de origem.
 TRANSACTION_COLUMNS = [
@@ -193,6 +196,15 @@ def processed_transaction_count(conn: Connection, week: date) -> int | None:
         return None
 
 
+def exploration_per_week(conn: Connection, dataset_slug: str) -> int:
+    """Quantas contas fora da fila o conjunto sorteia por semana (0 = amostra desligada)."""
+    value = conn.execute(
+        text("SELECT exploration_per_week FROM public.processing_settings WHERE dataset = :slug"),
+        {"slug": dataset_slug},
+    ).scalar()
+    return DEFAULT_EXPLORATION_PER_WEEK if value is None else int(value)
+
+
 def saml_d_count(conn: Connection) -> int:
     """Transações da carga do SAML-D (sem envio de origem)."""
     return conn.execute(
@@ -331,10 +343,17 @@ def clear_open_week(
     return {int(account) for account in decided_accounts}
 
 
-def count_alerts(conn: Connection, week: date) -> int:
-    return conn.execute(
-        text("SELECT count(*) FROM alerts WHERE week = :week"), {"week": week}
-    ).scalar_one()
+def count_alerts(conn: Connection, week: date) -> tuple[int, int]:
+    """(alertas da fila do modelo, contas da amostra de controle) gravados na semana."""
+    row = conn.execute(
+        text(
+            "SELECT count(*) FILTER (WHERE origin = 'model') AS model,"
+            " count(*) FILTER (WHERE origin = 'exploration') AS exploration"
+            " FROM alerts WHERE week = :week"
+        ),
+        {"week": week},
+    ).one()
+    return int(row.model), int(row.exploration)
 
 
 def copy_scores(conn: Connection, ids: np.ndarray, version: str, scores: np.ndarray) -> None:
@@ -378,20 +397,21 @@ def upsert_accounts(conn: Connection, frame: pd.DataFrame) -> None:
 
 
 def insert_alerts(conn: Connection, week: date, version: str, rows: list[dict]) -> None:
-    """A fila da semana. `rows`: account, score, queue_position, countries, total_amount,
-    transaction_count. Status `new` e tipologia nula (o modelo não prevê tipologia)."""
+    """A fila da semana e, depois dela, a amostra de controle. `rows`: account, score,
+    queue_position, countries, total_amount, transaction_count e origin (`model` ou
+    `exploration`). Status `new` e tipologia nula (o modelo não prevê tipologia)."""
     if not rows:
         return
     conn.execute(
         text(
             """
             INSERT INTO alerts (account, week, score, queue_position, status, countries,
-                                typology, total_amount, transaction_count, model_version)
+                                typology, total_amount, transaction_count, model_version, origin)
             SELECT r.account, :week, r.score, r.queue_position, 'new', r.countries,
-                   NULL, r.total_amount, r.transaction_count, :version
+                   NULL, r.total_amount, r.transaction_count, :version, r.origin
             FROM jsonb_to_recordset(CAST(:rows AS jsonb)) AS r(
                 account bigint, score real, queue_position integer, countries text[],
-                total_amount numeric, transaction_count integer)
+                total_amount numeric, transaction_count integer, origin text)
             ORDER BY r.queue_position
             """
         ),

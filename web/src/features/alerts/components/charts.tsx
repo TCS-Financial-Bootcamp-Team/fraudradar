@@ -170,172 +170,105 @@ export function WeeklyAlertsChart({
 }
 
 // ---------------------------------------------------------------------------
-// QueueRecallChart: Recall da fila (line chart with 95% signal target line)
+// WeeklyRateChart: uma taxa por semana (ex.: precisão confirmada pelos analistas)
 // ---------------------------------------------------------------------------
 
-export function QueueRecallChart({
+export type WeeklyRatePoint = {
+  name: string;
+  value: number | null;
+  numerator: number;
+  denominator: number;
+  low_sample: boolean;
+};
+
+/** Texto de uma taxa com os casos por trás dela ("75% · 3 de 4"). */
+export function describeRate(point: WeeklyRatePoint, unit: string): string {
+  if (point.value === null) return `sem ${unit} ainda`;
+  const base = `${formatPercent(point.value)} · ${formatNumber(point.numerator)} de ${formatNumber(point.denominator)} ${unit}`;
+  return point.low_sample ? `${base} (amostra pequena)` : base;
+}
+
+export function WeeklyRateChart({
   data,
-  currentWeekRecall,
+  unit,
+  emptyText,
+  currentWeekName,
 }: {
-  data: Series[];
-  currentWeekRecall?: number | null;
+  data: WeeklyRatePoint[];
+  unit: string;
+  emptyText: string;
+  currentWeekName?: string;
 }) {
   if (!data || data.length === 0) {
     return (
-      <div className="flex h-[210px] flex-col items-center justify-center gap-1.5 text-center text-muted-foreground">
-        <p className="text-sm font-medium text-foreground">Sem dados de recall</p>
-        <p className="text-xs">
-          Nenhuma semana com gabarito liberada até o momento.
-        </p>
+      <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
+        {emptyText}
       </div>
     );
   }
-
-  // Values normalized to 0-100 scale
-  const values = data.map((d) => (d.value <= 1 ? d.value * 100 : d.value));
-  const count = values.length;
-
-  // Chart coordinates in 640x200 viewBox
-  const xs = (i: number) => (count <= 1 ? 320 : 40 + (i / (count - 1)) * 590);
-  const ys = (v: number) => {
-    // scale from 80% (y=180) to 100% (y=10)
-    const clamped = Math.max(80, Math.min(100, v));
-    return 10 + ((100 - clamped) / 20) * 170;
-  };
-
-  const pts = values.map((v, i) => ({
-    x: xs(i),
-    y: ys(v),
-    val: v,
-    name: data[i].name,
-  }));
-
-  const linePath = pts
-    .map((q, i) => `${i ? "L" : "M"}${q.x.toFixed(1)} ${q.y.toFixed(1)}`)
-    .join(" ");
-
-  const lastPt = pts[pts.length - 1];
-  const firstPt = pts[0];
-  const areaPath = `${linePath} L${lastPt.x.toFixed(1)} 180 L${firstPt.x.toFixed(1)} 180 Z`;
-
-  const lastPercentFormatted = formatPercent(lastPt.val / 100);
-  const ariaLabel = `Recall da fila por semana: última semana com ${lastPercentFormatted}; meta de 95%.`;
+  const ariaLabel = data
+    .map((w) => `${w.name}: ${describeRate(w, unit)}`)
+    .join("; ");
 
   return (
-    <div className="flex flex-col gap-1.5">
-      <svg
-        viewBox="0 0 640 200"
+    <div className="flex flex-col gap-2">
+      <div
         role="img"
         aria-label={ariaLabel}
-        className="h-auto w-full overflow-visible"
+        className="flex h-[180px] items-end gap-1.5 border-b border-border pb-1"
       >
-        {/* Horizontal grid lines */}
-        <line x1="40" x2="630" y1="10" y2="10" stroke="var(--border)" />
-        <line x1="40" x2="630" y1="95" y2="95" stroke="var(--border)" />
-        <line x1="40" x2="630" y1="180" y2="180" stroke="var(--border)" />
-
-        {/* 95% target line */}
-        <line
-          x1="40"
-          x2="630"
-          y1="52.5"
-          y2="52.5"
-          stroke="var(--signal)"
-          strokeDasharray="4 4"
-        />
-        <text
-          x="630"
-          y="46"
-          textAnchor="end"
-          className="font-sans text-[11px] fill-muted-foreground"
-        >
-          meta de 95%
-        </text>
-
-        {/* Y axis numbers */}
-        <text
-          x="32"
-          y="14"
-          textAnchor="end"
-          className="font-mono text-[11px] fill-muted-foreground"
-        >
-          100
-        </text>
-        <text
-          x="32"
-          y="99"
-          textAnchor="end"
-          className="font-mono text-[11px] fill-muted-foreground"
-        >
-          90
-        </text>
-        <text
-          x="32"
-          y="184"
-          textAnchor="end"
-          className="font-mono text-[11px] fill-muted-foreground"
-        >
-          80
-        </text>
-
-        {/* Line & Area */}
-        <path d={areaPath} fill="var(--primary)" fillOpacity="0.07" />
-        <path
-          d={linePath}
-          fill="none"
-          stroke="var(--primary)"
-          strokeWidth="2"
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-
-        {/* Hover spots on points */}
-        {pts.map((pt, i) => (
-          <circle
-            key={i}
-            cx={pt.x.toFixed(1)}
-            cy={pt.y.toFixed(1)}
-            r="8"
-            className="fill-transparent hover:fill-primary/20 cursor-pointer"
-          >
-            <title>{`${pt.name}: ${formatPercent(pt.val / 100)}`}</title>
-          </circle>
-        ))}
-
-        {/* Last point circle and callout */}
-        <circle
-          cx={lastPt.x.toFixed(1)}
-          cy={lastPt.y.toFixed(1)}
-          r="4.5"
-          fill="var(--primary)"
-          stroke="var(--card)"
-          strokeWidth="2"
-        />
-        <text
-          x={lastPt.x.toFixed(1)}
-          y={(Math.min(160, lastPt.y + 22)).toFixed(1)}
-          textAnchor="end"
-          className="font-mono text-[12px] font-medium fill-foreground"
-        >
-          {lastPercentFormatted}
-        </text>
-      </svg>
-
-      {/* X axis milestones */}
-      <div className="flex justify-between pl-[6.2%] pr-[1.6%] text-[11px] text-muted-foreground pt-1">
-        <span>{data[0]?.name}</span>
-        {data.length > 3 && <span>{data[Math.floor(data.length / 3)]?.name}</span>}
-        {data.length > 3 && (
-          <span>{data[Math.floor((2 * data.length) / 3)]?.name}</span>
-        )}
-        <span>{data[data.length - 1]?.name}</span>
+        {data.map((w, i) => {
+          const isCurrent = currentWeekName
+            ? w.name === currentWeekName
+            : i === data.length - 1;
+          const barHeight =
+            w.value === null ? 0 : Math.max(4, Math.round(w.value * 135));
+          return (
+            <div
+              key={w.name + i}
+              title={`Semana de ${w.name}: ${describeRate(w, unit)}`}
+              className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+            >
+              <span
+                className={cn(
+                  "font-mono text-[11px] tabular-nums transition-colors",
+                  w.low_sample
+                    ? "text-muted-foreground"
+                    : isCurrent
+                      ? "font-semibold text-foreground"
+                      : "text-muted-foreground group-hover:text-foreground",
+                )}
+              >
+                {w.value === null ? "—" : formatPercent(w.value)}
+                {w.low_sample && w.value !== null ? "*" : ""}
+              </span>
+              <span
+                style={{ height: `${barHeight}px` }}
+                className={cn(
+                  "w-full max-w-[26px] rounded-t-[4px] transition-all",
+                  isCurrent ? "bg-primary" : "bg-chart-muted group-hover:bg-primary/70",
+                )}
+              />
+            </div>
+          );
+        })}
       </div>
-
-      <p className="m-0 mt-2 text-xs text-muted-foreground">
-        {currentWeekRecall === null
-          ? "A semana atual veio da ingestão e não tem gabarito."
-          : `Última semana com gabarito: ${lastPercentFormatted}.`}
-      </p>
+      <div className="flex gap-1.5">
+        {data.map((w, i) => (
+          <span
+            key={w.name + i}
+            className="flex-1 truncate text-center font-sans text-[11px] text-muted-foreground"
+            title={w.name}
+          >
+            {w.name}
+          </span>
+        ))}
+      </div>
+      {data.some((w) => w.low_sample && w.value !== null) && (
+        <p className="m-0 text-xs text-muted-foreground">
+          * menos de 20 {unit}: o percentual ainda diz pouco.
+        </p>
+      )}
     </div>
   );
 }

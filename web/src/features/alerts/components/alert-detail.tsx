@@ -20,10 +20,11 @@ import { useAlertDetail } from "../hooks/use-alerts";
 import {
   approvalSchema,
   decisionSchema,
+  type ArchiveReason,
   type DecisionRequest,
   type Report,
 } from "../schemas/alerts";
-import { StatusDot, statusLabels } from "./alerts-table";
+import { ControlSampleBadge, StatusDot, statusLabels } from "./alerts-table";
 import { AccountGraph } from "./account-graph";
 
 const decisionChoices: { value: DecisionRequest["decision"]; label: string }[] =
@@ -32,6 +33,11 @@ const decisionChoices: { value: DecisionRequest["decision"]; label: string }[] =
     { value: "escalate", label: "Aprofundar" },
     { value: "report", label: "Comunicar ao COAF" },
   ];
+
+export const archiveReasonChoices: { value: ArchiveReason; label: string }[] = [
+  { value: "false_positive", label: "Falso positivo confirmado" },
+  { value: "insufficient_evidence", label: "Sem evidência suficiente" },
+];
 
 const cardClass = "panel grid gap-4 px-[22px] py-5";
 
@@ -51,6 +57,7 @@ export function AlertDetailView({ id }: { id: string }) {
     defaultValues: { decision: "escalate", justification: "" },
   });
   const chosen = useWatch({ control: form.control, name: "decision" });
+  const reason = useWatch({ control: form.control, name: "archive_reason" });
   if (resource.loading) return <LoadingState />;
   if (resource.error || !resource.data)
     return (
@@ -63,6 +70,7 @@ export function AlertDetailView({ id }: { id: string }) {
   const isApproved = report?.status === "approved";
   const high = isHighRisk(alert.score);
   const decisionError = form.formState.errors.decision?.message;
+  const reasonError = form.formState.errors.archive_reason?.message;
   const justificationError = form.formState.errors.justification?.message;
 
   return (
@@ -85,6 +93,7 @@ export function AlertDetailView({ id }: { id: string }) {
             <span className="text-muted-foreground">
               {formatQueuePosition(alert.queue_position)} · {alert.country}
             </span>
+            {alert.origin === "exploration" && <ControlSampleBadge />}
           </div>
           <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">
             Alerta {alert.id}{" "}
@@ -316,11 +325,16 @@ export function AlertDetailView({ id }: { id: string }) {
                       role="radio"
                       aria-checked={checked}
                       disabled={isApproved}
-                      onClick={() =>
+                      onClick={() => {
                         form.setValue("decision", c.value, {
                           shouldValidate: true,
-                        })
-                      }
+                        });
+                        // O motivo só existe no arquivamento: some ao trocar de decisão.
+                        if (c.value !== "archive")
+                          form.setValue("archive_reason", undefined, {
+                            shouldValidate: true,
+                          });
+                      }}
                       className={`min-h-11 border-r border-border px-2 py-1.5 text-[13px] font-medium leading-tight transition-colors last:border-r-0 disabled:cursor-not-allowed disabled:opacity-60 ${
                         checked
                           ? "bg-primary text-primary-foreground"
@@ -336,6 +350,53 @@ export function AlertDetailView({ id }: { id: string }) {
                 <span role="alert" className="text-xs text-signal">
                   {decisionError}
                 </span>
+              )}
+              {chosen === "archive" && (
+                <fieldset className="m-0 grid gap-2 border-0 p-0">
+                  <legend className="mb-1.5 text-[13px] font-medium text-foreground">
+                    Motivo do arquivamento
+                  </legend>
+                  <div
+                    role="radiogroup"
+                    aria-label="Motivo do arquivamento"
+                    className="grid grid-cols-2 overflow-hidden rounded-lg border border-border"
+                  >
+                    {archiveReasonChoices.map((r) => {
+                      const checked = reason === r.value;
+                      return (
+                        <button
+                          key={r.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={checked}
+                          disabled={isApproved}
+                          onClick={() =>
+                            form.setValue("archive_reason", r.value, {
+                              shouldValidate: true,
+                            })
+                          }
+                          className={`min-h-11 border-r border-border px-2 py-1.5 text-[13px] font-medium leading-tight transition-colors last:border-r-0 disabled:cursor-not-allowed disabled:opacity-60 ${
+                            checked
+                              ? "bg-primary text-primary-foreground"
+                              : "bg-card text-foreground hover:bg-soft"
+                          }`}
+                        >
+                          {r.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="m-0 text-xs text-muted-foreground">
+                    Só o falso positivo confirmado ensina o modelo no retreino.
+                    Sem evidência suficiente fica fora: arquivar por falta de
+                    prova não diz que a conta é inocente.
+                  </p>
+                  {reasonError && (
+                    <span role="alert" className="text-xs text-signal">
+                      {reasonError}
+                    </span>
+                  )}
+                </fieldset>
               )}
               <Field label="Justificativa" error={justificationError}>
                 <Textarea

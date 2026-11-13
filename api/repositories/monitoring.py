@@ -1,8 +1,13 @@
 """Números do monitoramento de uma semana.
 
-O que muda com o trabalho do analista (revisados, comunicados) é contado em `alerts`;
-a avaliação contra o gabarito (recall, acerto, taxas) vem pronta do worker em
-`weekly_batches.metrics`: a API nunca lê `ground_truth`.
+O que muda com o trabalho do analista (revisados, comunicados) é contado em `alerts`; as taxas de
+alerta por país e por meio de pagamento vêm prontas do worker em `weekly_batches.metrics`. O
+recall e o acerto de tipologia que o worker também grava ali (avaliação de desenvolvimento,
+contra o gabarito) não vão para as telas. A API nunca lê `ground_truth`.
+
+Alerta, aqui, é a conta que passou do corte da fila (`alerts.origin = 'model'`). A amostra de
+controle (`exploration`) fica fora de todas as contagens: o resultado dela aparece no retorno
+dos analistas (`GET /feedback/summary`).
 """
 
 import math
@@ -10,7 +15,7 @@ from datetime import date
 
 from sqlalchemy import Connection, RowMapping, text
 
-from api.domain import STATUS_FROM_FRONT, UNDEFINED_COUNTRY, UNDEFINED_TYPOLOGY
+from api.domain import MODEL_ALERTS, STATUS_FROM_FRONT, UNDEFINED_COUNTRY, UNDEFINED_TYPOLOGY
 
 WEEKS_IN_SERIES = 12
 _MONTHS = ("jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez")
@@ -31,7 +36,7 @@ def week_label(week: date) -> str:
 
 
 def week_counts(conn: Connection, week: date) -> RowMapping:
-    sql = """
+    sql = f"""
         SELECT count(*) AS alerts,
                count(*) FILTER (WHERE a.status <> ALL(:pending)) AS reviewed,
                count(*) FILTER (WHERE r.alert_id IS NOT NULL) AS reported,
@@ -39,7 +44,7 @@ def week_counts(conn: Connection, week: date) -> RowMapping:
         FROM alerts a
         LEFT JOIN (SELECT DISTINCT alert_id FROM reports WHERE status = 'approved') r
                ON r.alert_id = a.id
-        WHERE a.week = :week
+        WHERE a.week = :week AND {MODEL_ALERTS}
     """
     pending = list(STATUS_FROM_FRONT["pending"])
     return conn.execute(text(sql), {"week": week, "pending": pending}).mappings().one()
@@ -52,10 +57,10 @@ def get_batch(conn: Connection, week: date) -> RowMapping | None:
 
 def alerts_by_week(conn: Connection, week: date) -> list[RowMapping]:
     """As últimas semanas processadas até `week`, em ordem cronológica."""
-    sql = """
+    sql = f"""
         SELECT b.week, count(a.id) AS alerts
         FROM weekly_batches b
-        LEFT JOIN alerts a ON a.week = b.week
+        LEFT JOIN alerts a ON a.week = b.week AND {MODEL_ALERTS}
         WHERE b.week <= :week
         GROUP BY b.week
         ORDER BY b.week DESC
@@ -75,35 +80,16 @@ def distribution(conn: Connection, week: date, by: str) -> list[RowMapping]:
     sql = f"""
         SELECT {expressions[by]} AS name, count(*) AS value
         FROM alerts a
-        WHERE a.week = :week
+        WHERE a.week = :week AND {MODEL_ALERTS}
         GROUP BY 1
         ORDER BY value DESC, name
     """
     return list(conn.execute(text(sql), {"week": week, "undefined": undefined}).mappings())
 
 
-def recall_series(conn: Connection, week: date) -> list[dict[str, object]]:
-    """Série do recall dos períodos processados, omitindo os que não têm a métrica."""
-    sql = """
-        SELECT week, metrics
-        FROM weekly_batches
-        WHERE week <= :week
-        ORDER BY week ASC
-    """
-    rows = conn.execute(text(sql), {"week": week}).mappings()
-    series: list[dict[str, object]] = []
-    for row in rows:
-        metrics = row["metrics"]
-        if isinstance(metrics, dict):
-            recall = clamp_rate(metrics.get("recall"))
-            if recall is not None:
-                series.append({"name": week_label(row["week"]), "value": recall})
-    return series
-
-
 def score_histogram(conn: Connection, week: date) -> list[dict[str, object]]:
     """Distribuição dos alertas da semana por faixas de score (em escala 0-100)."""
-    sql = """
+    sql = f"""
         SELECT
             count(*) FILTER (WHERE score < 0.5::real) AS "40",
             count(*) FILTER (WHERE score >= 0.5::real AND score < 0.6::real) AS "50",
@@ -113,8 +99,8 @@ def score_histogram(conn: Connection, week: date) -> list[dict[str, object]]:
             count(*) FILTER (WHERE score >= 0.9::real AND score < 0.95::real) AS "90",
             count(*) FILTER (WHERE score >= 0.95::real AND score < 0.9995::real) AS "95",
             count(*) FILTER (WHERE score >= 0.9995::real) AS "100"
-        FROM alerts
-        WHERE week = :week
+        FROM alerts a
+        WHERE a.week = :week AND {MODEL_ALERTS}
     """
     row = conn.execute(text(sql), {"week": week}).mappings().one()
     return [{"name": b, "value": int(row[b])} for b in SCORE_HISTOGRAM_BINS]
@@ -122,13 +108,13 @@ def score_histogram(conn: Connection, week: date) -> list[dict[str, object]]:
 
 def status_counts(conn: Connection, week: date) -> RowMapping:
     """Contagem dos alertas da semana de referência agrupados por status do front."""
-    sql = """
+    sql = f"""
         SELECT
             count(*) FILTER (WHERE status IN ('new', 'in_review')) AS pending,
             count(*) FILTER (WHERE status = 'escalated') AS escalated,
             count(*) FILTER (WHERE status = 'archived') AS archived,
             count(*) FILTER (WHERE status = 'reported') AS reported
-        FROM alerts
-        WHERE week = :week
+        FROM alerts a
+        WHERE a.week = :week AND {MODEL_ALERTS}
     """
     return conn.execute(text(sql), {"week": week}).mappings().one()

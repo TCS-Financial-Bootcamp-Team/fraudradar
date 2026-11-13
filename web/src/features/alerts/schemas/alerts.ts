@@ -6,6 +6,9 @@ export const statusSchema = z.enum([
   "archived",
   "reported",
 ]);
+// "model" = a conta passou do corte da fila; "exploration" = amostra de controle, sorteada
+// abaixo do corte para medir o que o modelo deixa passar.
+export const originSchema = z.enum(["model", "exploration"]);
 export const alertSchema = z.object({
   id: z.string(),
   account: z.string(),
@@ -17,6 +20,7 @@ export const alertSchema = z.object({
   transaction_count: z.number().int().nonnegative(),
   status: statusSchema,
   queue_position: z.number().int().positive(),
+  origin: originSchema.default("model"),
 });
 export const queueSchema = z.object({
   items: z.array(alertSchema),
@@ -58,14 +62,33 @@ export const graphSchema = z.object({
     }),
   ),
 });
-export const decisionSchema = z.object({
-  decision: z.enum(["archive", "escalate", "report"]),
-  justification: z
-    .string()
-    .trim()
-    .min(10, "Descreva a justificativa com pelo menos 10 caracteres.")
-    .max(4000),
-});
+// Só o falso positivo confirmado ensina o modelo; "sem evidência suficiente" não vira rótulo.
+export const archiveReasonSchema = z.enum([
+  "false_positive",
+  "insufficient_evidence",
+]);
+export const decisionSchema = z
+  .object({
+    decision: z.enum(["archive", "escalate", "report"]),
+    justification: z
+      .string()
+      .trim()
+      .min(10, "Descreva a justificativa com pelo menos 10 caracteres.")
+      .max(4000),
+    archive_reason: archiveReasonSchema.optional(),
+  })
+  .refine(
+    (value) => value.decision !== "archive" || value.archive_reason !== undefined,
+    {
+      message: "Escolha o motivo do arquivamento.",
+      path: ["archive_reason"],
+    },
+  );
+/** O corpo que a API aceita: o motivo só vai junto do arquivamento (nas outras, 422). */
+export function decisionPayload(value: z.infer<typeof decisionSchema>) {
+  const { archive_reason, ...rest } = value;
+  return value.decision === "archive" ? { ...rest, archive_reason } : rest;
+}
 export const reportSchema = z.object({
   alert_id: z.string(),
   content: z.string(),
@@ -106,6 +129,8 @@ export const statusCountsSchema = z.object({
   archived: z.number().int().nonnegative(),
   reported: z.number().int().nonnegative(),
 });
+// Sem recall nem acerto de tipologia: uma plataforma de verdade não tem gabarito para medi-los.
+// O que os analistas confirmam vem de /feedback/summary (features/feedback).
 export const monitoringSchema = z.object({
   week: z.iso.date(),
   indicators: z.object({
@@ -114,19 +139,18 @@ export const monitoringSchema = z.object({
     reported: z.number(),
     alert_rate: z.number().min(0).max(1),
     flagged_amount: z.number(),
-    recall: z.number().min(0).max(1).nullable(),
-    typology_accuracy: z.number().min(0).max(1).nullable(),
   }),
   weeks: z.array(seriesSchema),
   typologies: z.array(seriesSchema),
   countries: z.array(seriesSchema),
   country_rates: z.array(seriesSchema),
   payment_type_rates: z.array(seriesSchema),
-  recall_series: z.array(seriesSchema),
   score_histogram: z.array(seriesSchema),
   status_counts: statusCountsSchema,
 });
 export type AlertStatus = z.infer<typeof statusSchema>;
+export type AlertOrigin = z.infer<typeof originSchema>;
+export type ArchiveReason = z.infer<typeof archiveReasonSchema>;
 export type Alert = z.infer<typeof alertSchema>;
 export type AlertQueue = z.infer<typeof queueSchema>;
 export type Assessment = z.infer<typeof assessmentSchema>;
@@ -145,5 +169,6 @@ export type AlertFilters = {
   status?: string;
   country?: string;
   search?: string;
+  origin?: string;
   page?: number;
 };

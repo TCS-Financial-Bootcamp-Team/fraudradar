@@ -7,6 +7,7 @@ from sqlalchemy import Connection, text
 
 from api.domain import (
     ALERT_COLUMNS,
+    MODEL_ALERTS,
     STATUS_FROM_FRONT,
     STATUS_TO_FRONT,
     UNDEFINED_COUNTRY,
@@ -33,7 +34,8 @@ def list_suspicious_accounts(
     size: int,
     sort: AccountSort,
 ) -> tuple[list[SuspiciousAccount], int]:
-    filters = ["true"]
+    # Conta da amostra de controle não é conta suspeita: ela não passou do corte da fila.
+    filters = [MODEL_ALERTS]
     params: dict[str, Any] = {"undefined_country": UNDEFINED_COUNTRY}
     if start is not None:
         filters.append("a.week >= :start")

@@ -38,8 +38,12 @@ AlertId = Annotated[int, Path(ge=1, le=2**63 - 1, description="id numérico do a
 # Colunas que alert_from_row espera, com a tabela alerts apelidada de `a`.
 ALERT_COLUMNS = (
     "a.id, a.account, a.week, a.score, a.status, a.countries, a.typology,"
-    " a.total_amount, a.transaction_count, a.queue_position"
+    " a.total_amount, a.transaction_count, a.queue_position, a.origin"
 )
+# Alerta de verdade: a conta que passou do corte da fila. A amostra de controle
+# (origin = 'exploration') aparece na fila da semana, mas fica fora de toda contagem de alertas e
+# da lista de contas suspeitas. Trecho fixo de SQL, com a tabela alerts apelidada de `a`.
+MODEL_ALERTS = "a.origin = 'model'"
 
 
 def week_start(day: date) -> date:
@@ -60,6 +64,7 @@ def alert_from_row(row: RowMapping) -> Alert:
         transaction_count=row["transaction_count"],
         status=STATUS_TO_FRONT[row["status"]],
         queue_position=row["queue_position"],
+        origin=row["origin"],
     )
 
 

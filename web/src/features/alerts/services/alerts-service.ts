@@ -11,6 +11,7 @@ import {
   assessmentSchema,
   replaySchema,
   weeksSchema,
+  decisionPayload,
   type DecisionRequest,
   type AlertFilters,
 } from "../schemas/alerts";
@@ -27,6 +28,7 @@ export async function fetchAlerts(filters: AlertFilters, signal?: AbortSignal) {
   if (filters.status) query.set("status", filters.status);
   if (filters.country) query.set("country", filters.country);
   if (filters.search) query.set("search", filters.search);
+  if (filters.origin) query.set("origin", filters.origin);
   return queueSchema.parse(await apiGet("/alerts?" + query, { signal }));
 }
 export async function fetchAlertDetail(id: string, signal?: AbortSignal) {
@@ -97,21 +99,13 @@ export async function generateAssessment(id: string) {
   );
 }
 export async function submitDecision(id: string, data: DecisionRequest) {
-  const parsed = decisionSchema.parse(data);
+  const payload = decisionPayload(decisionSchema.parse(data));
   if (USE_MOCKS) {
     const mocks = await import("./mocks");
-    const alert = mocks.currentAlertsMock().find((a) => a.id === id);
-    if (!alert) throw new Error("Alerta não encontrado.");
-    const statusByDecision = {
-      archive: "archived",
-      escalate: "escalated",
-      report: "reported",
-    } as const;
-    alert.status = statusByDecision[parsed.decision];
-    return alertSchema.parse(alert);
+    return alertSchema.parse(mocks.recordDecisionMock(id, payload));
   }
   return alertSchema.parse(
-    await apiPost("/alerts/" + encodeURIComponent(id) + "/decision", parsed),
+    await apiPost("/alerts/" + encodeURIComponent(id) + "/decision", payload),
   );
 }
 export async function fetchReport(id: string, signal?: AbortSignal) {

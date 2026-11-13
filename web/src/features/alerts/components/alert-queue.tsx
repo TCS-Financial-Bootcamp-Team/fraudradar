@@ -30,6 +30,7 @@ function WeeklyAlertQueue() {
   const { week } = useAppContext();
   const [status, setStatus] = useState("");
   const [country, setCountry] = useState("");
+  const [origin, setOrigin] = useState("");
   const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -41,11 +42,12 @@ function WeeklyAlertQueue() {
     return () => clearTimeout(timer);
   }, [searchInput]);
 
-  const queue = useAlertQueue(status, country, page, search);
+  const queue = useAlertQueue(status, country, page, search, origin);
 
   function clearFilters() {
     setStatus("");
     setCountry("");
+    setOrigin("");
     setSearchInput("");
     setSearch("");
     setPage(1);
@@ -126,6 +128,20 @@ function WeeklyAlertQueue() {
                 {c}
               </option>
             ))}
+          </select>
+          <select
+            aria-label="Origem do alerta"
+            title="A amostra de controle são contas sorteadas abaixo do corte, para medir o que o modelo deixa passar."
+            value={origin}
+            onChange={(e) => {
+              setOrigin(e.target.value);
+              setPage(1);
+            }}
+            className="h-[38px] rounded-lg border border-border bg-card pl-3 pr-8 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <option value="">Fila e amostra de controle</option>
+            <option value="model">Só a fila do modelo</option>
+            <option value="exploration">Só a amostra de controle</option>
           </select>
         </div>
       </div>

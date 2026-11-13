@@ -14,6 +14,7 @@ export function useAlertQueue(
   country = "",
   page = 1,
   search = "",
+  origin = "",
 ) {
   const { week, revision } = useAppContext();
   const loader = useCallback(
@@ -23,11 +24,18 @@ export function useAlertQueue(
       if (!week)
         return Promise.resolve({ items: [], total: 0, countries: [] });
       return alertsService.fetchAlerts(
-        { week, status, country, page, search: search.trim() || undefined },
+        {
+          week,
+          status,
+          country,
+          page,
+          search: search.trim() || undefined,
+          origin: origin || undefined,
+        },
         signal,
       );
     },
-    [week, status, country, page, search, revision],
+    [week, status, country, page, search, origin, revision],
   );
   return useResource(loader);
 }

@@ -7,8 +7,8 @@ import {
   LoadingState,
   ResourceError,
 } from "@/components/ui/states";
-import { formatPercent, formatShortDate } from "@/lib/format";
-import { ModelSection } from "@/features/models/components/model-section";
+import { formatNumber, formatPercent, formatShortDate } from "@/lib/format";
+import { FeedbackPanel } from "@/features/feedback/components/feedback-panel";
 import { useMonitoring } from "../hooks/use-alerts";
 
 // Threshold para destacar taxa de alerta como sinal de risco:
@@ -101,11 +101,11 @@ export function MonitoringView() {
       <div className="flex flex-col gap-7">
         <section className="panel">
           <EmptyState
-            title="Nenhuma semana liberada"
-            description="Libere uma semana na Visão geral para ver os indicadores."
+            title="Nenhum período processado"
+            description="Use Processar agora na Visão geral depois de carregar transações no conjunto."
           />
         </section>
-        <ModelSection />
+        <FeedbackPanel />
       </div>
     );
 
@@ -118,26 +118,6 @@ export function MonitoringView() {
     );
 
   const data = resource.data;
-
-  // Recall: null ou ausente mostra "—" com "sem gabarito nesta semana"
-  const recallDisplay =
-    data.indicators.recall === null || data.indicators.recall === undefined
-      ? { value: "—", note: "sem gabarito nesta semana" }
-      : {
-          value: formatPercent(data.indicators.recall),
-          note: "cobertura dos casos conhecidos",
-        };
-
-  // Acerto de tipologia: null, ausente ou exatamente 0 mostra "—" com "aguarda o parecer da IA"
-  const typologyDisplay =
-    data.indicators.typology_accuracy === null ||
-    data.indicators.typology_accuracy === undefined ||
-    data.indicators.typology_accuracy === 0
-      ? { value: "—", note: "aguarda o parecer da IA" }
-      : {
-          value: formatPercent(data.indicators.typology_accuracy),
-          note: "concordância com as tipologias",
-        };
 
   // Taxa de alerta
   const alertRateDisplay =
@@ -173,20 +153,28 @@ export function MonitoringView() {
           Monitoramento
         </h1>
         <p className="m-0 text-sm text-muted-foreground">
-          Qualidade da fila medida contra o gabarito do SAML-D, depois que o
-          modelo já deu as notas.
+          O tamanho e a distribuição da fila na semana e o que os analistas
+          confirmaram. Nada nesta tela usa o gabarito do SAML-D.
         </p>
       </div>
 
       <section
-        aria-label="Indicadores de qualidade"
+        aria-label="Indicadores da fila"
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden"
       >
         {[
-          { label: "Recall da fila", ...recallDisplay },
-          { label: "Acerto de tipologia", ...typologyDisplay },
-          { label: "Taxa de alerta", ...alertRateDisplay },
           { label: "Alertas no lote", ...alertsCountDisplay },
+          { label: "Taxa de alerta", ...alertRateDisplay },
+          {
+            label: "Revisados",
+            value: formatNumber(data.indicators.reviewed),
+            note: "alertas com decisão",
+          },
+          {
+            label: "Comunicações aprovadas",
+            value: formatNumber(data.indicators.reported),
+            note: "simulação: nada é enviado",
+          },
         ].map((k) => (
           <div
             key={k.label}
@@ -214,11 +202,11 @@ export function MonitoringView() {
         />
       </section>
 
-      <ModelSection />
+      <FeedbackPanel />
 
       <p className="m-0 text-xs text-muted-foreground">
-        O gabarito só entra depois da fila pronta, para medir. O modelo nunca o
-        lê.
+        As versões do modelo e as métricas de validação, medidas contra o
+        gabarito no período de teste, ficam em Configurações &gt; Modelo.
       </p>
     </div>
   );

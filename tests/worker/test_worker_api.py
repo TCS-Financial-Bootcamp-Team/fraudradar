@@ -28,7 +28,15 @@ def test_queue_detail_replay_and_monitoring(client, loaded, model_dir, no_rules)
     released = client.post("/replay/next-week", json={}).json()
     assert released == {"week": "2023-05-22", "alerts_generated": week.alerts}
 
-    queue = client.get("/alerts", params={**params, "sort": "queue", "size": 100}).json()
+    # A fila lista os alertas do modelo e, no fim, a amostra de controle.
+    listed = client.get("/alerts", params={**params, "sort": "queue", "size": 100}).json()
+    assert listed["total"] == week.alerts + week.exploration
+    assert [a["origin"] for a in listed["items"]] == (
+        ["model"] * week.alerts + ["exploration"] * week.exploration
+    )
+    queue = client.get(
+        "/alerts", params={**params, "sort": "queue", "size": 100, "origin": "model"}
+    ).json()
     assert queue["total"] == week.alerts
     assert [a["queue_position"] for a in queue["items"]] == list(range(1, week.alerts + 1))
     by_score = client.get("/alerts", params={**params, "size": 100}).json()["items"]
@@ -47,8 +55,8 @@ def test_queue_detail_replay_and_monitoring(client, loaded, model_dir, no_rules)
     monitoring = client.get("/monitoring", params=params).json()
     metrics = scalar(loaded, "SELECT metrics FROM weekly_batches")
     indicators = monitoring["indicators"]
-    assert indicators["recall"] == pytest.approx(metrics["recall"])
-    assert indicators["typology_accuracy"] is None  # o modelo não prevê tipologia (frente 3)
+    # o worker mede o recall contra o gabarito, mas ele não vai para as telas
+    assert metrics["recall"] is not None and "recall" not in indicators
     assert indicators["alerts"] == week.alerts
     assert indicators["alert_rate"] == pytest.approx(week.alerts / week.active_accounts)
     rates = {s["name"]: s["value"] for s in monitoring["payment_type_rates"]}

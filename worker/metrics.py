@@ -7,6 +7,12 @@ linha em `ground_truth`; as enviadas pela API não têm rótulo e ficam fora de 
 Conta-semana lavadora: alguma das suas transações tem `label = 1`, com as contas depois do
 CAIXA, como em `fraudradar.model.evaluation.account_weeks`. Assim, somados todos os lotes do
 período de teste, o recall e a precisão da fila são os da ficha (`queue_with_cut`).
+
+A fila aqui é a do modelo (`alerts.origin = 'model'`). As contas da amostra de controle
+(`exploration`) ficam de fora: elas não passaram do corte e entrariam como falso alerta.
+
+Estas métricas são avaliação de desenvolvimento: ficam gravadas no lote, mas a API não as serve
+às telas de operação, que só mostram o que os analistas confirmam (docs/analyst-feedback.md).
 """
 
 from datetime import date
@@ -33,8 +39,9 @@ def week_metrics(conn: Connection, week: date, tx: pd.DataFrame) -> dict:
         ),
         {"start": start, "end": end},
     ).all()
+    # Só a fila do modelo: a amostra de controle é sorteada fora dela e não é alerta.
     queue = conn.execute(
-        text("SELECT account FROM alerts WHERE week = :week"), {"week": week}
+        text("SELECT account FROM alerts WHERE week = :week AND origin = 'model'"), {"week": week}
     ).scalars()
     label = pd.Series(
         [int(row.label) for row in labels], index=[int(row.transaction_id) for row in labels]

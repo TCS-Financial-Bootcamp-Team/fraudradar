@@ -6,10 +6,15 @@ Mudou aqui, mude lá (e vice-versa). Ids e contas saem como texto; score sai de 
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 AlertStatus = Literal["pending", "escalated", "archived", "reported"]
 DecisionType = Literal["archive", "escalate", "report"]
+# Por que o analista arquivou: só o falso positivo confirmado vira rótulo para o retreino.
+ArchiveReason = Literal["false_positive", "insufficient_evidence"]
+# "model" = a conta passou do corte da fila; "exploration" = amostra de controle (sorteada fora
+# da fila, para medir o que o modelo deixa passar).
+AlertOrigin = Literal["model", "exploration"]
 
 
 class Alert(BaseModel):
@@ -23,6 +28,7 @@ class Alert(BaseModel):
     transaction_count: int = Field(ge=0)
     status: AlertStatus
     queue_position: int = Field(ge=1, description="posição na fila da semana (1 = mais suspeita)")
+    origin: AlertOrigin = "model"
 
 
 class AlertQueue(BaseModel):
@@ -94,6 +100,19 @@ class DecisionRequest(BaseModel):
     justification: Annotated[
         str, StringConstraints(strip_whitespace=True, min_length=10, max_length=4000)
     ]
+    # Obrigatório ao arquivar e recusado nas outras decisões (422).
+    archive_reason: ArchiveReason | None = None
+
+    @model_validator(mode="after")
+    def _archive_reason_matches_decision(self) -> "DecisionRequest":
+        if self.decision == "archive" and self.archive_reason is None:
+            raise ValueError(
+                "Informe o motivo do arquivamento: falso positivo confirmado ou sem evidência"
+                " suficiente."
+            )
+        if self.decision != "archive" and self.archive_reason is not None:
+            raise ValueError("O motivo do arquivamento só vale para a decisão de arquivar.")
+        return self
 
 
 class Report(BaseModel):

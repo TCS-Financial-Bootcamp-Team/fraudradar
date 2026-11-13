@@ -7,6 +7,7 @@ import { useJob } from "@/features/jobs/hooks/use-job";
 import { getErrorMessage } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import * as modelsService from "../services/models-service";
+import type { TrainRequest } from "../schemas/models";
 
 const POLL_MS = 3000;
 
@@ -34,18 +35,25 @@ export function useModels() {
   });
   const { track } = tracking;
 
-  const train = useCallback(async () => {
+  const train = useCallback(
+    async (options?: TrainRequest) => {
     setBusy(true);
     try {
-      track(await modelsService.startTraining(dataset));
-      notify.info("Treino enfileirado.");
+      track(await modelsService.startTraining(dataset, options));
+      notify.info(
+        options?.use_feedback
+          ? "Treino com o retorno dos analistas enfileirado."
+          : "Treino enfileirado.",
+      );
     } catch (error) {
       notify.error(getErrorMessage(error));
     } finally {
       setBusy(false);
       reload();
     }
-  }, [dataset, reload, track]);
+    },
+    [dataset, reload, track],
+  );
 
   const promote = useCallback(
     async (version: string) => {

@@ -17,21 +17,26 @@ A normalização/conversão dos valores é responsabilidade da API.
 
 | Requisição                          | Pedido / resposta assumida                                                                                   |
 | ----------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| GET /alerts                         | Query: week obrigatória; status, country e search opcionais; page (base 1), size=10, sort=score_desc. Resposta: queueSchema.     |
+| GET /alerts                         | Query: week obrigatória; status, country, search e origin (model \| exploration) opcionais; page (base 1), size=10, sort=score_desc. Resposta: queueSchema; a amostra de controle vem sempre no fim. |
 | GET /alerts/{id}                    | alertDetailSchema: resumo, contributions, rules, movements e assessment anulável.                            |
 | GET /alerts/{id}/graph              | graphSchema: nodes e edges, com IDs/labels de contas pseudonimizados. Até dois saltos.                       |
 | POST /alerts/{id}/assessment        | Pedido {}; resposta assessmentSchema com content e sources {title, excerpt}.                                 |
-| POST /alerts/{id}/decision          | decisionSchema: decision e justification; resposta alertSchema atualizado.                                   |
+| POST /alerts/{id}/decision          | decisionSchema: decision, justification e archive_reason (obrigatório só ao arquivar: false_positive \| insufficient_evidence; nas outras decisões, 422). Resposta alertSchema atualizado. |
 | GET /alerts/{id}/report             | reportSchema: alert_id, content, status, updated_at.                                                         |
 | POST /alerts/{id}/report/approve    | approvalSchema: {content}; resposta reportSchema atualizado. A edição é persistida junto da aprovação.       |
 | POST /alerts/{id}/chat              | chatRequestSchema; resposta chatResponseSchema.                                                              |
 | GET /weeks                          | weeksSchema: {current, next_release, items}. Todos os períodos processados entram; next_release é sempre nulo. |
 | POST /replay/next-week              | Compatibilidade: replaySchema; não controla mais a visibilidade nem é chamado pela UI.                       |
-| GET /monitoring?week=               | monitoringSchema, usado pelo dashboard e pela tela de qualidade.                                             |
+| GET /monitoring?week=               | monitoringSchema, usado pelo dashboard e pela tela de monitoramento. Sem recall: ver abaixo.                 |
+| GET /feedback/summary?from=&to=     | feedbackSummarySchema: o retorno dos analistas (ver "Retorno dos analistas").                                |
 | GET /health                         | healthSchema, compatível com o contrato anterior.                                                            |
 
-Status de alerta: pending, escalated, archived, reported.
-Decisão: archive, escalate, report. Justificativa: 10–4000 caracteres.
+Status de alerta: pending, escalated, archived, reported. Origem do alerta: `model` (passou do
+corte da fila) ou `exploration` (amostra de controle, sorteada abaixo do corte; a fila mostra o
+selo "Amostra de controle" e ela fica fora das contagens de alertas e das contas suspeitas).
+Decisão: archive, escalate, report. Justificativa: 10–4000 caracteres. Motivo do arquivamento:
+"Falso positivo confirmado" (`false_positive`, vira rótulo para o retreino) ou "Sem evidência
+suficiente" (`insufficient_evidence`, não vira rótulo).
 Comunicação: draft ou approved; content: 30–20000 caracteres para aprovação.
 
 A fila retorna `{items, total, countries}`. `total` é o total filtrado antes da
@@ -49,7 +54,7 @@ contribuições já calculadas. O frontend não calcula features ou score.
 | `GET /accounts/suspicious` | Query `from`, `to`, `status`, `search`, `page`, `size`, `sort`; resposta `suspiciousAccountsSchema`. |
 | `GET /accounts/{account}/alerts` | resposta `{items: alertSchema[]}`, do período mais recente ao mais antigo. |
 | `GET /processing/settings` | `processingSettingsSchema` do conjunto indicado por `X-Dataset`. |
-| `PUT /processing/settings` | `{interval_minutes: 5..1440, enabled, demo_mode}`; resposta atualizada. |
+| `PUT /processing/settings` | `{interval_minutes: 5..1440, enabled, demo_mode, exploration_per_week: 0..50}`; resposta atualizada. `exploration_per_week` é a amostra de controle (0 desliga). |
 | `POST /datasets/{slug}/simulate` | `{transactions: 50..5000, days: 1..7, inject_pattern}`; `jobSchema` com 202. |
 | `DELETE /ingestions/{id}` | somente `source=simulation`; `jobSchema` de recomputação com 202. |
 
@@ -64,13 +69,29 @@ para em `done`/`failed`, notifica e recarrega o contexto do app.
 Monitoramento retorna:
 
 - week;
-- indicators: alerts, reviewed, reported, alert_rate, flagged_amount,
-  recall (anulável), typology_accuracy (anulável);
-- weeks, typologies, countries, country_rates, payment_type_rates, recall_series e score_histogram: listas {name, value};
+- indicators: alerts, reviewed, reported, alert_rate, flagged_amount (só a fila do modelo);
+- weeks, typologies, countries, country_rates, payment_type_rates e score_histogram: listas {name, value};
 - status_counts: contagem por status do alerta ({pending, escalated, archived, reported}).
 
-A série semanal inclui o histórico até a semana de referência. Métricas de
-qualidade são resultados de avaliação, sem expor rótulos ao modelo ou à UI.
+A série semanal inclui o histórico até a semana de referência. **Não há recall nem acerto de
+tipologia nas telas de operação**: uma plataforma de verdade não tem gabarito para medi-los. O
+worker continua gravando essas métricas no lote (avaliação de desenvolvimento), e a validação
+contra o gabarito de cada versão do modelo aparece só em Configurações > Modelo.
+
+### Retorno dos analistas
+
+`GET /feedback/summary?from=&to=` (conjunto pelo `X-Dataset`; datas quaisquer, vale a segunda):
+
+- `labels`: `{total, laundering, false_positive, analyst, simulated, model, exploration}`;
+- `confirmed_precision`: alertas da fila confirmados como lavagem ÷ alertas da fila com decisão
+  conclusiva; `weekly_confirmed_precision`: a mesma taxa por semana (`{week, name, ...}`);
+- `control_sample`: `{sampled, reviewed, found_outside_queue}` (lavagem achada entre as contas
+  sorteadas fora da fila);
+- `active_version` e `new_since_active` (rótulos criados depois do treino da versão ativa);
+- `retrain`: `{can_retrain, reason, can_retrain_with_simulated, reason_with_simulated}`.
+
+Toda taxa é `{value (null sem casos), numerator, denominator, low_sample}`; `low_sample` é
+verdadeiro com menos de 20 casos, e a tela avisa "amostra pequena".
 
 O rascunho da comunicação é revisado e aprovado diretamente no detalhe do alerta
 (`/alerts/{id}`), consultando `GET /alerts/{id}/report` e gravando a aprovação via
@@ -152,9 +173,9 @@ Implementado em POST /ingestion/csv e /ingestion/transactions; as regras ficam e
 | `POST /datasets/{slug}/process` | sem corpo; enfileira o processamento e responde `jobSchema` com 202 |
 | `GET /jobs?dataset=` | até 20 trabalhos mais recentes; filtro por slug opcional |
 | `GET /jobs/{id}` | um `jobSchema`; 404 quando não existe |
-| `GET /datasets/{slug}/models` | `modelsSchema`: `{dataset, active_version, versions[], can_train, train_blocked_reason, training_job}`. Cada versão: `{version, source: "official" \| "dataset", created_at, trees, history_start, train_end, metrics{pr_auc, recall_at_fpr, f1, queue_recall, queue_precision, innocents_per_week}, active}`. `can_train`/`train_blocked_reason` vêm do resumo do gabarito que o worker grava em `public.datasets` (a API não lê `ground_truth`). 404 conjunto inexistente |
-| `POST /datasets/{slug}/train` | sem corpo; enfileira o treino e responde `jobSchema` (`kind: "train"`) com 202. 409 com o motivo em português: sem gabarito, menos de 6 semanas rotuladas, sem lavagem ou treino já na fila |
-| `POST /datasets/{slug}/models/{version}/promote` | sem corpo; torna a versão a ativa do conjunto e responde `modelsSchema` com 200. `{version}` é `lightgbm_vN` (oficial: volta a seguir o oficial mais novo) ou `<slug>/vN` (retreino do conjunto; a barra vai codificada, `%2F`). 404 versão inexistente ou de outro conjunto; 409 já é a ativa |
+| `GET /datasets/{slug}/models` | `modelsSchema`: `{dataset, active_version, versions[], can_train, train_blocked_reason, training_job, training_feedback}`. Cada versão: `{version, source: "official" \| "dataset", created_at, trees, history_start, train_end, metrics{pr_auc, recall_at_fpr, f1, queue_recall, queue_precision, innocents_per_week}, active, comparison, feedback}`. `metrics` são de validação, no período de teste rotulado. `comparison` (anulável, fichas antigas não têm): `{active_version, period{start, end, weeks}, candidate{pr_auc, queue_recall, queue_precision, innocents_per_week}, active{...}, recall_difference, tolerance, gate{passed, reason}}`, a versão nova e a ativa nas mesmas semanas de teste. `feedback` (anulável): o retorno usado no treino. `training_feedback`: `{analyst{laundering, false_positive}, simulated{...}, blocked_reason, blocked_reason_with_simulated}`, o retorno de períodos fechados disponível para o próximo treino. `can_train`/`train_blocked_reason` vêm do resumo do gabarito que o worker grava em `public.datasets` (a API não lê `ground_truth`). 404 conjunto inexistente |
+| `POST /datasets/{slug}/train` | corpo opcional `{use_feedback: false, include_simulated: false}`; enfileira o treino e responde `jobSchema` (`kind: "train"`) com 202. 409 com o motivo em português: sem gabarito, menos de 6 semanas rotuladas, sem lavagem, treino já na fila ou, com `use_feedback`, menos de 50 rótulos de períodos fechados ou nenhum de uma das classes. 422 `include_simulated` sem `use_feedback` |
+| `POST /datasets/{slug}/models/{version}/promote` | sem corpo; torna a versão a ativa do conjunto e responde `modelsSchema` com 200. `{version}` é `lightgbm_vN` (oficial: volta a seguir o oficial mais novo) ou `<slug>/vN` (retreino do conjunto; a barra vai codificada, `%2F`). 404 versão inexistente ou de outro conjunto; 409 já é a ativa ou a trava de promoção bloqueou a versão (o `detail` traz o motivo) |
 
 **Nome das versões**: o modelo oficial é `lightgbm_vN`; o retreino de um conjunto é `<slug>/vN`
 (`models/<slug>/lightgbm_vN.*` no disco). É assim em `active_model_version`, em
@@ -188,7 +209,9 @@ Com NEXT_PUBLIC_USE_MOCKS=true, cada serviço usa seu arquivo services/mocks.ts.
 Não há fallback silencioso no modo real. Fixtures começam na semana 2026-10-19,
 com dados também em 2026-10-12; todos os períodos mockados ficam visíveis. Alterações de
 decisão, parecer e aprovação vivem na memória da aba e reiniciam ao recarregar.
-As taxas de qualidade são exemplos, não resultados de treinamento.
+As taxas e as versões do modelo são exemplos, não resultados de treinamento. Os status iniciais
+dos alertas simulados contam como decisões (arquivado = falso positivo confirmado), e cada semana
+simulada tem 3 contas na amostra de controle.
 
 Autenticação Supabase continua real mesmo com mocks. Nenhuma credencial ou
 sessão fictícia é criada para contornar a proteção das rotas.

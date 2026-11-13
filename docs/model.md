@@ -42,9 +42,10 @@ grupo `ml`: os testes do modelo e do worker rodam lá também.
 Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/lightgbm_vN.txt` e
 `.json`. O desenho está em [external-data.md](external-data.md#retreino).
 
-- **Pedido**: em Monitoramento, "Treinar nova versão" chama `POST /datasets/{slug}/train` e o
-  `worker serve` executa o trabalho `train` (`worker/train_job.py`), com progresso em
-  `GET /jobs/{id}`. A API recusa (409, com o motivo em português) quando o conjunto não tem
+- **Pedido**: em Configurações > Modelo, "Treinar nova versão" chama
+  `POST /datasets/{slug}/train` e o `worker serve` executa o trabalho `train`
+  (`worker/train_job.py`), com progresso em `GET /jobs/{id}`. A tela pergunta se o retorno dos
+  analistas entra (`use_feedback`, e `include_simulated` para o do analista simulado). A API recusa (409, com o motivo em português) quando o conjunto não tem
   gabarito, tem menos de 6 semanas rotuladas (`MIN_LABELED_WEEKS`), não tem nenhuma lavagem ou já
   tem um treino na fila. A regra é `fraudradar.model.eligibility`. A API só lê `public.datasets.labeled_weeks` e
   `has_laundering` (o worker mede e grava depois de `load`, de uma importação com gabarito e de
@@ -65,6 +66,19 @@ Cada conjunto (`public.datasets`) tem as próprias versões em `models/<slug>/li
   retreino se chama `<slug>/vN` e o oficial `lightgbm_vN`, então nunca colidem. A ficha tem os
   mesmos campos de métrica da oficial.
   O retreino não copia nada para `lightgbm_model.txt`.
+- **Retorno dos analistas** (`docs/analyst-feedback.md`): com `use_feedback`, os rótulos das
+  decisões dos analistas em semanas fechadas entram como sinal a mais. A divisão passa a ser a do
+  retorno (`training.resolve_feedback_split`: treino até o domingo da última semana com retorno,
+  com pelo menos `MIN_TEST_WEEKS` = 4 semanas de teste depois), o rótulo da conta na semana vira
+  rótulo de transação (`dataset_data.feedback_transactions`) e a transação que concorda com o
+  gabarito pesa `FEEDBACK_WEIGHT` = 3 no treino; o gabarito sempre ganha. A API recusa (409) com
+  menos de `MIN_FEEDBACK_LABELS` = 50 rótulos ou sem as duas classes. A ficha ganha o bloco
+  `feedback`.
+- **Trava de promoção**: todo treino também mede a versão ativa nas mesmas semanas de teste da
+  versão nova, fora da amostra das duas (`training.compare_with_active`), e grava o bloco
+  `comparison` na ficha. A versão nova passa se achar na fila no máximo
+  `PROMOTION_RECALL_TOLERANCE` = 1 p.p. a menos de lavadoras que a ativa; senão a promoção
+  responde 409 com o motivo. Ficha sem `comparison` (de antes da trava) promove como antes.
 - **Promoção**: a versão nova não é usada sozinha. `POST /datasets/{slug}/models/{versão}/promote`
   grava `datasets.active_model_version` e uma linha em `audit_log` (`model_promoted`, com a versão
   anterior). Promover o modelo oficial limpa o campo (volta a seguir o oficial mais novo). As

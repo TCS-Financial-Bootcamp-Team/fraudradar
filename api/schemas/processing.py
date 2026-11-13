@@ -9,6 +9,8 @@ class ProcessingSettingsUpdate(BaseModel):
     interval_minutes: int = Field(ge=5, le=1440)
     enabled: bool
     demo_mode: bool
+    # Amostra de controle: contas por semana sorteadas fora da fila do modelo (0 desliga).
+    exploration_per_week: int = Field(ge=0, le=50)
 
 
 class ProcessingSettings(ProcessingSettingsUpdate):

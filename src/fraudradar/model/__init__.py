@@ -22,3 +22,20 @@ TARGET_FPR = 0.0013  # 0,13% de falso positivo, a régua do artigo do SAML-D
 # Conjunto de dados do modelo oficial. A ficha diz em que conjunto o modelo treinou
 # (`training_dataset`); ficha sem o campo é de antes dele e é a do oficial.
 OFFICIAL_DATASET = "saml-d"
+
+# Retorno dos analistas no retreino (docs/analyst-feedback.md).
+# Rótulos de períodos fechados que o retreino com retorno exige: com menos, meia dúzia de decisões
+# mudaria o peso de transações demais para o pouco que se sabe.
+MIN_FEEDBACK_LABELS = 50
+# Semanas com gabarito que sempre sobram depois do corte do treino, para a versão nova ter onde
+# ser medida mesmo quando o retorno chega até o fim dos dados.
+MIN_TEST_WEEKS = 4
+# O analista decide por conta e semana; o modelo aprende por transação. A lavagem confirmada vale
+# para as transações de maior nota da conta na semana, as que o analista viu como evidência.
+FEEDBACK_POSITIVE_TOP = 5
+# Peso, no treino, da transação com rótulo do analista que concorda com o gabarito: falso positivo
+# confirmado é o caso difícil que o modelo errou; lavagem confirmada, o que ele não pode perder.
+FEEDBACK_WEIGHT = 3.0
+# Trava de promoção: a versão nova pode achar, no máximo, 1 ponto percentual a menos de contas
+# lavadoras na fila que a versão ativa, no mesmo período de teste.
+PROMOTION_RECALL_TOLERANCE = 0.01

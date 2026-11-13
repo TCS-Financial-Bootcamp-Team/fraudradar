@@ -54,12 +54,14 @@ def update_settings(
         conn.execute(
             text(
                 "INSERT INTO public.processing_settings"
-                " (dataset, interval_minutes, enabled, demo_mode, next_run_at, updated_at)"
-                " VALUES (:dataset, :interval, :enabled, :demo,"
+                " (dataset, interval_minutes, enabled, demo_mode, exploration_per_week,"
+                " next_run_at, updated_at)"
+                " VALUES (:dataset, :interval, :enabled, :demo, :exploration,"
                 " now() + make_interval(mins => :interval), now())"
                 " ON CONFLICT (dataset) DO UPDATE SET"
                 " interval_minutes = EXCLUDED.interval_minutes, enabled = EXCLUDED.enabled,"
                 " demo_mode = EXCLUDED.demo_mode,"
+                " exploration_per_week = EXCLUDED.exploration_per_week,"
                 " next_run_at = CASE WHEN EXCLUDED.enabled"
                 "   THEN now() + make_interval(mins => EXCLUDED.interval_minutes)"
                 "   ELSE public.processing_settings.next_run_at END, updated_at = now()"
@@ -70,6 +72,7 @@ def update_settings(
                 "interval": request.interval_minutes,
                 "enabled": request.enabled,
                 "demo": request.demo_mode,
+                "exploration": request.exploration_per_week,
             },
         )
         .mappings()

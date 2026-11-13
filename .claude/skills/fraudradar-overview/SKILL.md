@@ -31,7 +31,9 @@ O sistema imita o trabalho de um setor de PLD de banco:
    as fontes.
 3. O **analista** (pessoa) lê o alerta, as evidências e o parecer, e decide:
    **arquivar**, **aprofundar** ou **comunicar ao COAF**. A justificativa é
-   obrigatória e o nome do analista fica gravado.
+   obrigatória e o nome do analista fica gravado. Ao arquivar, ele diz o motivo
+   (falso positivo confirmado ou sem evidência suficiente); a decisão conclusiva vira
+   **retorno dos analistas**, que o retreino pode usar (`docs/analyst-feedback.md`).
 4. Comunicar gera um **rascunho de comunicação** ao COAF, que precisa ser
    **aprovado**; aprovado, o alerta se encerra. Toda ação vai para a **auditoria**.
 
@@ -74,8 +76,13 @@ Pontos que confundem quem chega:
   não a transação. O score de transação existe (`transaction_scores`), mas o analista
   vê contas.
 - `week` é sempre a **segunda-feira** da semana (o banco tem `CHECK`).
-- O modelo **nunca** lê `ground_truth`. Só o worker lê, e só para calcular as
-  métricas de monitoramento (recall, acerto de tipologia).
+- O modelo **nunca** lê `ground_truth` para dar nota. Leem o gabarito: o treino e a
+  avaliação (`src/fraudradar/model`) e, no worker, `worker/metrics.py` (métricas do lote),
+  `worker/labels.py` e `worker/simulate_analyst.py`. A API nunca lê.
+- O recall e o acerto de tipologia que o worker grava no lote não vão para as telas de
+  operação: uma plataforma de verdade não tem gabarito. As telas mostram o que os
+  analistas confirmam (precisão confirmada) e o que a **amostra de controle** (contas
+  sorteadas abaixo do corte) achou fora da fila.
 - O LLM **nunca** recebe número de conta: a conta é pseudonimizada antes do prompt.
 
 ## 3. Domínio em poucas linhas
@@ -160,9 +167,12 @@ fraudradar/
 │   └── schemas/             Pydantic, espelho do zod do front
 │
 ├── worker/                  CLI em lote: python -m worker load | batch --week AAAA-MM-DD |
-│                            backfill | replay (README, seção Worker)
+│                            backfill | replay | serve | labels | simulate-analyst |
+│                            feedback-eval (README, seção Worker)
 ├── db/
-│   ├── init/                001_extensions.sql, 002_tables.sql (o esquema inteiro, comentado)
+│   ├── init/                001_extensions.sql, 002_tables.sql (o esquema inteiro, comentado),
+│   │                        003 a 005 (conjuntos, trabalhos, processamento, conexões)
+│   ├── upgrades/            atualização de banco que já existe (006_analyst_feedback.sql)
 │   └── rules/               regras de cenário em SQL (NNN_rule_name.sql), uma por arquivo
 ├── rag/                     textos da base do RAG (lei, circular, tipologias, manual)
 ├── data/                    SAML-D.csv e derivados, fora do git
@@ -193,7 +203,8 @@ fraudradar/
 
 ## 7. Banco (`db/init/002_tables.sql`)
 
-O esquema roda só na criação do volume. Mudou o SQL? `docker compose down -v`.
+O esquema roda só na criação do volume. Mudou o SQL? `docker compose down -v`, ou o script
+idempotente de `db/upgrades/` para manter os dados (README, "Atualizar um banco que já existia").
 
 | Tabela | Quem grava | O que guarda |
 |---|---|---|
@@ -204,10 +215,11 @@ O esquema roda só na criação do volume. Mudou o SQL? `docker compose down -v`
 | `model_versions` | worker | versões do modelo: features, limiar, métricas; só uma `active` |
 | `transaction_scores` | worker | score de cada transação |
 | `weekly_batches` | worker; API marca `released_at` | uma linha por semana processada, com as métricas contra o gabarito |
-| `alerts` | worker; API muda `status` | fila por conta e semana: score, posição, países, tipologia prevista, totais |
+| `alerts` | worker; API muda `status` | fila por conta e semana: score, posição, países, tipologia prevista, totais; `origin` = `model` (fila) ou `exploration` (amostra de controle, fora das contagens) |
 | `evidence` | worker | contribuições SHAP, regras, sinais semanais, grafo |
 | `assessments` | worker ou API | parecer do LLM, com fontes e validação |
-| `decisions` | API | arquivar, aprofundar ou comunicar, com analista e justificativa |
+| `decisions` | API | arquivar, aprofundar ou comunicar, com analista, justificativa e `archive_reason` (motivo do arquivamento) |
+| `analyst_labels` | API (e o analista simulado) | o rótulo que a última decisão de cada alerta deixou (1 lavagem confirmada, 0 falso positivo confirmado), com origem e fonte; nunca se mistura com `ground_truth` |
 | `reports` | API | rascunho da comunicação ao COAF e aprovação |
 | `rag_documents` | carga do RAG | trechos dos textos com embedding (pgvector, HNSW) |
 | `audit_log` | API | quem fez o quê e quando |
@@ -228,13 +240,15 @@ token do Supabase (`Authorization: Bearer ...`); em desenvolvimento,
 | `GET /health` | saúde: banco, modelo e LLM (`ok` ou `degraded`); sem login |
 | `GET /weeks` | semanas liberadas pelo replay e a próxima a liberar (`next_release`) |
 | `POST /replay/next-week` | libera a próxima semana já processada |
-| `GET /alerts?week=` | fila paginada, filtros `status` e `country` |
+| `GET /alerts?week=` | fila paginada, filtros `status`, `country`, `search` e `origin` |
 | `GET /alerts/{id}` | detalhe: contribuições, regras, movimentações, último parecer |
 | `GET /alerts/{id}/graph` | vizinhança de 2 saltos da conta na semana |
-| `POST /alerts/{id}/decision` | arquivar, aprofundar ou comunicar |
+| `POST /alerts/{id}/decision` | arquivar (com o motivo), aprofundar ou comunicar; grava o rótulo do retorno |
 | `GET /alerts/{id}/report` | rascunho da comunicação |
 | `POST /alerts/{id}/report/approve` | aprova a comunicação e encerra o alerta |
-| `GET /monitoring?week=` | indicadores e séries da semana |
+| `GET /monitoring?week=` | indicadores e séries da semana (sem recall) |
+| `GET /feedback/summary` | retorno dos analistas: precisão confirmada, amostra de controle, retreino |
+| `GET /datasets/{slug}/models`, `POST .../train`, `POST .../models/{v}/promote` | versões, retreino (com o retorno se pedido) e promoção, com a trava |
 | `POST /alerts/{id}/assessment`, `/chat` | parecer e chat da IA |
 | `POST /ingestion/csv`, `/ingestion/transactions` | entrada de transações, tudo ou nada |
 | `/ingestion/connections` | fontes Postgres externas |
@@ -247,9 +261,9 @@ Detalhes (limites, códigos de erro, padrões de código): `README.md` e `api/AG
 |---|---|---|
 | Visão geral | `/dashboard` | `features/alerts` |
 | Fila de alertas e detalhe | `/alerts`, `/alerts/[id]` | `features/alerts` |
-| Monitoramento | `/monitoring` | `features/alerts` |
+| Monitoramento (com o retorno dos analistas) | `/monitoring` | `features/alerts`, `features/feedback` |
 | Fontes de dados | `/ingestion` | `features/ingestion` |
-| Configurações | `/settings` | `features/settings` |
+| Configurações (perfil, aparência, processamento, modelo, sistema) | `/settings` | `features/settings`, `features/processing`, `features/models` |
 | Login, cadastro, nova senha | `/login`, `/signup`, `/reset-password` | `features/auth` |
 | Assistente (botão flutuante) | todas as telas logadas | `features/assistant` |
 
@@ -317,6 +331,12 @@ tarefa.
 ## 14. Estado em 06/11/2026
 
 Confira com `git log` antes de confiar; isto muda rápido.
+
+- **Retorno dos analistas (branch `feat/analyst-feedback`, registros 107 e 108)**: motivo
+  obrigatório ao arquivar, rótulos em `analyst_labels`, amostra de controle, retreino com o
+  retorno e trava de promoção, analista simulado e `feedback-eval`, recall fora das telas.
+  No SAML-D o retorno não mudou o modelo de forma mensurável (números em
+  `docs/analyst-feedback.md`).
 
 - **Pronto**: API (fila, detalhe, grafo, decisões, comunicação, monitoramento, replay,
   ingestão); front (todas as telas, também com dados simulados); esquema do banco;

@@ -25,10 +25,16 @@ def test_processing_settings_are_editable_and_audited(client, seed):
     current = client.get("/processing/settings")
     assert current.status_code == 200
     assert current.json()["interval_minutes"] == 60
+    assert current.json()["exploration_per_week"] == 5  # a amostra de controle nasce ligada
 
     updated = client.put(
         "/processing/settings",
-        json={"interval_minutes": 15, "enabled": False, "demo_mode": True},
+        json={
+            "interval_minutes": 15,
+            "enabled": False,
+            "demo_mode": True,
+            "exploration_per_week": 12,
+        },
     )
 
     assert updated.status_code == 200
@@ -36,7 +42,28 @@ def test_processing_settings_are_editable_and_audited(client, seed):
     assert updated.json()["interval_minutes"] == 15
     assert updated.json()["enabled"] is False
     assert updated.json()["demo_mode"] is True
+    assert updated.json()["exploration_per_week"] == 12
+    assert client.get("/processing/settings").json()["exploration_per_week"] == 12
     assert seed.count("audit_log", "action = 'processing_settings_updated'") == 1
+    audit = seed.row("SELECT details FROM audit_log")
+    assert audit["details"]["exploration_per_week"] == 12
+
+
+def test_control_sample_size_is_between_0_and_50(client, seed):
+    def save(size):
+        body = {"interval_minutes": 60, "enabled": True, "demo_mode": False}
+        return client.put("/processing/settings", json={**body, "exploration_per_week": size})
+
+    assert save(0).json()["exploration_per_week"] == 0  # 0 desliga a amostra
+    assert save(50).status_code == 200
+    assert save(51).status_code == 422
+    assert save(-1).status_code == 422
+    missing = client.put(
+        "/processing/settings",
+        json={"interval_minutes": 60, "enabled": True, "demo_mode": False},
+    )
+    assert missing.status_code == 422
+    assert client.get("/processing/settings").json()["exploration_per_week"] == 50
 
 
 def test_simulate_endpoint_enqueues_the_validated_job(client):

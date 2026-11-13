@@ -16,6 +16,7 @@ import {
 } from "../src/features/auth/schemas/auth";
 import {
   decisionSchema,
+  decisionPayload,
   approvalSchema,
   monitoringSchema,
 } from "../src/features/alerts/schemas/alerts";
@@ -134,10 +135,46 @@ test("encaminhamentos exigem justificativa e aprovação exige um relato revisá
   assert.ok(
     decisionSchema.safeParse({
       decision: "archive",
+      archive_reason: "false_positive",
       justification: "O padrão foi esclarecido após revisão das evidências.",
     }).success,
   );
   assert.equal(approvalSchema.safeParse({ content: "curto" }).success, false);
+});
+
+test("arquivar exige o motivo, e o motivo só vai para a API junto do arquivamento", () => {
+  const justification = "O padrão foi esclarecido após revisão das evidências.";
+  const missing = decisionSchema.safeParse({ decision: "archive", justification });
+  assert.equal(missing.success, false);
+  assert.deepEqual(missing.error?.issues[0].path, ["archive_reason"]);
+  assert.match(missing.error?.issues[0].message ?? "", /motivo do arquivamento/);
+  assert.equal(
+    decisionSchema.safeParse({
+      decision: "archive",
+      archive_reason: "sem tempo",
+      justification,
+    }).success,
+    false,
+  );
+  for (const reason of ["false_positive", "insufficient_evidence"] as const) {
+    const parsed = decisionSchema.parse({
+      decision: "archive",
+      archive_reason: reason,
+      justification,
+    });
+    assert.deepEqual(decisionPayload(parsed), {
+      decision: "archive",
+      archive_reason: reason,
+      justification,
+    });
+  }
+  // um motivo esquecido no formulário ao trocar para comunicar não chega à API (que daria 422)
+  const report = decisionSchema.parse({
+    decision: "report",
+    archive_reason: "false_positive",
+    justification,
+  });
+  assert.deepEqual(decisionPayload(report), { decision: "report", justification });
 });
 
 test("credenciais só entram no formulário de conexão; resposta pública contém apenas máscara", () => {
@@ -228,7 +265,7 @@ test("números de contas não apagam valores e durações iguais aos identificad
   );
 });
 
-test("monitoringSchema valida novos campos aditivos e aceita recall/acurácia nulos", () => {
+test("monitoringSchema não tem recall: as telas de operação não usam o gabarito", () => {
   const payload = {
     week: "2026-10-19",
     indicators: {
@@ -237,8 +274,8 @@ test("monitoringSchema valida novos campos aditivos e aceita recall/acurácia nu
       reported: 2,
       alert_rate: 0.05,
       flagged_amount: 150000,
-      recall: null,
-      typology_accuracy: null,
+      recall: 0.9,
+      typology_accuracy: 0.5,
     },
     weeks: [{ name: "19 out", value: 10 }],
     typologies: [{ name: "Fan-out", value: 10 }],
@@ -263,10 +300,11 @@ test("monitoringSchema valida novos campos aditivos e aceita recall/acurácia nu
       reported: 2,
     },
   };
+  // Um campo de gabarito que viesse da API seria descartado, nunca exibido.
   const parsed = monitoringSchema.parse(payload);
-  assert.equal(parsed.indicators.recall, null);
-  assert.equal(parsed.indicators.typology_accuracy, null);
+  assert.equal("recall" in parsed.indicators, false);
+  assert.equal("typology_accuracy" in parsed.indicators, false);
+  assert.equal("recall_series" in parsed, false);
   assert.equal(parsed.score_histogram.length, 8);
   assert.equal(parsed.status_counts.pending, 5);
-  assert.equal(parsed.recall_series[0].value, 0.92);
 });
