@@ -519,9 +519,9 @@ export function AuthScreen({
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-sidebar-muted">{t("brand.statRecall")}</dt>
+              <dt className="text-xs text-sidebar-muted">{t("brand.statQueue")}</dt>
               <dd className="m-0 text-xl font-medium text-sidebar-foreground">
-                95,1%
+                300
               </dd>
             </div>
           </dl>
