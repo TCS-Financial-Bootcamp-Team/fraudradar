@@ -1,1 +1,25 @@
-{}
+{
+  "subtitle": "All processed periods",
+  "title": "Suspicious accounts",
+  "search": "Search account",
+  "filterStatus": "Filter by status",
+  "allStatuses": "All statuses",
+  "from": "Start period",
+  "to": "End period",
+  "unavailable": "Accounts unavailable.",
+  "none": "No accounts found.",
+  "columns": {
+    "account": "Account",
+    "maxScore": "Highest score",
+    "latestScore": "Latest score",
+    "periods": "Periods",
+    "firstLast": "First / last",
+    "country": "Main country",
+    "flagged": "Flagged amount",
+    "status": "Status"
+  },
+  "count": "{count, plural, =1 {# account} other {# accounts}}",
+  "previous": "Previous",
+  "next": "Next",
+  "page": "Page {page} of {pages}"
+}

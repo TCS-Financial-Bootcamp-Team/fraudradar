@@ -1,1 +1,20 @@
-{}
+{
+  "title": "System",
+  "refresh": "Refresh system status",
+  "refreshSr": "Refresh",
+  "database": "Database",
+  "model": "Model",
+  "llm": "LLM key",
+  "api": "API",
+  "connected": "Connected",
+  "down": "Down",
+  "unavailable": "Unavailable",
+  "configured": "Configured",
+  "notConfigured": "Not configured",
+  "unknown": "Unknown",
+  "unreachable": "Unreachable",
+  "checking": "Checking…",
+  "querying": "Querying…",
+  "apiUnreachable": "API unreachable: {message}",
+  "apiUnreachableShort": "API unreachable"
+}

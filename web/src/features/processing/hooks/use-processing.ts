@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslations } from "next-intl";
 import { useAppContext } from "@/components/app-context";
 import { useResource } from "@/hooks/use-resource";
 import { useJob } from "@/features/jobs/hooks/use-job";
+import { useJobMessage } from "@/features/jobs/hooks/use-job-message";
 import * as jobsService from "@/features/jobs/services/jobs-service";
 import { jobIsOpen, type Job } from "@/features/jobs/schemas/jobs";
 import { getErrorMessage } from "@/lib/format";
@@ -15,6 +17,9 @@ import type {
 import * as service from "../services/processing-service";
 
 export function useProcessing() {
+  const t = useTranslations("processing");
+  const tj = useTranslations("jobs.fallback");
+  const jobMessage = useJobMessage();
   const { dataset, revision, refresh } = useAppContext();
   const resource = useResource(
     useCallback(
@@ -35,8 +40,8 @@ export function useProcessing() {
     resume: running,
     onFinished: (finished) => {
       if (finished.status === "done")
-        notify.success(finished.message ?? "Trabalho concluído.");
-      else notify.error(finished.message ?? "O trabalho falhou.");
+        notify.success(jobMessage(finished) ?? tj("done"));
+      else notify.error(jobMessage(finished) ?? tj("failed"));
       refresh();
       reload();
     },
@@ -60,7 +65,7 @@ export function useProcessing() {
     saveSettings: async (update: ProcessingSettingsUpdate) => {
       try {
         await service.saveProcessingSettings(update);
-        notify.success("Configuração de processamento salva.");
+        notify.success(t("saved"));
         resource.reload();
       } catch (error) {
         notify.error(getErrorMessage(error));

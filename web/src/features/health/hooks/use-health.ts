@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 
 import type { Health } from "../schemas/health";
 import { fetchHealth } from "../services/health-service";
@@ -11,6 +12,7 @@ type HealthState =
   | { status: "error"; message: string };
 
 export function useHealth() {
+  const t = useTranslations("health");
   const [state, setState] = useState<HealthState>({ status: "loading" });
   const [version, setVersion] = useState(0);
 
@@ -22,11 +24,11 @@ export function useHealth() {
         if (controller.signal.aborted) return;
         setState({
           status: "error",
-          message: error instanceof Error ? error.message : "API inacessível",
+          message: error instanceof Error ? error.message : t("apiUnreachableShort"),
         });
       });
     return () => controller.abort();
-  }, [version]);
+  }, [version, t]);
 
   const reload = useCallback(() => {
     setState({ status: "loading" });

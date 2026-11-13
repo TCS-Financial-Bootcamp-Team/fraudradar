@@ -1,1 +1,31 @@
-{}
+{
+  "never": "not run yet",
+  "last": "Last: {when}",
+  "next": "Next: {when}",
+  "autoOff": "automation off",
+  "working": "Processing…",
+  "simulate": "Simulate transactions",
+  "processNow": "Process now",
+  "simulator": {
+    "title": "Simulate new transactions",
+    "hint": "Dates start after the dataset's last day.",
+    "close": "Close simulator",
+    "count": "Number of transactions",
+    "days": "Simulated days",
+    "fanOut": "Inject a fan-out pattern for the demo",
+    "cancel": "Cancel",
+    "submit": "Simulate and process"
+  },
+  "settings": {
+    "title": "Processing",
+    "currentDataset": "current dataset",
+    "unavailable": "Settings unavailable.",
+    "interval": "Automatic interval (minutes)",
+    "auto": "Automatic processing on",
+    "demo": "Demo mode",
+    "sample": "Control sample per week",
+    "sampleHint": "Accounts drawn from below the cutoff each week, for analysts to review and for the system to measure the laundering the model lets through. 0 turns it off.",
+    "save": "Save processing settings"
+  },
+  "saved": "Processing settings saved."
+}

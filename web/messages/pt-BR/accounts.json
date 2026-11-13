@@ -1,1 +1,25 @@
-{}
+{
+  "subtitle": "Todos os períodos processados",
+  "title": "Contas suspeitas",
+  "search": "Buscar conta",
+  "filterStatus": "Filtrar por status",
+  "allStatuses": "Todos os status",
+  "from": "Período inicial",
+  "to": "Período final",
+  "unavailable": "Contas indisponíveis.",
+  "none": "Nenhuma conta encontrada.",
+  "columns": {
+    "account": "Conta",
+    "maxScore": "Maior nota",
+    "latestScore": "Nota recente",
+    "periods": "Períodos",
+    "firstLast": "Primeiro / último",
+    "country": "País principal",
+    "flagged": "Valor sinalizado",
+    "status": "Status"
+  },
+  "count": "{count} conta(s)",
+  "previous": "Anterior",
+  "next": "Próxima",
+  "page": "Página {page} de {pages}"
+}

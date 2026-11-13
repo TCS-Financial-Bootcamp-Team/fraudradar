@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useAppContext } from "@/components/app-context";
 import type { Dataset } from "../schemas/datasets";
 
@@ -8,13 +9,14 @@ export function shouldShowDatasetSelector(datasets: Dataset[]) {
 }
 
 export function DatasetSelector() {
+  const t = useTranslations("datasets");
   const { dataset, datasets, setDataset } = useAppContext();
   if (!shouldShowDatasetSelector(datasets)) return null;
   return (
     <label className="relative block min-w-0">
-      <span className="sr-only">Conjunto de dados</span>
+      <span className="sr-only">{t("selector")}</span>
       <select
-        aria-label="Conjunto de dados"
+        aria-label={t("selector")}
         value={dataset}
         onChange={(event) => setDataset(event.target.value)}
         className="h-10 max-w-[130px] truncate rounded-lg border border-topbar-border bg-topbar px-2.5 text-[13px] font-medium text-topbar-foreground outline-none transition-colors hover:bg-topbar-border focus-visible:ring-2 focus-visible:ring-topbar-foreground sm:max-w-[190px]"
