@@ -15,27 +15,5 @@
     "done": "Trabalho concluído.",
     "failed": "O trabalho falhou.",
     "processing": "Processando…"
-  },
-  "messages": {
-    "started": "Trabalho iniciado.",
-    "done": "Trabalho concluído.",
-    "failedGeneric": "O trabalho falhou. Consulte os logs do worker.",
-    "interrupted": "Trabalho interrompido",
-    "processPreparing": "Preparando o processamento do conjunto de dados.",
-    "processDone": "Processamento concluído: {count, plural, =1 {# período processado} other {# períodos processados}}.",
-    "processNothing": "Nada novo para processar.",
-    "simulatePreparing": "Preparando a amostra do conjunto de dados.",
-    "simulateDone": "Transações simuladas; processamento enfileirado.",
-    "importConnecting": "Conectando à fonte externa em modo somente leitura.",
-    "importReading": "Lendo a fonte externa: {rows} linhas.",
-    "importSaving": "Gravando as transações importadas.",
-    "importDone": "Importação concluída: {rows} transações.",
-    "trainReading": "Lendo transações e gabarito do conjunto.",
-    "trainReadingFeedback": "Lendo o retorno dos analistas.",
-    "trainFitting": "Treinando o modelo.",
-    "trainEvaluating": "Avaliando a versão treinada.",
-    "trainSaved": "Versão {version} gravada. Falta promovê-la para usá-la.",
-    "trainBlocked": "Versão {version} gravada, mas a trava de promoção a bloqueou.",
-    "labelsDone": "Resumo do registro atualizado."
   }
 }

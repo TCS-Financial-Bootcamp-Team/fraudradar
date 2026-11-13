@@ -52,3 +52,51 @@ test("requisições JSON mostram o detail da API e aceitam 204 no DELETE", async
   }
   assert.match(calls[2], /^DELETE .*\/ingestion\/connections\/3$/);
 });
+
+test("erro convertido: traduz por code + params; código desconhecido cai no detail", () => {
+  const body = {
+    detail: "Alerta 7 não encontrado.",
+    code: "alert.not_found",
+    params: { id: 7 },
+  };
+  assert.equal(errorMessageFor(404, body, generic), "Alerta 7 não encontrado.");
+  assert.equal(errorMessageFor(404, body, generic, "en"), "Alert 7 not found.");
+  assert.equal(
+    errorMessageFor(
+      409,
+      {
+        detail: "Bloqueada: acha 5,0 p.p. menos lavadoras.",
+        code: "model.gate_blocked",
+        params: {
+          gap_pp: 5,
+          new_pct: 90,
+          current_pct: 95,
+          active_version: "lightgbm_v1",
+          limit_pp: 1,
+        },
+      },
+      generic,
+      "en",
+    ),
+    "Blocked: it finds 5 p.p. fewer laundering accounts in the queue than the active version (lightgbm_v1) over the same test period (90% against 95%); the limit is 1 p.p.",
+  );
+  // Código que o front ainda não conhece: mostra o detail em português, como antes.
+  assert.equal(
+    errorMessageFor(
+      409,
+      { detail: "Texto novo do servidor.", code: "algo.que_nao_existe", params: {} },
+      generic,
+      "en",
+    ),
+    "Texto novo do servidor.",
+  );
+  // Sem código (erro não convertido): só o detail.
+  assert.equal(
+    errorMessageFor(500, { detail: "Erro antigo." }, generic, "en"),
+    "Erro antigo.",
+  );
+  assert.equal(
+    errorMessageFor(401, { detail: "x", code: "auth.missing" }, generic, "en"),
+    "Your session expired. Sign in again.",
+  );
+});

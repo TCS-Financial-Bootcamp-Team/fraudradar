@@ -15,27 +15,5 @@
     "done": "Job finished.",
     "failed": "The job failed.",
     "processing": "Processing…"
-  },
-  "messages": {
-    "started": "Job started.",
-    "done": "Job finished.",
-    "failedGeneric": "The job failed. Check the worker logs.",
-    "interrupted": "Job interrupted",
-    "processPreparing": "Preparing the dataset processing.",
-    "processDone": "Processing finished: {count, plural, =1 {# period processed} other {# periods processed}}.",
-    "processNothing": "Nothing new to process.",
-    "simulatePreparing": "Preparing the dataset sample.",
-    "simulateDone": "Transactions simulated; processing queued.",
-    "importConnecting": "Connecting to the external source in read-only mode.",
-    "importReading": "Reading the external source: {rows} rows.",
-    "importSaving": "Saving the imported transactions.",
-    "importDone": "Import finished: {rows} transactions.",
-    "trainReading": "Reading the dataset transactions and ground truth.",
-    "trainReadingFeedback": "Reading the analyst feedback.",
-    "trainFitting": "Training the model.",
-    "trainEvaluating": "Evaluating the trained version.",
-    "trainSaved": "Version {version} saved. It still has to be promoted before use.",
-    "trainBlocked": "Version {version} saved, but the promotion gate blocked it.",
-    "labelsDone": "Label summary updated."
   }
 }
