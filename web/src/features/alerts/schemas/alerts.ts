@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { v } from "@/i18n/validation";
 
 export const statusSchema = z.enum([
   "pending",
@@ -73,14 +74,14 @@ export const decisionSchema = z
     justification: z
       .string()
       .trim()
-      .min(10, "Descreva a justificativa com pelo menos 10 caracteres.")
+      .min(10, v("justificationMin"))
       .max(4000),
     archive_reason: archiveReasonSchema.optional(),
   })
   .refine(
     (value) => value.decision !== "archive" || value.archive_reason !== undefined,
     {
-      message: "Escolha o motivo do arquivamento.",
+      message: v("archiveReasonRequired"),
       path: ["archive_reason"],
     },
   );
@@ -99,7 +100,7 @@ export const approvalSchema = z.object({
   content: z
     .string()
     .trim()
-    .min(30, "Revise o rascunho: mínimo de 30 caracteres.")
+    .min(30, v("draftMin"))
     .max(20000),
 });
 export const replaySchema = z.object({
@@ -121,6 +122,8 @@ export const weeksSchema = z.object({
 });
 export const seriesSchema = z.object({
   name: z.string(),
+  // Data ISO da semana, quando a série é semanal: o front formata pelo idioma.
+  week: z.string().nullish(),
   value: z.number().nonnegative(),
 });
 export const statusCountsSchema = z.object({

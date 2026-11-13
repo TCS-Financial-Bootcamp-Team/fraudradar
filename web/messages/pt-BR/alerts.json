@@ -1,1 +1,274 @@
-{}
+{
+  "risk": {
+    "critical": "Crítico",
+    "high": "Alto",
+    "medium": "Moderado",
+    "scoreHint": "Ordena a fila: não é a chance de ser lavagem. Quem desempata é a posição na fila.",
+    "queuePosition": "{position}º na fila",
+    "alertsFound": "{count, plural, =1 {# alerta encontrado} other {# alertas encontrados}}"
+  },
+  "controlSample": {
+    "label": "Amostra de controle",
+    "hint": "Conta sorteada abaixo do corte para medir o que o modelo deixa passar",
+    "ariaLabel": "Amostra de controle: {hint}",
+    "linkSuffix": " (amostra de controle)"
+  },
+  "table": {
+    "linkLabel": "Abrir alerta {id}, conta {account}{sample}",
+    "scoreTitle": "Nota {score} de 100 · {level}. {hint}",
+    "scoreSr": "de 100, risco {level}",
+    "empty": "Nenhum alerta com esses filtros.",
+    "clearFilters": "Limpar filtros",
+    "caption": "Alertas ordenados pela posição na fila",
+    "columns": {
+      "position": "Pos.",
+      "alert": "Alerta",
+      "account": "Conta",
+      "score": "Nota de risco",
+      "typology": "Tipologia",
+      "country": "País",
+      "amount": "Valor",
+      "status": "Status"
+    }
+  },
+  "queue": {
+    "eyebrow": "Triagem semanal",
+    "title": "Fila de alertas",
+    "filterByStatus": "Filtrar por status",
+    "tabs": {
+      "all": "Todos",
+      "pending": "Pendentes",
+      "escalated": "Em investigação",
+      "reported": "Para comunicação",
+      "archived": "Arquivados"
+    },
+    "searchLabel": "Buscar alerta ou conta",
+    "country": "País",
+    "allCountries": "Todos os países",
+    "origin": "Origem do alerta",
+    "originHint": "A amostra de controle são contas sorteadas abaixo do corte, para medir o que o modelo deixa passar.",
+    "originAll": "Fila e amostra de controle",
+    "originModel": "Só a fila do modelo",
+    "originSample": "Só a amostra de controle",
+    "unavailable": "Dados indisponíveis.",
+    "none": "Nenhum alerta",
+    "range": "{first}–{last} de {total} {total, plural, =1 {alerta} other {alertas}}",
+    "weekSuffix": " · semana de {week}",
+    "previous": "Anterior",
+    "next": "Próxima"
+  },
+  "weekPicker": {
+    "loading": "Carregando semanas…",
+    "none": "Nenhuma semana liberada",
+    "previous": "Semana anterior",
+    "next": "Próxima semana",
+    "weekOf": "Semana de {week}",
+    "firstReleased": "Primeira semana liberada",
+    "latestReleased": "Semana mais recente liberada",
+    "label": "Semana",
+    "select": "Semana de referência"
+  },
+  "detail": {
+    "notFound": "Alerta não encontrado.",
+    "backToQueue": "Fila · semana de {week}",
+    "title": "Alerta {id}",
+    "account": "conta {account}",
+    "score": "Nota de risco",
+    "weekVolume": "Volume na semana",
+    "movements": "Movimentações",
+    "why": "Por que entrou na fila",
+    "whyHint": "peso de cada sinal na nota",
+    "rules": "Regras acionadas",
+    "noRules": "Nenhuma regra de cenário acionada.",
+    "weekMovements": "Movimentações da semana",
+    "colDate": "Data",
+    "colFlow": "Origem → destino",
+    "colMeans": "Meio",
+    "colAmount": "Valor",
+    "connections": "Conexões",
+    "connectionsHint": "até 2 saltos · contas pseudonimizadas",
+    "otherWeeks": "Outras semanas desta conta",
+    "periods": "{count} período(s)",
+    "noOtherWeeks": "Esta conta não apareceu em outro período processado.",
+    "weekOf": "Semana de {week}",
+    "assessment": "Parecer da IA",
+    "assessmentHint": "rascunho para revisão",
+    "assessmentEmpty": "Gere uma síntese das evidências com as fontes citadas. A IA não decide: ela ajuda a sua leitura.",
+    "wait": "Aguarde…",
+    "regenerate": "Gerar novamente",
+    "generate": "Gerar parecer",
+    "decision": "Decisão",
+    "routing": "Encaminhamento",
+    "choices": {
+      "archive": "Arquivar",
+      "escalate": "Aprofundar",
+      "report": "Comunicar ao COAF"
+    },
+    "archiveReason": "Motivo do arquivamento",
+    "reasons": {
+      "false_positive": "Falso positivo confirmado",
+      "insufficient_evidence": "Sem evidência suficiente"
+    },
+    "archiveHint": "Só o falso positivo confirmado ensina o modelo no retreino. Sem evidência suficiente fica fora: arquivar por falta de prova não diz que a conta é inocente.",
+    "justification": "Justificativa",
+    "justificationPlaceholder": "Quais evidências sustentam a decisão?",
+    "submit": "Registrar decisão",
+    "submitting": "Registrando…",
+    "closedNote": "A comunicação deste alerta já foi aprovada; a decisão está encerrada.",
+    "reportNote": "Comunicar prepara um rascunho para aprovação. Nada é enviado de verdade.",
+    "toast": {
+      "assessment": "Parecer gerado para revisão.",
+      "decision": "Decisão registrada.",
+      "approved": "Rascunho aprovado. Nenhum envio externo foi realizado.",
+      "newWeek": "{count, plural, =1 {# alerta na nova semana.} other {# alertas na nova semana.}}"
+    },
+    "report": {
+      "title": "Comunicação ao COAF",
+      "approved": "Aprovada",
+      "draft": "Rascunho",
+      "simulation": "Simulação acadêmica: nada é enviado de verdade.",
+      "simulationNote": "A aprovação não comunica operações ao COAF.",
+      "label": "Relato da comunicação",
+      "note": "Revise fatos, evidências e justificativa. Aprovar apenas registra sua revisão neste ambiente.",
+      "approving": "Aprovando…",
+      "approvedButton": "Revisão aprovada",
+      "approve": "Aprovar rascunho"
+    }
+  },
+  "charts": {
+    "sparkline": "Evolução nas semanas",
+    "units": {
+      "decided": "decididos",
+      "alerts": "alertas"
+    },
+    "weekly": {
+      "empty": "Nenhum dado de alertas por semana.",
+      "aria": "Alertas por semana: {items}.",
+      "item": "{name}: {value}",
+      "tooltip": "Semana de {name}: {count, plural, =1 {# alerta} other {# alertas}}"
+    },
+    "rate": {
+      "none": "sem {unit} ainda",
+      "base": "{percent} · {numerator} de {denominator} {unit}",
+      "lowSample": "{base} (amostra pequena)",
+      "footnote": "* menos de 20 {unit}: o percentual ainda diz pouco.",
+      "weekTooltip": "Semana de {name}: {text}"
+    },
+    "histogram": {
+      "empty": "Nenhum dado de distribuição de nota.",
+      "tieOne": "1 alerta empata em 100: quem desempata é a posição na fila.",
+      "tieNone": "Nenhum alerta com nota 100 nesta semana.",
+      "tieMany": "{count} alertas empatam em 100: quem desempata é a posição na fila.",
+      "aria": "Distribuição da nota de risco: {top} alertas com nota 100 de um total de {total}.",
+      "topTooltip": "Nota 100: {count, plural, =1 {# alerta} other {# alertas}}",
+      "binTooltip": "Nota a partir de {bin}: {count, plural, =1 {# alerta} other {# alertas}}"
+    },
+    "review": {
+      "pending": "Pendentes",
+      "escalated": "Em investigação",
+      "archived": "Arquivados",
+      "reported": "Para comunicação",
+      "ofTotal": "de {total} alertas com decisão",
+      "aria": "{reviewed} de {total} alertas revisados, {percent}."
+    },
+    "bars": {
+      "empty": "Nenhum registro para esta categoria.",
+      "tooltip": "{name}: {value}",
+      "tooltipUnit": "{name}: {value} {unit}"
+    },
+    "series": {
+      "alerts": "Alertas",
+      "rate": "Taxa"
+    }
+  },
+  "dashboard": {
+    "weekPeriod": "Semana de {start} a {end} {year}",
+    "changeInQueue": "trocar na fila",
+    "title": "Visão geral",
+    "noPeriodTitle": "Nenhum período processado",
+    "noPeriodBody": "Use Processar agora depois de carregar transações no conjunto.",
+    "unavailable": "Dados indisponíveis.",
+    "precision": {
+      "none": "sem decisões ainda",
+      "note": "{numerator} de {denominator} decididos{lowSample}",
+      "lowSample": " · amostra pequena",
+      "loading": "carregando o retorno"
+    },
+    "diffPrev": "{diff} vs. semana anterior",
+    "diffSame": "= vs. semana anterior",
+    "diffNone": "casos para análise",
+    "kpi": {
+      "alerts": "Alertas na semana",
+      "alertsSpark": "Alertas na semana: evolução nas últimas semanas",
+      "rate": "Taxa de alerta",
+      "rateNote": "das transações processadas",
+      "rateSpark": "Taxa de alerta: evolução nas últimas semanas",
+      "flagged": "Valor sinalizado",
+      "flaggedNote": "volume financeiro",
+      "flaggedSpark": "Valor sinalizado: evolução nas últimas semanas",
+      "precision": "Precisão confirmada",
+      "precisionSpark": "Precisão confirmada pelos analistas: evolução por semana"
+    },
+    "indicators": "Indicadores da semana",
+    "cards": {
+      "weekly": "Alertas por semana",
+      "lastWeeks": "últimas {count} semanas",
+      "precision": "Precisão confirmada",
+      "precisionHint": "alertas da fila confirmados como lavagem",
+      "precisionLoading": "Carregando o retorno dos analistas…",
+      "precisionEmpty": "Sem decisões dos analistas ainda. Arquivar como falso positivo ou comunicar alimenta este gráfico.",
+      "distribution": "Distribuição da nota de risco",
+      "distributionHint": "{count} alertas da semana",
+      "progress": "Andamento da revisão",
+      "thisWeek": "esta semana",
+      "payment": "Meio de pagamento",
+      "paymentHint": "alertas por meio predominante",
+      "country": "País",
+      "countryHint": "{amount} sinalizados"
+    },
+    "start": {
+      "title": "Comece por aqui",
+      "seeAll": "Ver fila completa →",
+      "loading": "Carregando alertas…",
+      "none": "Nenhum alerta nesta semana."
+    },
+    "table": {
+      "position": "Pos.",
+      "alert": "Alerta",
+      "account": "Conta",
+      "score": "Nota de risco",
+      "country": "País",
+      "amount": "Valor",
+      "status": "Status",
+      "positionValue": "{position}º"
+    }
+  },
+  "graph": {
+    "label": "Rede de contas pseudonimizadas em até dois saltos",
+    "textAlt": "Consultar conexões em texto · alternativa ao grafo"
+  },
+  "monitoring": {
+    "title": "Monitoramento",
+    "intro": "O tamanho e a distribuição da fila na semana e o que os analistas confirmaram. Nada nesta tela usa o gabarito do SAML-D.",
+    "weekOf": "Semana de {week} · ",
+    "changeInQueue": "trocar na fila",
+    "noPeriodTitle": "Nenhum período processado",
+    "noPeriodBody": "Use Processar agora na Visão geral depois de carregar transações no conjunto.",
+    "unavailable": "Dados indisponíveis.",
+    "alertRateNote": "alertas ÷ contas ativas",
+    "indicators": "Indicadores da fila",
+    "kpi": {
+      "alerts": "Alertas no lote",
+      "alertsNote": "contas sinalizadas no lote",
+      "rate": "Taxa de alerta",
+      "reviewed": "Revisados",
+      "reviewedNote": "alertas com decisão",
+      "reported": "Comunicações aprovadas",
+      "reportedNote": "simulação: nada é enviado"
+    },
+    "countryRate": "Taxa de alerta por país",
+    "paymentRate": "Taxa de alerta por meio de pagamento",
+    "noData": "Nenhum dado disponível.",
+    "footer": "As versões do modelo e as métricas de validação, medidas contra o gabarito no período de teste, ficam em Configurações > Modelo."
+  }
+}

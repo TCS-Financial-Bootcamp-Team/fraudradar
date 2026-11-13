@@ -1,1 +1,37 @@
-{}
+{
+  "feedback": {
+    "region": "Analyst feedback",
+    "title": "Analyst feedback",
+    "intro": "What a real platform can measure: what analysts confirmed on alerts and what the control sample, drawn from below the cutoff, found outside the queue. Only reporting and archiving as a confirmed false positive count as feedback.",
+    "untilWeek": "up to the selected week",
+    "loading": "Loading analyst feedback…",
+    "unavailable": "Feedback unavailable.",
+    "smallSample": " · small sample",
+    "cells": {
+      "precision": "Confirmed precision",
+      "precisionNone": "no queue alert decided yet",
+      "precisionNote": "{numerator} of {denominator} queue alerts{small}",
+      "outside": "Laundering outside the queue",
+      "outsideNone": "control sample off or not drawn yet",
+      "outsideNote": "{numerator} of {reviewed} reviewed · {sampled} drawn{small}",
+      "labels": "Feedback labels",
+      "labelsNote": "{laundering} confirmed laundering · {falsePositive} false positive",
+      "newSince": "New since the active version",
+      "newSinceNote": "labels after the training of {version}",
+      "noActive": "no active version"
+    },
+    "weeklyTitle": "Confirmed precision by week",
+    "weeklyEmpty": "No conclusive decisions on queue alerts yet.",
+    "unit": "decided",
+    "breakdown": {
+      "analyst": "From analysts",
+      "simulated": "From the simulated analyst",
+      "model": "In the model queue",
+      "exploration": "In the control sample"
+    },
+    "simulatedNote": "{count} labels come from the demo's simulated analyst, which decides by the ground truth: the numbers above are not from real analysts.",
+    "retrain": "Retraining with feedback: ",
+    "retrainAvailable": "available in Settings > Model.",
+    "retrainSimulated": "available only including simulated feedback (Settings > Model)."
+  }
+}

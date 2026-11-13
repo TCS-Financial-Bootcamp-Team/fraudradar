@@ -1,12 +1,15 @@
 "use client";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { useAppContext } from "@/components/app-context";
 import { formatWeekLabel } from "@/lib/risk";
 
 // Só oferece períodos já processados. Um campo de
 // data livre deixava escolher qualquer dia, inclusive fora do SAML-D ou no meio da semana.
 export function WeekPicker({ className = "" }: { className?: string }) {
+  const t = useTranslations("alerts.weekPicker");
+  const locale = useLocale();
   const { week, setWeek, weeks, weeksLoading } = useAppContext();
   const index = weeks.indexOf(week);
   // `weeks` vem da mais recente para a mais antiga.
@@ -15,14 +18,16 @@ export function WeekPicker({ className = "" }: { className?: string }) {
 
   if (weeksLoading) {
     return (
-      <span className="text-xs text-muted-foreground">Carregando semanas…</span>
+      <span className="text-xs text-muted-foreground">
+        {t("loading")}
+      </span>
     );
   }
 
   if (weeks.length === 0) {
     return (
       <span className="text-xs text-muted-foreground">
-        Nenhuma semana liberada
+        {t("none")}
       </span>
     );
   }
@@ -33,8 +38,12 @@ export function WeekPicker({ className = "" }: { className?: string }) {
     >
       <button
         type="button"
-        aria-label="Semana anterior"
-        title={older ? "Semana de " + formatWeekLabel(older) : "Primeira semana liberada"}
+        aria-label={t("previous")}
+        title={
+          older
+            ? t("weekOf", { week: formatWeekLabel(older, locale) })
+            : t("firstReleased")
+        }
         disabled={!older}
         onClick={() => older && setWeek(older)}
         className="size-9 grid place-items-center rounded-[7px] border-0 bg-transparent text-foreground disabled:text-muted-foreground/40 disabled:cursor-not-allowed hover:not-disabled:bg-muted/50 transition-colors"
@@ -42,24 +51,28 @@ export function WeekPicker({ className = "" }: { className?: string }) {
         <ChevronLeft className="size-4 text-current" strokeWidth={1.5} />
       </button>
       <label className="flex flex-col px-2.5 leading-tight">
-        <span className="text-[11px] text-muted-foreground">Semana</span>
+        <span className="text-[11px] text-muted-foreground">{t("label")}</span>
         <select
-          aria-label="Semana de referência"
+          aria-label={t("select")}
           value={week}
           onChange={(e) => setWeek(e.target.value)}
           className="border-0 bg-transparent p-0 font-medium text-sm text-foreground cursor-pointer focus:outline-none whitespace-nowrap pr-2"
         >
           {weeks.map((w) => (
             <option key={w} value={w} className="bg-card text-foreground">
-              {formatWeekLabel(w)}
+              {formatWeekLabel(w, locale)}
             </option>
           ))}
         </select>
       </label>
       <button
         type="button"
-        aria-label="Próxima semana"
-        title={newer ? "Semana de " + formatWeekLabel(newer) : "Semana mais recente liberada"}
+        aria-label={t("next")}
+        title={
+          newer
+            ? t("weekOf", { week: formatWeekLabel(newer, locale) })
+            : t("latestReleased")
+        }
         disabled={!newer}
         onClick={() => newer && setWeek(newer)}
         className="size-9 grid place-items-center rounded-[7px] border-0 bg-transparent text-foreground disabled:text-muted-foreground/40 disabled:cursor-not-allowed hover:not-disabled:bg-muted/50 transition-colors"

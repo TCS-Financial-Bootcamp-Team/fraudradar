@@ -137,7 +137,7 @@ test("alertas: linha clicável tem nome acessível e link estendido", () => {
       "utf8",
     );
     assert.match(source, /relative cursor-pointer/);
-    assert.match(source, /aria-label=\{getAlertLinkLabel\(alert\)\}/);
+    assert.match(source, /aria-label=\{getAlertLinkLabel\(alert, locale\)\}/);
     assert.match(source, /after:absolute after:inset-0/);
     assert.match(source, /focus-visible:after:ring-2/);
   }

@@ -1,1 +1,274 @@
-{}
+{
+  "risk": {
+    "critical": "Critical",
+    "high": "High",
+    "medium": "Moderate",
+    "scoreHint": "It orders the queue: it is not the chance of laundering. Ties are broken by queue position.",
+    "queuePosition": "#{position} in queue",
+    "alertsFound": "{count, plural, =1 {# alert found} other {# alerts found}}"
+  },
+  "controlSample": {
+    "label": "Control sample",
+    "hint": "Account drawn from below the cutoff to measure what the model lets through",
+    "ariaLabel": "Control sample: {hint}",
+    "linkSuffix": " (control sample)"
+  },
+  "table": {
+    "linkLabel": "Open alert {id}, account {account}{sample}",
+    "scoreTitle": "Score {score} out of 100 · {level}. {hint}",
+    "scoreSr": "out of 100, {level} risk",
+    "empty": "No alerts match these filters.",
+    "clearFilters": "Clear filters",
+    "caption": "Alerts ordered by queue position",
+    "columns": {
+      "position": "Pos.",
+      "alert": "Alert",
+      "account": "Account",
+      "score": "Risk score",
+      "typology": "Typology",
+      "country": "Country",
+      "amount": "Amount",
+      "status": "Status"
+    }
+  },
+  "queue": {
+    "eyebrow": "Weekly triage",
+    "title": "Alert queue",
+    "filterByStatus": "Filter by status",
+    "tabs": {
+      "all": "All",
+      "pending": "Pending",
+      "escalated": "Under investigation",
+      "reported": "Ready to report",
+      "archived": "Archived"
+    },
+    "searchLabel": "Search alert or account",
+    "country": "Country",
+    "allCountries": "All countries",
+    "origin": "Alert origin",
+    "originHint": "The control sample is accounts drawn from below the cutoff, to measure what the model lets through.",
+    "originAll": "Queue and control sample",
+    "originModel": "Model queue only",
+    "originSample": "Control sample only",
+    "unavailable": "Data unavailable.",
+    "none": "No alerts",
+    "range": "{first}–{last} of {total} {total, plural, =1 {alert} other {alerts}}",
+    "weekSuffix": " · week of {week}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "weekPicker": {
+    "loading": "Loading weeks…",
+    "none": "No week released",
+    "previous": "Previous week",
+    "next": "Next week",
+    "weekOf": "Week of {week}",
+    "firstReleased": "First released week",
+    "latestReleased": "Latest released week",
+    "label": "Week",
+    "select": "Reference week"
+  },
+  "detail": {
+    "notFound": "Alert not found.",
+    "backToQueue": "Queue · week of {week}",
+    "title": "Alert {id}",
+    "account": "account {account}",
+    "score": "Risk score",
+    "weekVolume": "Volume this week",
+    "movements": "Transactions",
+    "why": "Why it entered the queue",
+    "whyHint": "weight of each signal in the score",
+    "rules": "Triggered rules",
+    "noRules": "No scenario rule triggered.",
+    "weekMovements": "Transactions this week",
+    "colDate": "Date",
+    "colFlow": "Sender → receiver",
+    "colMeans": "Payment type",
+    "colAmount": "Amount",
+    "connections": "Connections",
+    "connectionsHint": "up to 2 hops · pseudonymized accounts",
+    "otherWeeks": "Other weeks for this account",
+    "periods": "{count, plural, =1 {# period} other {# periods}}",
+    "noOtherWeeks": "This account did not appear in any other processed period.",
+    "weekOf": "Week of {week}",
+    "assessment": "AI assessment",
+    "assessmentHint": "draft for review",
+    "assessmentEmpty": "Generate a summary of the evidence with cited sources. The AI does not decide: it supports your reading.",
+    "wait": "Please wait…",
+    "regenerate": "Generate again",
+    "generate": "Generate assessment",
+    "decision": "Decision",
+    "routing": "Routing",
+    "choices": {
+      "archive": "Archive",
+      "escalate": "Escalate",
+      "report": "Report to COAF"
+    },
+    "archiveReason": "Archive reason",
+    "reasons": {
+      "false_positive": "Confirmed false positive",
+      "insufficient_evidence": "Insufficient evidence"
+    },
+    "archiveHint": "Only a confirmed false positive teaches the model at retraining. Insufficient evidence stays out: archiving for lack of proof does not say the account is innocent.",
+    "justification": "Justification",
+    "justificationPlaceholder": "What evidence supports the decision?",
+    "submit": "Record decision",
+    "submitting": "Recording…",
+    "closedNote": "The report for this alert was already approved; the decision is closed.",
+    "reportNote": "Reporting prepares a draft for approval. Nothing is actually sent.",
+    "toast": {
+      "assessment": "Assessment generated for review.",
+      "decision": "Decision recorded.",
+      "approved": "Draft approved. No external submission was made.",
+      "newWeek": "{count, plural, =1 {# alert in the new week.} other {# alerts in the new week.}}"
+    },
+    "report": {
+      "title": "COAF report (in Portuguese)",
+      "approved": "Approved",
+      "draft": "Draft",
+      "simulation": "Academic simulation: nothing is actually sent.",
+      "simulationNote": "Approval does not report any transactions to COAF.",
+      "label": "Report text (in Portuguese)",
+      "note": "Review the facts, evidence and justification. Approving only records your review in this environment.",
+      "approving": "Approving…",
+      "approvedButton": "Review approved",
+      "approve": "Approve draft"
+    }
+  },
+  "charts": {
+    "sparkline": "Trend across weeks",
+    "units": {
+      "decided": "decided",
+      "alerts": "alerts"
+    },
+    "weekly": {
+      "empty": "No weekly alert data.",
+      "aria": "Alerts per week: {items}.",
+      "item": "{name}: {value}",
+      "tooltip": "Week of {name}: {count, plural, =1 {# alert} other {# alerts}}"
+    },
+    "rate": {
+      "none": "no {unit} yet",
+      "base": "{percent} · {numerator} of {denominator} {unit}",
+      "lowSample": "{base} (small sample)",
+      "footnote": "* fewer than 20 {unit}: the percentage still says little.",
+      "weekTooltip": "Week of {name}: {text}"
+    },
+    "histogram": {
+      "empty": "No score distribution data.",
+      "tieOne": "1 alert ties at 100: queue position breaks the tie.",
+      "tieNone": "No alert with a score of 100 this week.",
+      "tieMany": "{count} alerts tie at 100: queue position breaks the tie.",
+      "aria": "Risk score distribution: {top} alerts with a score of 100 out of {total} in total.",
+      "topTooltip": "Score 100: {count, plural, =1 {# alert} other {# alerts}}",
+      "binTooltip": "Score from {bin}: {count, plural, =1 {# alert} other {# alerts}}"
+    },
+    "review": {
+      "pending": "Pending",
+      "escalated": "Under investigation",
+      "archived": "Archived",
+      "reported": "Ready to report",
+      "ofTotal": "of {total} alerts with a decision",
+      "aria": "{reviewed} of {total} alerts reviewed, {percent}."
+    },
+    "bars": {
+      "empty": "No records for this category.",
+      "tooltip": "{name}: {value}",
+      "tooltipUnit": "{name}: {value} {unit}"
+    },
+    "series": {
+      "alerts": "Alerts",
+      "rate": "Rate"
+    }
+  },
+  "dashboard": {
+    "weekPeriod": "Week of {start} to {end}, {year}",
+    "changeInQueue": "change in the queue",
+    "title": "Overview",
+    "noPeriodTitle": "No period processed",
+    "noPeriodBody": "Use Process now after loading transactions into the dataset.",
+    "unavailable": "Data unavailable.",
+    "precision": {
+      "none": "no decisions yet",
+      "note": "{numerator} of {denominator} decided{lowSample}",
+      "lowSample": " · small sample",
+      "loading": "loading the feedback"
+    },
+    "diffPrev": "{diff} vs. previous week",
+    "diffSame": "= vs. previous week",
+    "diffNone": "cases for review",
+    "kpi": {
+      "alerts": "Alerts this week",
+      "alertsSpark": "Alerts this week: trend over the last weeks",
+      "rate": "Alert rate",
+      "rateNote": "of processed transactions",
+      "rateSpark": "Alert rate: trend over the last weeks",
+      "flagged": "Flagged amount",
+      "flaggedNote": "financial volume",
+      "flaggedSpark": "Flagged amount: trend over the last weeks",
+      "precision": "Confirmed precision",
+      "precisionSpark": "Precision confirmed by analysts: trend per week"
+    },
+    "indicators": "This week's indicators",
+    "cards": {
+      "weekly": "Alerts per week",
+      "lastWeeks": "last {count} weeks",
+      "precision": "Confirmed precision",
+      "precisionHint": "queue alerts confirmed as laundering",
+      "precisionLoading": "Loading analyst feedback…",
+      "precisionEmpty": "No analyst decisions yet. Archiving as a false positive or reporting feeds this chart.",
+      "distribution": "Risk score distribution",
+      "distributionHint": "{count} alerts this week",
+      "progress": "Review progress",
+      "thisWeek": "this week",
+      "payment": "Payment type",
+      "paymentHint": "alerts by predominant payment type",
+      "country": "Country",
+      "countryHint": "{amount} flagged"
+    },
+    "start": {
+      "title": "Start here",
+      "seeAll": "See the full queue →",
+      "loading": "Loading alerts…",
+      "none": "No alerts this week."
+    },
+    "table": {
+      "position": "Pos.",
+      "alert": "Alert",
+      "account": "Account",
+      "score": "Risk score",
+      "country": "Country",
+      "amount": "Amount",
+      "status": "Status",
+      "positionValue": "{position}"
+    }
+  },
+  "graph": {
+    "label": "Network of pseudonymized accounts within two hops",
+    "textAlt": "View the connections as text · alternative to the graph"
+  },
+  "monitoring": {
+    "title": "Monitoring",
+    "intro": "The size and distribution of the queue for the week and what analysts confirmed. Nothing on this screen uses the SAML-D ground truth.",
+    "weekOf": "Week of {week} · ",
+    "changeInQueue": "change in the queue",
+    "noPeriodTitle": "No period processed",
+    "noPeriodBody": "Use Process now on the Overview after loading transactions into the dataset.",
+    "unavailable": "Data unavailable.",
+    "alertRateNote": "alerts ÷ active accounts",
+    "indicators": "Queue indicators",
+    "kpi": {
+      "alerts": "Alerts in the batch",
+      "alertsNote": "accounts flagged in the batch",
+      "rate": "Alert rate",
+      "reviewed": "Reviewed",
+      "reviewedNote": "alerts with a decision",
+      "reported": "Approved reports",
+      "reportedNote": "simulation: nothing is sent"
+    },
+    "countryRate": "Alert rate by country",
+    "paymentRate": "Alert rate by payment type",
+    "noData": "No data available.",
+    "footer": "Model versions and the validation metrics, measured against the ground truth in the test period, are in Settings > Model."
+  }
+}
