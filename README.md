@@ -117,12 +117,20 @@ vale para `public` e para o schema de cada conjunto registrado. Para manter os d
 docker compose exec -T db psql -U fraudradar -d fraudradar -v ON_ERROR_STOP=1 \
   < db/upgrades/006_analyst_feedback.sql
 docker compose up -d --build api web worker-serve   # o código novo usa as colunas novas
+
+# 007: troca de idioma do front — mensagens dos trabalhos com código e parâmetros
+docker compose exec -T db psql -U fraudradar -d fraudradar -v ON_ERROR_STOP=1 \
+  < db/upgrades/007_i18n.sql
 ```
 
 O `006` cria `analyst_labels`, `alerts.origin`, `decisions.archive_reason` e
 `processing_settings.exploration_per_week`, e transforma em rótulo de lavagem confirmada a última
 decisão de comunicar de cada alerta (arquivamento antigo não tem motivo e não vira rótulo). Semanas
 já processadas só ganham a amostra de controle se forem reprocessadas.
+
+O `007` só acrescenta `jobs.message_code` e `jobs.message_params` (a mensagem em português segue
+em `jobs.message`; o front traduz pelo código quando o conhece). Trabalhos antigos ficam com as
+colunas nulas e mostram o texto em português.
 
 Os testes da API e do worker criam e apagam o banco `fraudradar_test` no Postgres do
 Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
