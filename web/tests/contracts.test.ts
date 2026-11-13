@@ -20,6 +20,7 @@ import {
   approvalSchema,
   monitoringSchema,
 } from "../src/features/alerts/schemas/alerts";
+import { getT } from "../src/i18n/runtime";
 import { pseudonymize } from "../src/lib/format";
 
 test("prévia de CSV lê somente uma amostra e interrompe o arquivo grande", async () => {
@@ -147,7 +148,14 @@ test("arquivar exige o motivo, e o motivo só vai para a API junto do arquivamen
   const missing = decisionSchema.safeParse({ decision: "archive", justification });
   assert.equal(missing.success, false);
   assert.deepEqual(missing.error?.issues[0].path, ["archive_reason"]);
-  assert.match(missing.error?.issues[0].message ?? "", /motivo do arquivamento/);
+  assert.equal(
+    missing.error?.issues[0].message,
+    "validation:archiveReasonRequired",
+  );
+  assert.match(
+    getT("errors.validation")("archiveReasonRequired"),
+    /motivo do arquivamento/,
+  );
   assert.equal(
     decisionSchema.safeParse({
       decision: "archive",
