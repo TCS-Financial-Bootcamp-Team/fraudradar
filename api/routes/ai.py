@@ -1,7 +1,9 @@
 """Parecer e assistente (LLM com RAG). A cadeia vive em fraudradar.ai (frente 3).
 
 `POST /chat` responde perguntas jurídicas gerais com o RAG das fontes revisadas
-(`api/legal_chat_service.py`). O parecer e o chat de um alerta ainda respondem 503.
+(`api/legal_chat_service.py`). Responde 503 sem `LLM_MODEL` ou sem a chave do Gemini
+(`ai.not_configured`) e sem a base carregada por `python -m worker rag-load`
+(`ai.no_legal_sources`). O parecer e o chat de um alerta ainda respondem 503.
 O LLM nunca recebe números de conta: pseudonimize antes do prompt.
 """
 
@@ -19,6 +21,10 @@ from api.legal_chat_service import (
 )
 from api.schemas.alerts import Assessment
 from api.schemas.chat import ChatRequest, ChatResponse
+from fraudradar.ai.legal_generation import (
+    LegalAnswerRejectedError,
+    LegalLlmNotConfiguredError,
+)
 
 router = APIRouter(tags=["ai"])
 
@@ -28,6 +34,14 @@ _RESPONSES = {503: {"description": AI_UNAVAILABLE}}
 
 def _unavailable() -> AppError:
     return AppError(status.HTTP_503_SERVICE_UNAVAILABLE, "ai.unavailable", AI_UNAVAILABLE)
+
+
+def _provider_failed() -> AppError:
+    return AppError(
+        status.HTTP_502_BAD_GATEWAY,
+        "ai.provider_failed",
+        "Nao foi possivel obter uma resposta do provedor de IA.",
+    )
 
 
 @router.post("/alerts/{alert_id}/assessment", response_model=Assessment, responses=_RESPONSES)
@@ -75,6 +89,15 @@ def chat(request: ChatRequest) -> ChatResponse:
             "ai.no_legal_sources",
             "Nenhuma fonte juridica revisada esta disponivel.",
         ) from error
+    except LegalLlmNotConfiguredError as error:
+        raise AppError(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "ai.not_configured",
+            "Chat jurídico não configurado na API (defina LLM_MODEL e a chave do Gemini).",
+        ) from error
+    except LegalAnswerRejectedError as error:
+        # O Gemini respondeu sem citação conferível: para quem pergunta, é falha do provedor.
+        raise _provider_failed() from error
     except genai_errors.APIError as error:
         if error.code == 429:
             raise AppError(
@@ -90,8 +113,4 @@ def chat(request: ChatRequest) -> ChatResponse:
                 "O provedor de IA esta temporariamente indisponivel.",
             ) from error
 
-        raise AppError(
-            status.HTTP_502_BAD_GATEWAY,
-            "ai.provider_failed",
-            "Nao foi possivel obter uma resposta do provedor de IA.",
-        ) from error
+        raise _provider_failed() from error
