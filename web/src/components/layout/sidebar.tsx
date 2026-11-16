@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import {
   Activity,
@@ -78,7 +79,10 @@ export function SidebarNavItem({
 }: SidebarNavItemProps) {
   const isActive = isNavItemActive(pathname, href);
   const hasCount = typeof count === "number" && count > 0;
-  const accessibleLabel = hasCount ? `${label}, ${count} pendentes` : label;
+  const t = useTranslations("shell.nav");
+  const accessibleLabel = hasCount
+    ? t("itemWithCount", { label, count })
+    : label;
 
   return (
     <CollapsedTooltip label={accessibleLabel} enabled={!isExpanded}>
@@ -120,6 +124,7 @@ export function Sidebar({
   pendingCount = 0,
 }: SidebarProps) {
   const pathname = usePathname();
+  const t = useTranslations("shell");
   const isExpanded = isOpen || isMobileOpen;
 
   useEffect(() => {
@@ -136,7 +141,7 @@ export function Sidebar({
       {isMobileOpen && (
         <button
           type="button"
-          aria-label="Fechar menu lateral"
+          aria-label={t("nav.closeSidebar")}
           onClick={onMobileClose}
           className="fixed inset-0 z-50 cursor-default bg-background/80 backdrop-blur-sm md:hidden"
         />
@@ -144,7 +149,7 @@ export function Sidebar({
 
       <aside
         id={id}
-        aria-label="Menu lateral"
+        aria-label={t("nav.sidebarLabel")}
         className={cn(
           "fixed inset-y-0 left-0 z-[60] flex h-dvh w-[248px] shrink-0 select-none flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width,transform] md:sticky md:top-0 md:h-screen md:translate-x-0",
           SIDEBAR_TRANSITION,
@@ -161,7 +166,7 @@ export function Sidebar({
           <Link
             href="/accounts"
             onClick={onMobileClose}
-            aria-label="FraudRadar — contas suspeitas"
+            aria-label={t("brand.homeLabel")}
             className="flex items-center gap-2.5 whitespace-nowrap rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
           >
             <BrandMark />
@@ -175,7 +180,7 @@ export function Sidebar({
             <button
               type="button"
               onClick={onMobileClose}
-              aria-label="Fechar menu"
+              aria-label={t("nav.closeMenu")}
               className="absolute right-3 grid size-10 place-items-center rounded-lg text-sidebar-muted transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring md:hidden"
             >
               <X className="size-[18px]" strokeWidth={1.5} />
@@ -185,19 +190,19 @@ export function Sidebar({
 
         <TooltipProvider delay={150}>
           <nav
-            aria-label="Navegação principal"
+            aria-label={t("nav.mainNav")}
             className="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto overflow-x-hidden px-3 py-[18px] [scrollbar-width:thin]"
           >
             {SIDEBAR_NAV_GROUPS.map((group) => (
               <div
-                key={group.label}
+                key={group.group}
                 role="group"
-                aria-label={group.label}
+                aria-label={t(`nav.groups.${group.group}`)}
                 className="flex flex-col gap-0.5"
               >
                 {isExpanded ? (
                   <p className="mb-1.5 px-2.5 text-[11px] font-medium uppercase tracking-[0.06em] text-sidebar-muted">
-                    {group.label}
+                    {t(`nav.groups.${group.group}`)}
                   </p>
                 ) : (
                   <span
@@ -209,7 +214,7 @@ export function Sidebar({
                   <SidebarNavItem
                     key={item.href}
                     href={item.href}
-                    label={item.label}
+                    label={t(`nav.items.${item.item}`)}
                     icon={NAV_ICONS[item.href]}
                     pathname={pathname}
                     isExpanded={isExpanded}

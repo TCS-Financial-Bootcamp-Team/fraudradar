@@ -2,9 +2,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 
 from api.dependencies import CurrentUser, PublicDbConnection
+from api.errors import AppError
 from api.repositories import datasets as repository
 from api.schemas.datasets import DatasetCreate, DatasetResponse, JobResponse
 from fraudradar.datasets import (
@@ -28,14 +29,18 @@ def create_empty_dataset(
     try:
         dataset = create_dataset(conn, name=request.name, slug=request.slug)
     except InvalidDatasetSlugError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise AppError(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "dataset.invalid_slug", str(exc)
+        ) from exc
     except DatasetAlreadyExistsError as exc:
-        raise HTTPException(
+        raise AppError(
             status.HTTP_409_CONFLICT,
+            "dataset.exists",
             f"O conjunto de dados '{request.slug}' já existe.",
+            {"slug": request.slug},
         ) from exc
     except ValueError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+        raise AppError(status.HTTP_422_UNPROCESSABLE_ENTITY, "dataset.invalid", str(exc)) from exc
     repository.audit_dataset_created(conn, dataset, user)
     return DatasetResponse(
         slug=dataset.slug,

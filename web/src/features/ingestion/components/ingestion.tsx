@@ -3,9 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useLocale, useTranslations } from "next-intl";
 import { FileUp, Plus, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
+import { useFormatters } from "@/i18n/use-formatters";
 import { ProcessingControls } from "@/features/processing/components/processing-controls";
 import { ConnectionsCard } from "./connections-card";
 import { useCsvUpload, useManualTransaction } from "../hooks/use-ingestion";
@@ -24,20 +26,23 @@ interface RecentUpload {
   when: string;
 }
 
-const transactionFieldLabels: Record<keyof TransactionRequest, string> = {
-  Date: "Data",
-  Time: "Horário",
-  Sender_account: "Conta de origem",
-  Receiver_account: "Conta de destino",
-  Amount: "Valor",
-  Payment_currency: "Moeda do pagamento",
-  Received_currency: "Moeda do recebimento",
-  Sender_bank_location: "País do banco de origem",
-  Receiver_bank_location: "País do banco de destino",
-  Payment_type: "Meio de pagamento",
-};
+const TRANSACTION_FIELDS = [
+  "Date",
+  "Time",
+  "Sender_account",
+  "Receiver_account",
+  "Amount",
+  "Payment_currency",
+  "Received_currency",
+  "Sender_bank_location",
+  "Receiver_bank_location",
+  "Payment_type",
+] as const satisfies ReadonlyArray<keyof TransactionRequest>;
 
 export function Ingestion() {
+  const t = useTranslations("ingestion");
+  const locale = useLocale();
+  const format = useFormatters();
   const csv = useCsvUpload();
   const manual = useManualTransaction();
 
@@ -74,13 +79,15 @@ export function Ingestion() {
       {
         id: `#${prev.length + 1}`,
         file,
-        when: new Date().toLocaleString("pt-BR", {
+        when: format.dateTime(new Date(), {
           dateStyle: "short",
           timeStyle: "short",
+          timeZone: undefined,
         }),
       },
       ...prev,
     ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- só reage ao envio concluído
   }, [csv.completed]);
 
   return (
@@ -88,10 +95,10 @@ export function Ingestion() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div className="flex flex-col gap-1.5">
           <p className="m-0 text-[13px] text-muted-foreground">
-            Entrada de transações
+            {t("page.eyebrow")}
           </p>
           <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
-            Fontes de dados
+            {t("page.title")}
           </h1>
         </div>
         {/* Processar agora e, com o modo demonstração ligado, o simulador. */}
@@ -102,7 +109,7 @@ export function Ingestion() {
         {/* Card 1: Importar CSV */}
         <article className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-4">
           <h2 className="m-0 text-sm font-semibold text-foreground">
-            Importar CSV
+            {t("csv.title")}
           </h2>
 
           <div
@@ -121,11 +128,10 @@ export function Ingestion() {
               aria-hidden="true"
             />
             <p className="m-0 font-medium text-foreground">
-              Arraste o arquivo até aqui
+              {t("csv.drag")}
             </p>
             <p className="m-0 text-[13px] text-muted-foreground max-w-sm">
-              CSV no formato do SAML-D, sem as colunas de avaliação. Até 20 MB
-              ou 200 mil linhas; tudo ou nada.
+              {t("csv.hint")}
             </p>
 
             <input
@@ -134,7 +140,7 @@ export function Ingestion() {
               accept=".csv,text/csv"
               className="sr-only"
               tabIndex={-1}
-              aria-label="Arquivo CSV"
+              aria-label={t("csv.ariaFile")}
               disabled={csv.busy}
               onChange={(e) => {
                 if (e.target.files?.[0]) void csv.selectFile(e.target.files[0]);
@@ -149,13 +155,13 @@ export function Ingestion() {
               className="mt-1.5"
             >
               <FileUp className="size-4" strokeWidth={1.5} />
-              Escolher arquivo
+              {t("csv.choose")}
             </Button>
           </div>
 
           <details className="text-xs text-muted-foreground">
             <summary className="cursor-pointer hover:text-foreground">
-              Ver as 11 colunas obrigatórias
+              {t("csv.columns")}
             </summary>
             <p className="mt-2.5 break-words font-mono leading-relaxed text-[11px] p-2 bg-muted/30 rounded border border-border">
               {csvHeaders.join(", ")}
@@ -164,7 +170,7 @@ export function Ingestion() {
 
           {csv.reading && (
             <p className="m-0 text-sm text-muted-foreground" role="status">
-              Validando a prévia…
+              {t("csv.validating")}
             </p>
           )}
 
@@ -181,7 +187,7 @@ export function Ingestion() {
                   {csv.preview.fileName}
                 </span>
                 <span className="text-muted-foreground">
-                  {csv.preview.rows.length} linhas na prévia
+                  {t("csv.previewRows", { count: csv.preview.rows.length })}
                 </span>
               </div>
 
@@ -223,10 +229,10 @@ export function Ingestion() {
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>
                       {csv.completed
-                        ? "Recebimento confirmado"
+                        ? t("csv.confirmed")
                         : csv.progress === 100
-                          ? "Arquivo enviado. Aguardando confirmação…"
-                          : "Enviando arquivo…"}
+                          ? t("csv.waiting")
+                          : t("csv.sending")}
                     </span>
                     <span className="font-mono">{csv.progress}%</span>
                   </div>
@@ -245,14 +251,14 @@ export function Ingestion() {
                   onClick={() => void handleUploadClick()}
                 >
                   {csv.busy
-                    ? "Enviando…"
+                    ? t("csv.sendBusy")
                     : csv.completed
-                      ? "Arquivo recebido"
-                      : "Enviar arquivo para ingestão"}
+                      ? t("csv.sendDone")
+                      : t("csv.send")}
                 </Button>
                 {csv.busy && (
                   <Button variant="outline" onClick={csv.cancel}>
-                    Cancelar
+                    {t("csv.cancel")}
                   </Button>
                 )}
               </div>
@@ -266,21 +272,21 @@ export function Ingestion() {
       {/* Envios recentes */}
       <section className="bg-card border border-border rounded-[14px] p-[20px_22px_12px] flex flex-col gap-2">
         <h2 className="m-0 text-sm font-semibold text-foreground">
-          Envios recentes
+          {t("recent.title")}
         </h2>
         {recentUploads.length === 0 ? (
           <p className="m-0 pb-4 text-xs text-muted-foreground">
-            Nenhum envio nesta sessão.
+            {t("recent.none")}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[480px] border-collapse text-sm tabular-nums">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                  <th className="font-normal py-2.5 pr-3">Nº</th>
-                  <th className="font-normal py-2.5 px-3">Arquivo</th>
-                  <th className="font-normal py-2.5 px-3">Enviado</th>
-                  <th className="font-normal py-2.5 pl-3">Status</th>
+                  <th className="font-normal py-2.5 pr-3">{t("recent.number")}</th>
+                  <th className="font-normal py-2.5 px-3">{t("recent.file")}</th>
+                  <th className="font-normal py-2.5 px-3">{t("recent.sent")}</th>
+                  <th className="font-normal py-2.5 pl-3">{t("recent.status")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -301,7 +307,7 @@ export function Ingestion() {
                     <td className="py-3.5 pl-3">
                       <span className="inline-flex items-center gap-2 text-foreground">
                         <span className="size-2 rounded-full bg-primary" />
-                        Enviado
+                        {t("recent.sentStatus")}
                       </span>
                     </td>
                   </tr>
@@ -315,7 +321,7 @@ export function Ingestion() {
       {/* Formulário de transação individual (mantido e reestilizado) */}
       <details className="group bg-card border border-border rounded-[14px] p-[20px_22px]">
         <summary className="flex justify-between items-center cursor-pointer font-semibold text-sm text-foreground list-none select-none">
-          <span>Adicionar transação individual (registro manual)</span>
+          <span>{t("manual.summary")}</span>
           <span className="text-xs text-muted-foreground group-open:rotate-180 transition-transform">
             ▼
           </span>
@@ -327,14 +333,10 @@ export function Ingestion() {
             if (await manual.submit(data)) resetManual();
           })}
         >
-          {(
-            Object.keys(transactionFieldLabels) as Array<
-              keyof TransactionRequest
-            >
-          ).map((fieldKey) => (
+          {TRANSACTION_FIELDS.map((fieldKey) => (
             <Field
               key={fieldKey}
-              label={transactionFieldLabels[fieldKey]}
+              label={t(`manual.fields.${fieldKey}`)}
               error={manualErrors[fieldKey]?.message}
             >
               <Input
@@ -372,7 +374,7 @@ export function Ingestion() {
                   fieldKey.includes("currency") ||
                   fieldKey.includes("location") ||
                   fieldKey === "Payment_type"
-                    ? "Digite para buscar…"
+                    ? t("manual.search")
                     : undefined
                 }
                 autoComplete="off"
@@ -398,7 +400,7 @@ export function Ingestion() {
           <div className="flex items-end sm:col-span-2 lg:col-span-3 pt-2">
             <Button type="submit" disabled={manual.busy}>
               <Plus className="size-4" strokeWidth={1.5} />
-              {manual.busy ? "Registrando…" : "Registrar transação"}
+              {manual.busy ? t("manual.submitting") : t("manual.submit")}
             </Button>
           </div>
         </form>
@@ -408,10 +410,10 @@ export function Ingestion() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="text-left text-muted-foreground border-b border-border">
-                  <th className="py-2">Origem</th>
-                  <th className="py-2">Destino</th>
-                  <th className="py-2">Valor</th>
-                  <th className="py-2">Status</th>
+                  <th className="py-2">{t("manual.origin")}</th>
+                  <th className="py-2">{t("manual.destination")}</th>
+                  <th className="py-2">{t("manual.amount")}</th>
+                  <th className="py-2">{t("manual.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-soft font-mono">
@@ -420,13 +422,13 @@ export function Ingestion() {
                     <td className="py-2">{entry.sender}</td>
                     <td className="py-2">{entry.receiver}</td>
                     <td className="py-2">
-                      {new Intl.NumberFormat("pt-BR", {
+                      {new Intl.NumberFormat(locale, {
                         style: "currency",
                         currency: entry.currency,
                       }).format(entry.amount)}
                     </td>
                     <td className="py-2 font-sans text-muted-foreground">
-                      Recebido
+                      {t("manual.received")}
                     </td>
                   </tr>
                 ))}

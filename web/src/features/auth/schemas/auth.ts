@@ -1,18 +1,19 @@
 import { z } from "zod";
+import { v } from "@/i18n/validation";
 
 export const profileSchema = z.object({
-  name: z.string().trim().min(2, "Informe seu nome completo.").max(100),
+  name: z.string().trim().min(2, v("nameFull")).max(100),
 });
 const passwordRule = z
   .string()
-  .min(8, "Use pelo menos 8 caracteres.")
+  .min(8, v("passwordMin"))
   .max(128)
-  .regex(/[A-Za-z]/, "Inclua uma letra.")
-  .regex(/\d/, "Inclua um número.");
+  .regex(/[A-Za-z]/, v("passwordLetter"))
+  .regex(/\d/, v("passwordNumber"));
 export const loginSchema = z.object({
   keepSignedIn: z.boolean().optional(),
-  email: z.email("Informe um e-mail válido."),
-  password: z.string().min(1, "Informe sua senha."),
+  email: z.email(v("emailInvalid")),
+  password: z.string().min(1, v("passwordRequired")),
 });
 export const signupSchema = loginSchema
   .extend({
@@ -22,14 +23,14 @@ export const signupSchema = loginSchema
   })
   .refine((d) => d.password === d.confirmation, {
     path: ["confirmation"],
-    message: "As senhas não coincidem.",
+    message: v("passwordMismatch"),
   });
 export const resetRequestSchema = z.object({ email: loginSchema.shape.email });
 export const passwordUpdateSchema = z
   .object({ password: passwordRule, confirmation: z.string() })
   .refine((d) => d.password === d.confirmation, {
     path: ["confirmation"],
-    message: "As senhas não coincidem.",
+    message: v("passwordMismatch"),
   });
 export type LoginInput = z.infer<typeof loginSchema>;
 export type SignupInput = z.infer<typeof signupSchema>;

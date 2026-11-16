@@ -39,6 +39,9 @@ export const feedbackSummarySchema = z.object({
   retrain: z.object({
     can_retrain: z.boolean(),
     reason: z.string().nullable(),
+    // Código estável e parâmetros do motivo (o front traduz e cai em `reason`).
+    reason_code: z.string().nullish(),
+    reason_params: z.record(z.string(), z.unknown()).nullish(),
     can_retrain_with_simulated: z.boolean(),
     reason_with_simulated: z.string().nullable(),
   }),

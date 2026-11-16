@@ -9,10 +9,11 @@ import json
 import logging
 from typing import Any
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import Connection, text
 
 from api.dependencies import User
+from api.errors import AppError
 from api.schemas.connections import (
     CompatibilityReport,
     ConnectionCreate,
@@ -93,8 +94,12 @@ def _audit(conn: Connection, user: User, action: str, connection_id: int, detail
     )
 
 
-def _unprocessable(message: str) -> HTTPException:
-    return HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, message)
+def _unprocessable(code: str, message: str, params: dict[str, Any] | None = None) -> AppError:
+    return AppError(status.HTTP_422_UNPROCESSABLE_CONTENT, code, message, params)
+
+
+def _from_source(exc: SourceError) -> AppError:
+    return AppError(status.HTTP_422_UNPROCESSABLE_CONTENT, exc.code, str(exc), exc.params)
 
 
 def _fetch_row(conn: Connection, connection_id: int, *, for_update: bool = False) -> Any:
@@ -110,7 +115,7 @@ def _fetch_row(conn: Connection, connection_id: int, *, for_update: bool = False
         .first()
     )
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Conexão não encontrada.")
+        raise AppError(status.HTTP_404_NOT_FOUND, "connection.not_found", "Conexão não encontrada.")
     return row
 
 
@@ -118,7 +123,9 @@ def _source_from_row(row: Any, control_column: str | None = None) -> ExternalSou
     try:
         password = decrypt_password(row["password_encrypted"])
     except (SecretKeyMissingError, CannotDecryptError) as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+        raise AppError(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "connection.secret_key", str(exc)
+        ) from exc
     return ExternalSource(
         host=row["host"],
         port=row["port"],
@@ -151,11 +158,13 @@ def create_connection(
         if request.control_column:
             validate_identifier(request.control_column, "nome da coluna de controle")
     except SourceError as exc:
-        raise _unprocessable(str(exc)) from exc
+        raise _from_source(exc) from exc
     try:
         encrypted = encrypt_password(request.password.get_secret_value())
     except SecretKeyMissingError as exc:
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(exc)) from exc
+        raise AppError(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "connection.secret_key", str(exc)
+        ) from exc
     row = (
         conn.execute(
             text(
@@ -194,8 +203,9 @@ def create_connection(
 def delete_connection(conn: Connection, connection_id: int, user: User) -> None:
     row = _fetch_row(conn, connection_id, for_update=True)
     if row["status"] == "syncing":
-        raise HTTPException(
+        raise AppError(
             status.HTTP_409_CONFLICT,
+            "connection.import_running_delete",
             "A importação desta conexão está em andamento. Aguarde terminar para remover.",
         )
     conn.execute(
@@ -266,19 +276,22 @@ def start_import(
     """
     row = _fetch_row(conn, connection_id, for_update=True)
     if row["status"] == "syncing":
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Já existe uma importação em andamento nesta conexão."
+        raise AppError(
+            status.HTTP_409_CONFLICT,
+            "connection.import_in_progress",
+            "Já existe uma importação em andamento nesta conexão.",
         )
     if row["dataset"] is not None and row["last_synced_at"] is not None:
-        raise HTTPException(
+        raise AppError(
             status.HTTP_409_CONFLICT,
+            "connection.already_linked",
             "Esta conexão já foi ligada a um conjunto de dados. Cadastre outra conexão para "
             "importar de novo.",
         )
     try:
         validate_identifier(request.control_column, "nome da coluna de controle")
     except SourceError as exc:
-        raise _unprocessable(str(exc)) from exc
+        raise _from_source(exc) from exc
     source = _source_from_row(row, control_column=request.control_column)
 
     # Confere a fonte de novo (o teste pode ser antigo) e lê o que a decisão precisa.
@@ -333,18 +346,26 @@ def _inspect_source(source: ExternalSource, request: ImportRequest):
         with open_readonly(source) as ext:
             info = reader.describe_table(ext, source)
             if not info.exists:
-                raise _unprocessable("A tabela de origem não existe ou não está visível.")
+                raise _unprocessable(
+                    "connection.table_missing",
+                    "A tabela de origem não existe ou não está visível.",
+                )
             missing = reader.missing_columns(info)
             wrong = reader.wrong_types(info)
             if missing or wrong:
                 raise _unprocessable(
-                    "A tabela não é compatível com o formato do SAML-D. Rode o teste da conexão."
+                    "connection.table_incompatible",
+                    "A tabela não é compatível com o formato do SAML-D. Rode o teste da conexão.",
                 )
             if info.control is None:
-                raise _unprocessable("A coluna de controle não existe na tabela de origem.")
+                raise _unprocessable(
+                    "source.control_missing",
+                    "A coluna de controle não existe na tabela de origem.",
+                )
             if info.control.data_type not in reader.CONTROL_TYPES:
                 raise _unprocessable(
-                    "A coluna de controle deve ser de data/hora ou número crescente."
+                    "connection.control_type",
+                    "A coluna de controle deve ser de data/hora ou número crescente.",
                 )
             first_date = None
             if request.mode in ("history", "both"):
@@ -352,7 +373,7 @@ def _inspect_source(source: ExternalSource, request: ImportRequest):
             position = reader.max_control(ext, source, info) if request.mode == "follow" else None
             return first_date, position
     except SourceError as exc:
-        raise _unprocessable(str(exc)) from exc
+        raise _from_source(exc) from exc
 
 
 def _destination(
@@ -362,21 +383,27 @@ def _destination(
         try:
             dataset = resolve_dataset(conn, current_slug)
         except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
-            raise HTTPException(
-                status.HTTP_404_NOT_FOUND, f"Conjunto de dados '{current_slug}' não encontrado."
+            raise AppError(
+                status.HTTP_404_NOT_FOUND,
+                "dataset.not_found",
+                f"Conjunto de dados '{current_slug}' não encontrado.",
+                {"slug": current_slug},
             ) from exc
         use_dataset(conn, dataset)
         if request.mode in ("history", "both"):
             if first_date is None:
                 raise _unprocessable(
-                    "Não foi possível conferir as datas da fonte para continuar o conjunto atual."
+                    "import.dates_unverifiable",
+                    "Não foi possível conferir as datas da fonte para continuar o conjunto atual.",
                 )
             current = compatibility.dataset_range(conn)
             if compatibility.closed_weeks_conflict(first_date, current):
                 raise _unprocessable(
+                    "import.closed_weeks",
                     f"As datas da fonte começam em {first_date.isoformat()}, antes da semana "
                     "aberta do conjunto atual. Semanas fechadas não mudam: escolha "
-                    "«Outro dataset com a mesma estrutura»."
+                    "«Outro dataset com a mesma estrutura».",
+                    {"first_date": first_date.isoformat()},
                 )
         return dataset.slug
     assert request.new_dataset is not None
@@ -388,10 +415,13 @@ def _destination(
     try:
         return create_dataset(conn, name=request.new_dataset.name, slug=slug).slug
     except InvalidDatasetSlugError as exc:
-        raise _unprocessable(str(exc)) from exc
+        raise _unprocessable("dataset.invalid_slug", str(exc)) from exc
     except DatasetAlreadyExistsError as exc:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"O conjunto de dados '{slug}' já existe."
+        raise AppError(
+            status.HTTP_409_CONFLICT,
+            "dataset.exists",
+            f"O conjunto de dados '{slug}' já existe.",
+            {"slug": slug},
         ) from exc
     except ValueError as exc:
-        raise _unprocessable(str(exc)) from exc
+        raise _unprocessable("dataset.invalid", str(exc)) from exc

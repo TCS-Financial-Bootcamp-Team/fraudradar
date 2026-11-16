@@ -2,7 +2,7 @@
 ``web/src/features/models/schemas/models.ts``)."""
 
 from datetime import date, datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, model_validator
 
@@ -40,6 +40,9 @@ class PromotionGate(BaseModel):
 
     passed: bool
     reason: str | None = None
+    # Código e parâmetros de ``reason`` (fichas antigas não têm): o front traduz por eles.
+    reason_code: str | None = None
+    reason_params: dict[str, Any] | None = None
 
 
 class ModelComparison(BaseModel):
@@ -108,7 +111,11 @@ class TrainingFeedback(BaseModel):
     analyst: FeedbackClassCounts
     simulated: FeedbackClassCounts
     blocked_reason: str | None
+    blocked_reason_code: str | None = None
+    blocked_reason_params: dict[str, Any] | None = None
     blocked_reason_with_simulated: str | None
+    blocked_reason_with_simulated_code: str | None = None
+    blocked_reason_with_simulated_params: dict[str, Any] | None = None
 
 
 class ModelsResponse(BaseModel):
@@ -117,6 +124,8 @@ class ModelsResponse(BaseModel):
     versions: list[ModelVersion]
     can_train: bool
     train_blocked_reason: str | None
+    train_blocked_reason_code: str | None = None
+    train_blocked_reason_params: dict[str, Any] | None = None
     training_job: JobResponse | None
     training_feedback: TrainingFeedback
 

@@ -31,6 +31,9 @@ CREATE TABLE public.jobs (
                 CHECK (status IN ('queued', 'running', 'done', 'failed')),
     progress    INTEGER     NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
     message     TEXT,
+    -- Código estável e parâmetros da mensagem (o front traduz por eles; `message` segue em português).
+    message_code   TEXT,
+    message_params JSONB,
     created_by  TEXT        NOT NULL CHECK (length(btrim(created_by)) > 0),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     started_at  TIMESTAMPTZ,

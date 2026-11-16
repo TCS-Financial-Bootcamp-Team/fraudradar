@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "./button";
 
 export function SidePanel({
@@ -14,6 +15,7 @@ export function SidePanel({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const t = useTranslations("shell.sidePanel");
 
   useEffect(() => {
     const dialog = ref.current;
@@ -37,7 +39,7 @@ export function SidePanel({
           <Button
             variant="ghost"
             size="icon-sm"
-            aria-label="Fechar painel"
+            aria-label={t("close")}
             onClick={onClose}
           >
             <X className="size-4" strokeWidth={1.5} />

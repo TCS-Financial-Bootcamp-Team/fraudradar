@@ -1,5 +1,6 @@
 import { AuthScreen } from "@/features/auth/components/auth-screen";
 import { Suspense } from "react";
+import { StatusText } from "@/components/ui/status-text";
 async function LoginFormContent({ searchParams }: PageProps<"/login">) {
   const query = await searchParams;
   return (
@@ -11,7 +12,7 @@ async function LoginFormContent({ searchParams }: PageProps<"/login">) {
 }
 export default function LoginPage(props: PageProps<"/login">) {
   return (
-    <Suspense fallback={<p role="status">Carregando login…</p>}>
+    <Suspense fallback={<StatusText message="loadingLogin" />}>
       <LoginFormContent {...props} />
     </Suspense>
   );

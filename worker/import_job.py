@@ -27,6 +27,7 @@ from fraudradar.datasets import (
     resolve_dataset,
     use_dataset,
 )
+from fraudradar.messages import msg
 from fraudradar.sources import compatibility, reader
 from fraudradar.sources.connection import (
     READ_STATEMENT_TIMEOUT_MS,
@@ -205,7 +206,14 @@ def _ingest(
                 share = written / total if total else 0.5
                 progress(
                     min(_MAX_PROGRESS, 5 + int(share * (_MAX_PROGRESS - 5))),
-                    f"{written} linha(s) importadas" + (f" de {total}." if total else "."),
+                    msg(
+                        "job.import_rows_of_total",
+                        f"{written} linha(s) importadas de {total}.",
+                        written=written,
+                        total=total,
+                    )
+                    if total
+                    else msg("job.import_rows", f"{written} linha(s) importadas.", written=written),
                 )
         if ingestion_id is not None:
             conn.execute(
@@ -270,7 +278,10 @@ def import_handler(engine: Engine, job: "Job", progress: "Progress") -> None:
             text("SELECT created_by FROM public.jobs WHERE id = :id"), {"id": job.id}
         ).scalar_one()
         connection = _load_connection(conn, connection_id)
-    progress(2, "Conectando à fonte externa em modo somente leitura.")
+    progress(
+        2,
+        msg("job.import_connecting", "Conectando à fonte externa em modo somente leitura."),
+    )
     # Importação lê o histórico inteiro: sempre desde o começo (posição vazia).
     connection.position = None
     try:
@@ -284,9 +295,13 @@ def import_handler(engine: Engine, job: "Job", progress: "Progress") -> None:
         raise
     progress(
         95,
-        f"{written} transação(ões) importadas. Processamento enfileirado."
+        msg(
+            "job.import_done",
+            f"{written} transação(ões) importadas. Processamento enfileirado.",
+            written=written,
+        )
         if written
-        else "A fonte não tinha linhas para importar.",
+        else msg("job.import_empty", "A fonte não tinha linhas para importar."),
     )
     _enqueue_process(engine, dataset.slug, actor)
 

@@ -3,11 +3,12 @@
 import json
 from datetime import timedelta
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import Connection, RowMapping, text
 
 from api.dependencies import User
 from api.domain import DECISION_STATUS, alert_from_row, get_alert_row, week_start
+from api.errors import AppError
 from api.schemas.alerts import Alert, ApprovalRequest, DecisionRequest, Report
 from fraudradar.model.feedback import decision_label, store_label
 
@@ -44,7 +45,11 @@ def _ensure_open(conn: Connection, alert_id: int) -> None:
         {"id": alert_id},
     ).scalar_one_or_none()
     if approved is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "A comunicação deste alerta já foi aprovada.")
+        raise AppError(
+            status.HTTP_409_CONFLICT,
+            "report.already_approved",
+            "A comunicação deste alerta já foi aprovada.",
+        )
 
 
 def _latest_report(conn: Connection, alert_id: int) -> RowMapping:
@@ -60,7 +65,9 @@ def _latest_report(conn: Connection, alert_id: int) -> RowMapping:
         .first()
     )
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Este alerta não tem comunicação.")
+        raise AppError(
+            status.HTTP_404_NOT_FOUND, "report.not_found", "Este alerta não tem comunicação."
+        )
     return row
 
 
@@ -166,7 +173,11 @@ def approve_report(conn: Connection, alert_id: int, request: ApprovalRequest, us
     report = _latest_report(conn, alert_id)
     _ensure_open(conn, alert_id)
     if alert["status"] != "reported":
-        raise HTTPException(status.HTTP_409_CONFLICT, "A decisão atual do alerta não é comunicar.")
+        raise AppError(
+            status.HTTP_409_CONFLICT,
+            "report.not_a_report_decision",
+            "A decisão atual do alerta não é comunicar.",
+        )
     row = (
         conn.execute(
             text(

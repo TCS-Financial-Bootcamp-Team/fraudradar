@@ -1,0 +1,31 @@
+{
+  "never": "ainda não executado",
+  "last": "Último: {when}",
+  "next": "Próximo: {when}",
+  "autoOff": "automação desativada",
+  "working": "Processando…",
+  "simulate": "Simular transações",
+  "processNow": "Processar agora",
+  "simulator": {
+    "title": "Simular novas transações",
+    "hint": "As datas começam após o último dia do conjunto.",
+    "close": "Fechar simulador",
+    "count": "Quantidade de transações",
+    "days": "Dias simulados",
+    "fanOut": "Injetar padrão fan-out para demonstração",
+    "cancel": "Cancelar",
+    "submit": "Simular e processar"
+  },
+  "settings": {
+    "title": "Processamento",
+    "currentDataset": "conjunto atual",
+    "unavailable": "Configuração indisponível.",
+    "interval": "Intervalo automático (minutos)",
+    "auto": "Processamento automático ativo",
+    "demo": "Modo demonstração",
+    "sample": "Amostra de controle por semana",
+    "sampleHint": "Contas sorteadas abaixo do corte a cada semana, para os analistas revisarem e o sistema medir a lavagem que o modelo deixa passar. 0 desliga.",
+    "save": "Salvar processamento"
+  },
+  "saved": "Configuração de processamento salva."
+}

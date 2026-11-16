@@ -1,0 +1,186 @@
+{
+  "page": {
+    "eyebrow": "Transaction intake",
+    "title": "Data sources"
+  },
+  "csv": {
+    "title": "Import CSV",
+    "drag": "Drag the file here",
+    "hint": "CSV in the SAML-D format, without the evaluation columns. Up to 20 MB or 200 thousand rows; all or nothing.",
+    "ariaFile": "CSV file",
+    "choose": "Choose file",
+    "columns": "See the 11 required columns",
+    "validating": "Validating the preview…",
+    "previewRows": "{count} rows in the preview",
+    "confirmed": "Receipt confirmed",
+    "waiting": "File sent. Waiting for confirmation…",
+    "sending": "Sending file…",
+    "sendBusy": "Sending…",
+    "sendDone": "File received",
+    "send": "Send file for ingestion",
+    "cancel": "Cancel",
+    "errors": {
+      "selectFile": "Select a non-empty CSV file.",
+      "noTransactions": "The CSV contains no transactions.",
+      "headerInvalid": "Invalid or excessively long header.",
+      "linesTooLong": "Excessively long lines. Check the CSV format.",
+      "invalid": "Invalid CSV: check delimiters, quotes and columns.",
+      "cannotRead": "Could not read the CSV.",
+      "headers": "The CSV must contain exactly the 11 SAML-D transaction columns. Missing: {missing}. Remove extra or duplicated columns.",
+      "none": "none",
+      "https": "Connection credentials require an HTTPS API. HTTP is only allowed on localhost."
+    }
+  },
+  "recent": {
+    "title": "Recent uploads",
+    "none": "No uploads in this session.",
+    "number": "No.",
+    "file": "File",
+    "sent": "Sent",
+    "status": "Status",
+    "sentStatus": "Sent"
+  },
+  "manual": {
+    "summary": "Add a single transaction (manual entry)",
+    "search": "Type to search…",
+    "submit": "Record transaction",
+    "submitting": "Recording…",
+    "origin": "Sender",
+    "destination": "Receiver",
+    "amount": "Amount",
+    "status": "Status",
+    "received": "Received",
+    "fields": {
+      "Date": "Date",
+      "Time": "Time",
+      "Sender_account": "Sender account",
+      "Receiver_account": "Receiver account",
+      "Amount": "Amount",
+      "Payment_currency": "Payment currency",
+      "Received_currency": "Received currency",
+      "Sender_bank_location": "Sender bank country",
+      "Receiver_bank_location": "Receiver bank country",
+      "Payment_type": "Payment type"
+    }
+  },
+  "connections": {
+    "title": "External database connections",
+    "intro": "Reads transactions from a Postgres table in the SAML-D format, always in read-only mode. Test first: the report shows what matches the format and whether the data continues the current dataset.",
+    "dataset": "Dataset ",
+    "lastRead": "Last read: {date}",
+    "test": "Test",
+    "remove": "Remove",
+    "removeAria": "Remove {name}",
+    "removeQuestion": "Remove the connection “{name}”?",
+    "removeNote": "The connection and the encrypted password cease to exist and monitoring of this source stops. Transactions that already entered the dataset stay there. The removal is recorded in the audit log.",
+    "confirmRemove": "Confirm removal",
+    "cancel": "Cancel",
+    "testing": "Testing “{name}”…",
+    "linked": "This connection is already linked to the dataset {dataset}.",
+    "new": "New connection",
+    "saved": "Connection saved. The password was encrypted and will not be shown again.",
+    "removed": "Connection “{name}” removed.",
+    "importDone": "Import finished. Processing was queued.",
+    "importFailed": "The import failed.",
+    "status": {
+      "untested": "Not tested",
+      "connected": "Connected",
+      "incompatible": "Incompatible",
+      "error": "Error",
+      "syncing": "Importing"
+    }
+  },
+  "form": {
+    "name": "Connection name",
+    "namePlaceholder": "E.g.: Partner bank",
+    "host": "Host",
+    "hostPlaceholder": "localhost",
+    "port": "Port",
+    "database": "Database",
+    "user": "User",
+    "password": "Password",
+    "table": "Source table",
+    "tablePlaceholder": "schema.table",
+    "control": "Control column",
+    "controlPlaceholder": "id or created_at",
+    "note": "The password is encrypted when saved and never shown again. The control column (date/time or increasing number) lets you read only what is new. Reading is always read-only.",
+    "save": "Save connection",
+    "saving": "Saving…",
+    "cancel": "Cancel"
+  },
+  "questions": {
+    "q1": "1. How does it relate to the current data?",
+    "q2": "2. How should it be processed?",
+    "destination": "Destination: dataset {dataset}. Dates that cross closed weeks are refused.",
+    "newName": "New dataset name",
+    "newNamePlaceholder": "E.g.: Partner bank",
+    "slug": "Slug",
+    "slugPlaceholder": "partner-bank",
+    "control": "Control column (to read only what is new)",
+    "controlPlaceholder": "id or created_at",
+    "confirm": "Confirm and import",
+    "sending": "Sending…",
+    "checkAnswers": "Check the answers.",
+    "relation": {
+      "extend": {
+        "label": "Continues the current data",
+        "hint": "Same accounts, following periods. The transactions go into the selected dataset."
+      },
+      "new_dataset": {
+        "label": "Another dataset with the same structure",
+        "hint": "Creates a separate dataset, with its own queue, periods and history."
+      }
+    },
+    "mode": {
+      "history": {
+        "label": "Analyze the history now",
+        "hint": "Imports everything already in the table and processes it."
+      },
+      "follow": {
+        "label": "Follow only what arrives",
+        "hint": "Ignores what already exists; each run reads the new rows through the control column."
+      },
+      "both": {
+        "label": "Both",
+        "hint": "Imports the history and keeps reading the new rows."
+      }
+    }
+  },
+  "report": {
+    "title": "Compatibility report",
+    "tone": {
+      "ok": "Passed",
+      "fail": "Failed",
+      "info": "Info"
+    },
+    "truth": "Ground truth",
+    "rows": "Rows in the table",
+    "range": "Date range",
+    "common": "Accounts in common",
+    "dates": "Dates",
+    "suggestion": "Suggestion (you decide): ",
+    "checks": {
+      "connection": "Connection",
+      "table": "Source table",
+      "columns": "Required columns",
+      "types": "Column types",
+      "control": "Control column",
+      "sample": "Validated sample",
+      "ground_truth": "Ground truth (Is_laundering)"
+    },
+    "datesText": {
+      "continue": "The dates continue right after the end of the current data.",
+      "overlap": "The dates cross periods of the current dataset.",
+      "other_era": "The dates are from another era.",
+      "empty_dataset": "The current dataset has no transactions to compare yet.",
+      "unknown": "Could not compare the dates."
+    },
+    "accountsKnown": "{pct} of the {count} sample accounts already exist in the current dataset.",
+    "noAccounts": "No accounts to compare in the sample.",
+    "rowsUncounted": "Not counted (the table is too large to count right now)",
+    "noDates": "No dates read",
+    "dateRange": "{from} to {to}",
+    "truthYes": "Yes: the model can be measured and, later, retrained.",
+    "truthNo": "No: the model gives the scores, but there is no way to measure or retrain."
+  }
+}

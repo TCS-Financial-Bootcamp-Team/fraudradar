@@ -15,8 +15,13 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
+import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
+import { getT } from "@/i18n/runtime";
+import { useFormatters } from "@/i18n/use-formatters";
 import { formatNumber, formatPercent } from "@/lib/format";
+import { formatDayMonth } from "@/lib/risk";
 import type { Series, StatusCounts } from "../schemas/alerts";
 
 // ---------------------------------------------------------------------------
@@ -44,6 +49,12 @@ export function generateSparklinePath(
   return { line, area };
 }
 
+// Rótulo de uma semana da série: a API manda a data ISO em `week`; sem ela vale o `name`
+// que veio pronto (compatibilidade).
+function seriesWeekName(item: { name: string; week?: string | null }, locale: AppLocale) {
+  return item.week ? formatDayMonth(item.week, locale) : item.name;
+}
+
 // ---------------------------------------------------------------------------
 // Sparkline SVG component for KPI cards
 // ---------------------------------------------------------------------------
@@ -57,6 +68,7 @@ export function Sparkline({
   label?: string;
   className?: string;
 }) {
+  const t = useTranslations("alerts.charts");
   const path = React.useMemo(
     () => generateSparklinePath(values, 100, 32, 3),
     [values],
@@ -73,7 +85,7 @@ export function Sparkline({
       viewBox="0 0 100 32"
       preserveAspectRatio="none"
       role="img"
-      aria-label={label ?? "Evolução nas semanas"}
+      aria-label={label ?? t("sparkline")}
       className={cn("h-8 w-24 shrink-0", className)}
     >
       <path d={path.area} fill="var(--primary)" fillOpacity="0.08" />
@@ -100,16 +112,22 @@ export function WeeklyAlertsChart({
   data: Series[];
   currentWeekName?: string;
 }) {
+  const t = useTranslations("alerts.charts.weekly");
+  const locale = useLocale();
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[180px] items-center justify-center text-xs text-muted-foreground">
-        Nenhum dado de alertas por semana.
+        {t("empty")}
       </div>
     );
   }
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
-  const ariaLabel = `Alertas por semana: ${data.map((d) => `${d.name}: ${d.value}`).join(", ")}.`;
+  const ariaLabel = t("aria", {
+    items: data
+      .map((d) => t("item", { name: seriesWeekName(d, locale), value: d.value }))
+      .join(", "),
+  });
 
   return (
     <div className="flex flex-col gap-2">
@@ -123,7 +141,8 @@ export function WeeklyAlertsChart({
             ? w.name === currentWeekName
             : i === data.length - 1;
           const barHeight = Math.max(4, Math.round((w.value / maxValue) * 135));
-          const tooltip = `Semana de ${w.name}: ${w.value} alertas`;
+          const label = seriesWeekName(w, locale);
+          const tooltip = t("tooltip", { name: label, count: w.value });
 
           return (
             <div
@@ -159,9 +178,9 @@ export function WeeklyAlertsChart({
           <span
             key={w.name + i}
             className="flex-1 text-center font-sans text-[11px] text-muted-foreground truncate"
-            title={w.name}
+            title={seriesWeekName(w, locale)}
           >
-            {w.name}
+            {seriesWeekName(w, locale)}
           </span>
         ))}
       </div>
@@ -175,6 +194,7 @@ export function WeeklyAlertsChart({
 
 export type WeeklyRatePoint = {
   name: string;
+  week?: string | null;
   value: number | null;
   numerator: number;
   denominator: number;
@@ -182,10 +202,20 @@ export type WeeklyRatePoint = {
 };
 
 /** Texto de uma taxa com os casos por trás dela ("75% · 3 de 4"). */
-export function describeRate(point: WeeklyRatePoint, unit: string): string {
-  if (point.value === null) return `sem ${unit} ainda`;
-  const base = `${formatPercent(point.value)} · ${formatNumber(point.numerator)} de ${formatNumber(point.denominator)} ${unit}`;
-  return point.low_sample ? `${base} (amostra pequena)` : base;
+export function describeRate(
+  point: WeeklyRatePoint,
+  unit: string,
+  locale: AppLocale = DEFAULT_LOCALE,
+): string {
+  const t = getT("alerts.charts.rate", locale);
+  if (point.value === null) return t("none", { unit });
+  const base = t("base", {
+    percent: formatPercent(point.value, locale),
+    numerator: formatNumber(point.numerator, locale),
+    denominator: formatNumber(point.denominator, locale),
+    unit,
+  });
+  return point.low_sample ? t("lowSample", { base }) : base;
 }
 
 export function WeeklyRateChart({
@@ -199,6 +229,9 @@ export function WeeklyRateChart({
   emptyText: string;
   currentWeekName?: string;
 }) {
+  const t = useTranslations("alerts.charts.rate");
+  const locale = useLocale();
+  const format = useFormatters();
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
@@ -207,7 +240,7 @@ export function WeeklyRateChart({
     );
   }
   const ariaLabel = data
-    .map((w) => `${w.name}: ${describeRate(w, unit)}`)
+    .map((w) => `${seriesWeekName(w, locale)}: ${describeRate(w, unit, locale)}`)
     .join("; ");
 
   return (
@@ -226,7 +259,10 @@ export function WeeklyRateChart({
           return (
             <div
               key={w.name + i}
-              title={`Semana de ${w.name}: ${describeRate(w, unit)}`}
+              title={t("weekTooltip", {
+                name: seriesWeekName(w, locale),
+                text: describeRate(w, unit, locale),
+              })}
               className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5"
             >
               <span
@@ -239,7 +275,7 @@ export function WeeklyRateChart({
                       : "text-muted-foreground group-hover:text-foreground",
                 )}
               >
-                {w.value === null ? "—" : formatPercent(w.value)}
+                {w.value === null ? "—" : format.percent(w.value)}
                 {w.low_sample && w.value !== null ? "*" : ""}
               </span>
               <span
@@ -258,15 +294,15 @@ export function WeeklyRateChart({
           <span
             key={w.name + i}
             className="flex-1 truncate text-center font-sans text-[11px] text-muted-foreground"
-            title={w.name}
+            title={seriesWeekName(w, locale)}
           >
-            {w.name}
+            {seriesWeekName(w, locale)}
           </span>
         ))}
       </div>
       {data.some((w) => w.low_sample && w.value !== null) && (
         <p className="m-0 text-xs text-muted-foreground">
-          * menos de 20 {unit}: o percentual ainda diz pouco.
+          {t("footnote", { unit })}
         </p>
       )}
     </div>
@@ -284,10 +320,11 @@ export function ScoreHistogramChart({
   data: Series[];
   totalAlerts?: number;
 }) {
+  const t = useTranslations("alerts.charts.histogram");
   if (!data || data.length === 0) {
     return (
       <div className="flex h-[180px] items-center justify-center text-xs text-muted-foreground">
-        Nenhum dado de distribuição de nota.
+        {t("empty")}
       </div>
     );
   }
@@ -298,12 +335,15 @@ export function ScoreHistogramChart({
 
   const noteText =
     n100 === 1
-      ? "1 alerta empata em 100: quem desempata é a posição na fila."
+      ? t("tieOne")
       : n100 === 0
-        ? "Nenhum alerta com nota 100 nesta semana."
-        : `${n100} alertas empatam em 100: quem desempata é a posição na fila.`;
+        ? t("tieNone")
+        : t("tieMany", { count: n100 });
 
-  const ariaLabel = `Distribuição da nota de risco: ${n100} alertas com nota 100 de um total de ${totalAlerts ?? data.reduce((s, d) => s + d.value, 0)}.`;
+  const ariaLabel = t("aria", {
+    top: n100,
+    total: totalAlerts ?? data.reduce((s, d) => s + d.value, 0),
+  });
 
   return (
     <div className="flex flex-col gap-2">
@@ -315,7 +355,9 @@ export function ScoreHistogramChart({
         {data.map((h) => {
           const isTop = h.name === "100";
           const barHeight = Math.max(4, Math.round((h.value / maxValue) * 115));
-          const tooltip = `${isTop ? "Nota 100" : `Nota a partir de ${h.name}`}: ${h.value} alertas`;
+          const tooltip = isTop
+            ? t("topTooltip", { count: h.value })
+            : t("binTooltip", { bin: h.name, count: h.value });
 
           return (
             <div
@@ -374,27 +416,29 @@ export function ReviewProgressCard({
   total: number;
   statusCounts: StatusCounts;
 }) {
+  const t = useTranslations("alerts.charts.review");
+  const format = useFormatters();
   const pct = total > 0 ? (reviewed / total) * 100 : 0;
-  const pctFormatted = formatPercent(pct / 100);
+  const pctFormatted = format.percent(pct / 100);
 
   const statuses = [
     {
-      label: "Pendentes",
+      label: t("pending"),
       value: statusCounts.pending,
       dotClass: "bg-track ring-1 ring-inset ring-muted-foreground/60",
     },
     {
-      label: "Em investigação",
+      label: t("escalated"),
       value: statusCounts.escalated,
       dotClass: "bg-warning",
     },
     {
-      label: "Arquivados",
+      label: t("archived"),
       value: statusCounts.archived,
       dotClass: "bg-foreground",
     },
     {
-      label: "Para comunicação",
+      label: t("reported"),
       value: statusCounts.reported,
       dotClass: "bg-signal",
     },
@@ -404,16 +448,16 @@ export function ReviewProgressCard({
     <div className="flex flex-col gap-4">
       <div className="flex items-baseline gap-2.5">
         <span className="text-[40px] font-medium tracking-[-0.03em] leading-none tabular-nums text-foreground">
-          {formatNumber(reviewed)}
+          {format.number(reviewed)}
         </span>
         <span className="text-sm text-muted-foreground">
-          de {formatNumber(total)} alertas com decisão
+          {t("ofTotal", { total: format.number(total) })}
         </span>
       </div>
 
       <div
         role="img"
-        aria-label={`${reviewed} de ${total} alertas revisados, ${pctFormatted}.`}
+        aria-label={t("aria", { reviewed, total, percent: pctFormatted })}
         className="h-2.5 rounded-[5px] bg-track overflow-hidden"
       >
         <span
@@ -433,7 +477,7 @@ export function ReviewProgressCard({
               <span>{s.label}</span>
             </dt>
             <dd className="m-0 text-xl font-medium tabular-nums text-foreground">
-              {formatNumber(s.value)}
+              {format.number(s.value)}
             </dd>
           </div>
         ))}
@@ -449,16 +493,18 @@ export function ReviewProgressCard({
 export function HorizontalBarList({
   items,
   isRate = false,
-  unit = "alertas",
+  unit,
 }: {
   items: Series[];
   isRate?: boolean;
   unit?: string;
 }) {
+  const t = useTranslations("alerts.charts.bars");
+  const format = useFormatters();
   if (!items || items.length === 0) {
     return (
       <div className="py-6 text-center text-xs text-muted-foreground">
-        Nenhum registro para esta categoria.
+        {t("empty")}
       </div>
     );
   }
@@ -473,13 +519,16 @@ export function HorizontalBarList({
       {items.map((item) => {
         const isFraction = isRate;
         const formattedVal = isFraction
-          ? formatPercent(item.value)
-          : formatNumber(item.value);
+          ? format.percent(item.value)
+          : format.number(item.value);
         const barWidth = Math.max(
           2,
           Math.min(100, Math.round((item.value / maxValue) * 100)),
         );
-        const tooltip = `${item.name}: ${formattedVal} ${isFraction ? "" : unit}`.trim();
+        const tooltip =
+          isFraction || !unit
+            ? t("tooltip", { name: item.name, value: formattedVal })
+            : t("tooltipUnit", { name: item.name, value: formattedVal, unit });
 
         return (
           <li
@@ -534,6 +583,8 @@ export function ChartCard({
   type?: "area" | "bars" | "donut";
   isRate?: boolean;
 }) {
+  const t = useTranslations("alerts.charts.series");
+  const format = useFormatters();
   return (
     <section className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-4">
       <header className="flex justify-between items-baseline">
@@ -546,7 +597,7 @@ export function ChartCard({
           title +
           ": " +
           data
-            .map((d) => d.name + " " + (isRate ? formatPercent(d.value) : d.value))
+            .map((d) => d.name + " " + (isRate ? format.percent(d.value) : d.value))
             .join(", ")
         }
       >
@@ -574,7 +625,7 @@ export function ChartCard({
               <Tooltip contentStyle={tooltipStyle} />
               <Area
                 dataKey="value"
-                name="Alertas"
+                name={t("alerts")}
                 type="monotone"
                 stroke="var(--primary)"
                 fill="url(#chart-area-grad)"
@@ -609,7 +660,7 @@ export function ChartCard({
               <XAxis
                 type="number"
                 tick={{ fill: "var(--muted-foreground)", fontSize: 10 }}
-                tickFormatter={isRate ? formatPercent : undefined}
+                tickFormatter={isRate ? (value: number) => format.percent(value) : undefined}
                 axisLine={false}
                 tickLine={false}
               />
@@ -623,12 +674,12 @@ export function ChartCard({
               />
               <Tooltip
                 contentStyle={tooltipStyle}
-                formatter={isRate ? (v) => formatPercent(Number(v)) : undefined}
+                formatter={isRate ? (v) => format.percent(Number(v)) : undefined}
                 cursor={{ fill: "var(--muted)" }}
               />
               <Bar
                 dataKey="value"
-                name={isRate ? "Taxa" : "Alertas"}
+                name={isRate ? t("rate") : t("alerts")}
                 fill="var(--primary)"
                 barSize={14}
                 radius={[0, 4, 4, 0]}

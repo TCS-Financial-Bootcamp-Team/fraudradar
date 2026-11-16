@@ -1,0 +1,20 @@
+{
+  "title": "Sistema",
+  "refresh": "Atualizar status do sistema",
+  "refreshSr": "Atualizar",
+  "database": "Banco",
+  "model": "Modelo",
+  "llm": "Chave do LLM",
+  "api": "API",
+  "connected": "Conectado",
+  "down": "Fora",
+  "unavailable": "Indisponível",
+  "configured": "Configurada",
+  "notConfigured": "Não configurada",
+  "unknown": "Desconhecido",
+  "unreachable": "Inacessível",
+  "checking": "Verificando…",
+  "querying": "Consultando…",
+  "apiUnreachable": "API inacessível: {message}",
+  "apiUnreachableShort": "API inacessível"
+}

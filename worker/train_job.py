@@ -23,14 +23,15 @@ from sqlalchemy import Connection, Engine, text
 from fraudradar.config import get_settings
 from fraudradar.datasets import Dataset, DatasetNotFoundError, resolve_dataset, use_dataset
 from fraudradar.features.history import week_start
+from fraudradar.messages import msg
 from fraudradar.model.dataset_data import (
     read_feedback,
     read_feedback_candidates,
     read_labeled,
     read_transactions,
 )
-from fraudradar.model.eligibility import block_reason
-from fraudradar.model.feedback import closed_label_counts, feedback_block_reason, open_week
+from fraudradar.model.eligibility import block_message
+from fraudradar.model.feedback import closed_label_counts, feedback_block_message, open_week
 from fraudradar.model.naming import dataset_version_name
 from worker.errors import WorkerError
 from worker.labels import refresh_label_stats
@@ -99,7 +100,7 @@ def prepare_feedback(
     from fraudradar.model.training import plan_feedback
 
     closed_before = open_week(conn)
-    reason = feedback_block_reason(
+    reason = feedback_block_message(
         closed_label_counts(conn, closed_before), options.include_simulated
     )
     if reason is not None or closed_before is None:
@@ -110,7 +111,7 @@ def prepare_feedback(
         plan = plan_feedback(labels, truth_weeks, options.include_simulated)
     except ValueError as exc:
         raise WorkerError(f"Não foi possível dividir o retreino com retorno: {exc}.") from exc
-    reason = plan.block_reason()
+    reason = plan.block_message()
     if reason is not None:
         raise WorkerError(reason)
     training = plan.training_labels()
@@ -141,7 +142,7 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> str:
             raise WorkerError(f"conjunto de dados '{job.dataset}' não encontrado") from exc
     # Mede o gabarito agora (o registro pode estar velho) e grava o resumo para a API.
     stats = refresh_label_stats(engine, dataset)
-    reason = block_reason(stats.labeled_weeks, stats.has_laundering)
+    reason = block_message(stats.labeled_weeks, stats.has_laundering)
     if reason is not None:
         raise WorkerError(reason)
     root = Path(get_settings().model_dir)
@@ -150,15 +151,19 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> str:
     plan = None
     with engine.connect() as conn:
         use_dataset(conn, dataset)
-        progress(5, "Lendo transações e gabarito do conjunto.")
+        progress(5, msg("job.train_reading", "Lendo transações e gabarito do conjunto."))
         transactions, ground_truth = read_labeled(conn)
         if options.use_feedback:
-            progress(20, "Lendo o retorno dos analistas.")
+            progress(20, msg("job.train_reading_feedback", "Lendo o retorno dos analistas."))
             plan, transactions = prepare_feedback(conn, transactions, options)
         conn.rollback()
     progress(
         READ_SHARE,
-        f"{len(transactions):,} transações lidas; calculando variáveis.".replace(",", "."),
+        msg(
+            "job.train_features",
+            f"{len(transactions):,} transações lidas; calculando variáveis.".replace(",", "."),
+            count=len(transactions),
+        ),
     )
 
     def stage(percent: int, message: str) -> None:
@@ -206,8 +211,16 @@ def train_handler(engine: Engine, job: "Job", progress: "Progress") -> str:
         )
     refresh_label_stats(engine, dataset)
     if gate is None or gate["passed"]:
-        message = f"Versão {version} gravada. Falta promovê-la para usá-la."
+        message = msg(
+            "job.train_saved",
+            f"Versão {version} gravada. Falta promovê-la para usá-la.",
+            version=version,
+        )
     else:
-        message = f"Versão {version} gravada, mas a trava de promoção a bloqueou."
+        message = msg(
+            "job.train_blocked",
+            f"Versão {version} gravada, mas a trava de promoção a bloqueou.",
+            version=version,
+        )
     progress(95, message)
     return message

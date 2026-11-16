@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { StatusText } from "@/components/ui/status-text";
 
 async function RedirectToAccounts() {
   await connection();
@@ -9,7 +10,7 @@ async function RedirectToAccounts() {
 
 export default function HomePage() {
   return (
-    <Suspense fallback={<p role="status">Abrindo painel…</p>}>
+    <Suspense fallback={<StatusText message="openingPanel" />}>
       <RedirectToAccounts />
     </Suspense>
   );

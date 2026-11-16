@@ -2,10 +2,11 @@
 
 import json
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import Connection, text
 
 from api.dependencies import User
+from api.errors import AppError
 from api.schemas.datasets import DatasetResponse, JobResponse
 from fraudradar.datasets import (
     Dataset,
@@ -46,8 +47,11 @@ def enqueue_process(conn: Connection, slug: str, user: User) -> JobResponse:
     try:
         dataset = resolve_dataset(conn, slug)
     except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Conjunto de dados '{slug}' não encontrado."
+        raise AppError(
+            status.HTTP_404_NOT_FOUND,
+            "dataset.not_found",
+            f"Conjunto de dados '{slug}' não encontrado.",
+            {"slug": slug},
         ) from exc
     row = (
         conn.execute(
@@ -83,6 +87,8 @@ def _job_response(row) -> JobResponse:
         status=row["status"],
         progress=row["progress"],
         message=row["message"],
+        message_code=row.get("message_code"),
+        message_params=row.get("message_params"),
         created_at=row["created_at"],
         started_at=row["started_at"],
         finished_at=row["finished_at"],
@@ -96,7 +102,7 @@ def get_job(conn: Connection, job_id: int) -> JobResponse:
         .first()
     )
     if row is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Trabalho não encontrado.")
+        raise AppError(status.HTTP_404_NOT_FOUND, "job.not_found", "Trabalho não encontrado.")
     return _job_response(row)
 
 
@@ -105,9 +111,11 @@ def list_jobs(conn: Connection, dataset: str | None) -> list[JobResponse]:
         try:
             resolve_dataset(conn, dataset)
         except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
-            raise HTTPException(
+            raise AppError(
                 status.HTTP_404_NOT_FOUND,
+                "dataset.not_found",
                 f"Conjunto de dados '{dataset}' não encontrado.",
+                {"slug": dataset},
             ) from exc
     sql = "SELECT * FROM public.jobs"
     params = {}

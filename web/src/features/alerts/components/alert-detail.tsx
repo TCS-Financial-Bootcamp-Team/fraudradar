@@ -1,15 +1,17 @@
 "use client";
 import { useState } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronLeft, CheckCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
-import { formatCurrency } from "@/lib/format";
+import { useFormatters } from "@/i18n/use-formatters";
+import { useValidationText } from "@/i18n/use-validation-text";
 import {
-  SCORE_HINT,
+  scoreHint,
   formatDayMonth,
   formatQueuePosition,
   formatScore,
@@ -24,19 +26,18 @@ import {
   type DecisionRequest,
   type Report,
 } from "../schemas/alerts";
-import { ControlSampleBadge, StatusDot, statusLabels } from "./alerts-table";
+import { ControlSampleBadge, StatusDot } from "./alerts-table";
 import { AccountGraph } from "./account-graph";
 
-const decisionChoices: { value: DecisionRequest["decision"]; label: string }[] =
-  [
-    { value: "archive", label: "Arquivar" },
-    { value: "escalate", label: "Aprofundar" },
-    { value: "report", label: "Comunicar ao COAF" },
-  ];
+const DECISION_CHOICES: DecisionRequest["decision"][] = [
+  "archive",
+  "escalate",
+  "report",
+];
 
-export const archiveReasonChoices: { value: ArchiveReason; label: string }[] = [
-  { value: "false_positive", label: "Falso positivo confirmado" },
-  { value: "insufficient_evidence", label: "Sem evidência suficiente" },
+export const ARCHIVE_REASONS: ArchiveReason[] = [
+  "false_positive",
+  "insufficient_evidence",
 ];
 
 const cardClass = "panel grid gap-4 px-[22px] py-5";
@@ -51,6 +52,11 @@ function CardTitle({ title, hint }: { title: string; hint?: string }) {
 }
 
 export function AlertDetailView({ id }: { id: string }) {
+  const t = useTranslations("alerts.detail");
+  const tc = useTranslations("common.status");
+  const locale = useLocale();
+  const format = useFormatters();
+  const text = useValidationText();
   const resource = useAlertDetail(id);
   const form = useForm<DecisionRequest>({
     resolver: zodResolver(decisionSchema),
@@ -62,15 +68,15 @@ export function AlertDetailView({ id }: { id: string }) {
   if (resource.error || !resource.data)
     return (
       <ResourceError
-        message={resource.error ?? "Alerta não encontrado."}
+        message={resource.error ?? t("notFound")}
         onRetry={resource.reload}
       />
     );
   const { detail: alert, graph, report, otherAlerts } = resource.data;
   const isApproved = report?.status === "approved";
   const high = isHighRisk(alert.score);
-  const decisionError = form.formState.errors.decision?.message;
-  const reasonError = form.formState.errors.archive_reason?.message;
+  const decisionError = text(form.formState.errors.decision?.message);
+  const reasonError = text(form.formState.errors.archive_reason?.message);
   const justificationError = form.formState.errors.justification?.message;
 
   return (
@@ -80,7 +86,7 @@ export function AlertDetailView({ id }: { id: string }) {
         href="/alerts"
       >
         <ChevronLeft className="size-3.5" strokeWidth={1.5} />
-        Fila · semana de {formatWeekLabel(alert.week)}
+        {t("backToQueue", { week: formatWeekLabel(alert.week, locale) })}
       </Link>
 
       <header className="flex flex-wrap items-end justify-between gap-6 border-b border-border pb-6">
@@ -88,33 +94,33 @@ export function AlertDetailView({ id }: { id: string }) {
           <div className="flex flex-wrap items-center gap-2.5 text-[13px]">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-2.5 py-[3px]">
               <StatusDot status={alert.status} />
-              {statusLabels[alert.status]}
+              {tc(alert.status)}
             </span>
             <span className="text-muted-foreground">
-              {formatQueuePosition(alert.queue_position)} · {alert.country}
+              {formatQueuePosition(alert.queue_position, locale)} · {alert.country}
             </span>
             {alert.origin === "exploration" && <ControlSampleBadge />}
           </div>
           <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">
-            Alerta {alert.id}{" "}
+            {t("title", { id: alert.id })}{" "}
             <span className="font-mono text-lg font-normal tracking-normal text-muted-foreground">
-              conta {alert.account}
+              {t("account", { account: alert.account })}
             </span>
           </h1>
         </div>
         <dl className="grid grid-cols-3 gap-x-10 gap-y-1 tabular-nums">
-          <dt className="text-xs text-muted-foreground" title={SCORE_HINT}>
-            Nota de risco
+          <dt className="text-xs text-muted-foreground" title={scoreHint(locale)}>
+            {t("score")}
           </dt>
-          <dt className="text-xs text-muted-foreground">Volume na semana</dt>
-          <dt className="text-xs text-muted-foreground">Movimentações</dt>
+          <dt className="text-xs text-muted-foreground">{t("weekVolume")}</dt>
+          <dt className="text-xs text-muted-foreground">{t("movements")}</dt>
           <dd
             className={`text-[28px] font-medium tracking-[-0.02em] ${high ? "text-signal" : ""}`}
           >
-            {formatScore(alert.score)}
+            {formatScore(alert.score, locale)}
           </dd>
           <dd className="text-[28px] font-medium tracking-[-0.02em]">
-            {formatCurrency(alert.amount)}
+            {format.currency(alert.amount)}
           </dd>
           <dd className="text-[28px] font-medium tracking-[-0.02em]">
             {alert.transaction_count}
@@ -126,8 +132,8 @@ export function AlertDetailView({ id }: { id: string }) {
         <div className="flex min-w-0 flex-[999_1_480px] flex-col gap-5">
           <section className={cardClass}>
             <CardTitle
-              title="Por que entrou na fila"
-              hint="peso de cada sinal na nota"
+              title={t("why")}
+              hint={t("whyHint")}
             />
             <ul className="grid gap-3.5">
               {alert.contributions.map((c) => (
@@ -151,10 +157,10 @@ export function AlertDetailView({ id }: { id: string }) {
           </section>
 
           <section className={cardClass}>
-            <CardTitle title="Regras acionadas" />
+            <CardTitle title={t("rules")} />
             {alert.rules.length === 0 ? (
               <p className="text-[13px] text-muted-foreground">
-                Nenhuma regra de cenário acionada.
+                {t("noRules")}
               </p>
             ) : (
               <ul className="divide-y divide-soft">
@@ -171,7 +177,7 @@ export function AlertDetailView({ id }: { id: string }) {
           </section>
 
           <section className="panel grid gap-2 px-[22px] pb-2 pt-5">
-            <CardTitle title="Movimentações da semana" />
+            <CardTitle title={t("weekMovements")} />
             <div className="overflow-x-auto">
               <table className="w-full min-w-[520px] border-collapse text-left text-sm tabular-nums">
                 <thead className="text-xs text-muted-foreground">
@@ -180,25 +186,25 @@ export function AlertDetailView({ id }: { id: string }) {
                       scope="col"
                       className="border-b border-border py-2.5 pr-3 font-normal"
                     >
-                      Data
+                      {t("colDate")}
                     </th>
                     <th
                       scope="col"
                       className="border-b border-border px-3 py-2.5 font-normal"
                     >
-                      Origem → destino
+                      {t("colFlow")}
                     </th>
                     <th
                       scope="col"
                       className="border-b border-border px-3 py-2.5 font-normal"
                     >
-                      Meio
+                      {t("colMeans")}
                     </th>
                     <th
                       scope="col"
                       className="border-b border-border py-2.5 pl-3 text-right font-normal"
                     >
-                      Valor
+                      {t("colAmount")}
                     </th>
                   </tr>
                 </thead>
@@ -206,7 +212,7 @@ export function AlertDetailView({ id }: { id: string }) {
                   {alert.movements.map((m) => (
                     <tr key={m.id} className="[&:last-child>td]:border-b-0">
                       <td className="border-b border-soft py-[13px] pr-3">
-                        {formatDayMonth(m.date)}
+                        {formatDayMonth(m.date, locale)}
                       </td>
                       <td className="border-b border-soft px-3 py-[13px] font-mono text-[13px]">
                         {m.sender} → {m.receiver}
@@ -215,7 +221,7 @@ export function AlertDetailView({ id }: { id: string }) {
                         {m.payment_type}
                       </td>
                       <td className="border-b border-soft py-[13px] pl-3 text-right">
-                        {new Intl.NumberFormat("pt-BR", {
+                        {new Intl.NumberFormat(locale, {
                           style: "currency",
                           currency: m.currency,
                         }).format(m.amount)}
@@ -229,8 +235,8 @@ export function AlertDetailView({ id }: { id: string }) {
 
           <section className={cardClass}>
             <CardTitle
-              title="Conexões"
-              hint="até 2 saltos · contas pseudonimizadas"
+              title={t("connections")}
+              hint={t("connectionsHint")}
             />
             <AccountGraph graph={graph} />
           </section>
@@ -238,10 +244,13 @@ export function AlertDetailView({ id }: { id: string }) {
 
         <aside className="flex min-w-0 flex-[1_1_320px] flex-col gap-5">
           <section className={cardClass}>
-            <CardTitle title="Outras semanas desta conta" hint={`${otherAlerts.length} período(s)`} />
+            <CardTitle
+              title={t("otherWeeks")}
+              hint={t("periods", { count: otherAlerts.length })}
+            />
             {otherAlerts.length === 0 ? (
               <p className="text-[13px] text-muted-foreground">
-                Esta conta não apareceu em outro período processado.
+                {t("noOtherWeeks")}
               </p>
             ) : (
               <ul className="divide-y divide-soft">
@@ -251,8 +260,8 @@ export function AlertDetailView({ id }: { id: string }) {
                       href={`/alerts/${item.id}`}
                       className="flex min-h-11 items-center justify-between gap-3 py-2 text-[13px] hover:underline"
                     >
-                      <span>Semana de {formatWeekLabel(item.week)}</span>
-                      <span className="font-mono text-xs">{formatScore(item.score)}</span>
+                      <span>{t("weekOf", { week: formatWeekLabel(item.week, locale) })}</span>
+                      <span className="font-mono text-xs">{formatScore(item.score, locale)}</span>
                     </Link>
                   </li>
                 ))}
@@ -261,7 +270,7 @@ export function AlertDetailView({ id }: { id: string }) {
           </section>
 
           <section className={cardClass}>
-            <CardTitle title="Parecer da IA" hint="rascunho para revisão" />
+            <CardTitle title={t("assessment")} hint={t("assessmentHint")} />
             {alert.assessment ? (
               <>
                 <p className="whitespace-pre-line text-[13px] leading-relaxed">
@@ -283,8 +292,7 @@ export function AlertDetailView({ id }: { id: string }) {
               </>
             ) : (
               <p className="text-[13px] text-muted-foreground">
-                Gere uma síntese das evidências com as fontes citadas. A IA não
-                decide: ela ajuda a sua leitura.
+                {t("assessmentEmpty")}
               </p>
             )}
             <Button
@@ -294,15 +302,15 @@ export function AlertDetailView({ id }: { id: string }) {
             >
               <Sparkles strokeWidth={1.5} />
               {resource.busy
-                ? "Aguarde…"
+                ? t("wait")
                 : alert.assessment
-                  ? "Gerar novamente"
-                  : "Gerar parecer"}
+                  ? t("regenerate")
+                  : t("generate")}
             </Button>
           </section>
 
           <section className={cardClass}>
-            <CardTitle title="Decisão" />
+            <CardTitle title={t("decision")} />
             <form
               className="grid gap-3.5"
               onSubmit={
@@ -313,24 +321,24 @@ export function AlertDetailView({ id }: { id: string }) {
             >
               <div
                 role="radiogroup"
-                aria-label="Encaminhamento"
+                aria-label={t("routing")}
                 className="grid grid-cols-3 overflow-hidden rounded-lg border border-border"
               >
-                {decisionChoices.map((c) => {
-                  const checked = chosen === c.value;
+                {DECISION_CHOICES.map((choice) => {
+                  const checked = chosen === choice;
                   return (
                     <button
-                      key={c.value}
+                      key={choice}
                       type="button"
                       role="radio"
                       aria-checked={checked}
                       disabled={isApproved}
                       onClick={() => {
-                        form.setValue("decision", c.value, {
+                        form.setValue("decision", choice, {
                           shouldValidate: true,
                         });
                         // O motivo só existe no arquivamento: some ao trocar de decisão.
-                        if (c.value !== "archive")
+                        if (choice !== "archive")
                           form.setValue("archive_reason", undefined, {
                             shouldValidate: true,
                           });
@@ -341,7 +349,7 @@ export function AlertDetailView({ id }: { id: string }) {
                           : "bg-card text-foreground hover:bg-soft"
                       }`}
                     >
-                      {c.label}
+                      {t(`choices.${choice}`)}
                     </button>
                   );
                 })}
@@ -354,24 +362,24 @@ export function AlertDetailView({ id }: { id: string }) {
               {chosen === "archive" && (
                 <fieldset className="m-0 grid gap-2 border-0 p-0">
                   <legend className="mb-1.5 text-[13px] font-medium text-foreground">
-                    Motivo do arquivamento
+                    {t("archiveReason")}
                   </legend>
                   <div
                     role="radiogroup"
-                    aria-label="Motivo do arquivamento"
+                    aria-label={t("archiveReason")}
                     className="grid grid-cols-2 overflow-hidden rounded-lg border border-border"
                   >
-                    {archiveReasonChoices.map((r) => {
-                      const checked = reason === r.value;
+                    {ARCHIVE_REASONS.map((value) => {
+                      const checked = reason === value;
                       return (
                         <button
-                          key={r.value}
+                          key={value}
                           type="button"
                           role="radio"
                           aria-checked={checked}
                           disabled={isApproved}
                           onClick={() =>
-                            form.setValue("archive_reason", r.value, {
+                            form.setValue("archive_reason", value, {
                               shouldValidate: true,
                             })
                           }
@@ -381,15 +389,13 @@ export function AlertDetailView({ id }: { id: string }) {
                               : "bg-card text-foreground hover:bg-soft"
                           }`}
                         >
-                          {r.label}
+                          {t(`reasons.${value}`)}
                         </button>
                       );
                     })}
                   </div>
                   <p className="m-0 text-xs text-muted-foreground">
-                    Só o falso positivo confirmado ensina o modelo no retreino.
-                    Sem evidência suficiente fica fora: arquivar por falta de
-                    prova não diz que a conta é inocente.
+                    {t("archiveHint")}
                   </p>
                   {reasonError && (
                     <span role="alert" className="text-xs text-signal">
@@ -398,12 +404,12 @@ export function AlertDetailView({ id }: { id: string }) {
                   )}
                 </fieldset>
               )}
-              <Field label="Justificativa" error={justificationError}>
+              <Field label={t("justification")} error={justificationError}>
                 <Textarea
                   rows={3}
                   maxLength={4000}
                   className="bg-background"
-                  placeholder="Quais evidências sustentam a decisão?"
+                  placeholder={t("justificationPlaceholder")}
                   disabled={isApproved}
                   {...form.register("justification")}
                 />
@@ -413,12 +419,12 @@ export function AlertDetailView({ id }: { id: string }) {
                 className="h-11"
                 disabled={resource.busy || isApproved}
               >
-                {resource.busy ? "Registrando…" : "Registrar decisão"}
+                {resource.busy ? t("submitting") : t("submit")}
               </Button>
               <p className="text-xs text-muted-foreground">
                 {isApproved
-                  ? "A comunicação deste alerta já foi aprovada; a decisão está encerrada."
-                  : "Comunicar prepara um rascunho para aprovação. Nada é enviado de verdade."}
+                  ? t("closedNote")
+                  : t("reportNote")}
               </p>
             </form>
           </section>
@@ -446,6 +452,7 @@ function ReportSection({
   onApprove: (content: string) => Promise<unknown>;
   busy: boolean;
 }) {
+  const t = useTranslations("alerts.detail.report");
   const [content, setContent] = useState(report.content);
   const [error, setError] = useState("");
   const isApproved = report.status === "approved";
@@ -453,14 +460,14 @@ function ReportSection({
   return (
     <section className="panel grid gap-3 border-foreground px-[22px] py-5">
       <CardTitle
-        title="Comunicação ao COAF"
-        hint={isApproved ? "Aprovada" : "Rascunho"}
+        title={t("title")}
+        hint={isApproved ? t("approved") : t("draft")}
       />
       <p className="rounded-lg bg-soft px-2.5 py-2 text-xs">
         <strong className="font-medium">
-          Simulação acadêmica: nada é enviado de verdade.
+          {t("simulation")}
         </strong>{" "}
-        A aprovação não comunica operações ao COAF.
+        {t("simulationNote")}
       </p>
       <form
         className="grid gap-3"
@@ -475,7 +482,7 @@ function ReportSection({
           void onApprove(content);
         }}
       >
-        <Field label="Relato da comunicação" error={error}>
+        <Field label={t("label")} error={error}>
           <Textarea
             className="min-h-[260px] bg-background font-mono text-xs leading-relaxed"
             value={content}
@@ -486,8 +493,7 @@ function ReportSection({
           />
         </Field>
         <p className="text-xs text-muted-foreground">
-          Revise fatos, evidências e justificativa. Aprovar apenas registra sua
-          revisão neste ambiente.
+          {t("note")}
         </p>
         <Button
           type="submit"
@@ -497,10 +503,10 @@ function ReportSection({
         >
           <CheckCheck strokeWidth={1.5} />
           {busy
-            ? "Aprovando…"
+            ? t("approving")
             : isApproved
-              ? "Revisão aprovada"
-              : "Aprovar rascunho"}
+              ? t("approvedButton")
+              : t("approve")}
         </Button>
       </form>
     </section>

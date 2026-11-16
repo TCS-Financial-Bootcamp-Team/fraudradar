@@ -59,6 +59,10 @@ class ValidationError:
     line: int | None  # linha do arquivo, com o cabeçalho na linha 1; None fora de arquivo
     column: str | None  # None quando o erro é da linha toda
     message: str
+    # Código estável e parâmetros de ``message`` (só nos erros de estrutura do arquivo): o front
+    # traduz por eles; sem código, mostra a mensagem em português.
+    code: str | None = None
+    params: dict | None = None
 
 
 class InvalidTransactionsError(ValueError):
@@ -179,14 +183,26 @@ def _utf8_lines(file: BinaryIO) -> Iterator[str]:
         line_num += 1
         if len(raw_line) > MAX_LINE_BYTES:
             message = f"Linha com mais de {MAX_LINE_BYTES // 1024} KiB."
-            raise InvalidTransactionsError([ValidationError(line_num, None, message)])
+            raise InvalidTransactionsError(
+                [
+                    ValidationError(
+                        line_num,
+                        None,
+                        message,
+                        "ingestion.line_too_long",
+                        {"kib": MAX_LINE_BYTES // 1024},
+                    )
+                ]
+            )
         if line_num == 1:
             raw_line = raw_line.removeprefix(codecs.BOM_UTF8)
         try:
             decoded = raw_line.decode("utf-8")
         except UnicodeDecodeError:
             message = "Linha fora do UTF-8: salve o CSV como UTF-8."
-            raise InvalidTransactionsError([ValidationError(line_num, None, message)]) from None
+            raise InvalidTransactionsError(
+                [ValidationError(line_num, None, message, "ingestion.not_utf8")]
+            ) from None
         yield decoded
 
 
@@ -194,21 +210,31 @@ def _column_positions(header: list[str]) -> dict[str, int]:
     """Coluna -> posição na linha. Qualquer ordem vale; todas de TRANSACTION_COLUMNS, sem sobras."""
     names = [name.strip() for name in header]
     errors = [
-        ValidationError(1, name, "Rótulo de avaliação não entra pela API: remova a coluna.")
+        ValidationError(
+            1,
+            name,
+            "Rótulo de avaliação não entra pela API: remova a coluna.",
+            "ingestion.label_column",
+        )
         for name in names
         if name in GROUND_TRUTH_COLUMNS
     ]
     errors += [
-        ValidationError(1, c, "Coluna obrigatória ausente.")
+        ValidationError(1, c, "Coluna obrigatória ausente.", "ingestion.missing_column")
         for c in TRANSACTION_COLUMNS
         if c not in names
     ]
     errors += [
-        ValidationError(1, c, "Coluna repetida.") for c in TRANSACTION_COLUMNS if names.count(c) > 1
+        ValidationError(1, c, "Coluna repetida.", "ingestion.duplicate_column")
+        for c in TRANSACTION_COLUMNS
+        if names.count(c) > 1
     ]
     errors += [
         ValidationError(
-            1, name or None, "Coluna desconhecida: use só as colunas de transação do SAML-D."
+            1,
+            name or None,
+            "Coluna desconhecida: use só as colunas de transação do SAML-D.",
+            "ingestion.unknown_column",
         )
         for name in names
         if name not in TRANSACTION_COLUMNS and name not in GROUND_TRUTH_COLUMNS
@@ -235,7 +261,9 @@ def read_csv(
     try:
         header = next(reader, None)
         if header is None:
-            raise InvalidTransactionsError([ValidationError(None, None, "O arquivo está vazio.")])
+            raise InvalidTransactionsError(
+                [ValidationError(None, None, "O arquivo está vazio.", "ingestion.empty_file")]
+            )
         positions = _column_positions(header)
         for fields in reader:
             if not any(field.strip() for field in fields):
@@ -245,7 +273,15 @@ def read_csv(
                 raise TooManyRowsError(max_rows)
             if len(fields) != len(header):
                 message = f"A linha tem {len(fields)} campo(s), e o cabeçalho, {len(header)}."
-                errors.append(ValidationError(reader.line_num, None, message))
+                errors.append(
+                    ValidationError(
+                        reader.line_num,
+                        None,
+                        message,
+                        "ingestion.field_count",
+                        {"fields": len(fields), "header": len(header)},
+                    )
+                )
             else:
                 record = {column: fields[i] for column, i in positions.items()}
                 try:
@@ -260,10 +296,24 @@ def read_csv(
     except InvalidTransactionsError as exc:  # arquivo vazio, cabeçalho ruim ou linha ilegível
         errors += exc.errors
     except csv.Error:
-        errors.append(ValidationError(reader.line_num, None, "CSV malformado: confira as aspas."))
+        errors.append(
+            ValidationError(
+                reader.line_num,
+                None,
+                "CSV malformado: confira as aspas.",
+                "ingestion.malformed_csv",
+            )
+        )
     if errors:
         raise InvalidTransactionsError(errors[:max_errors])
     if total == 0:
         raise InvalidTransactionsError(
-            [ValidationError(None, None, "O CSV não tem transações, só o cabeçalho.")]
+            [
+                ValidationError(
+                    None,
+                    None,
+                    "O CSV não tem transações, só o cabeçalho.",
+                    "ingestion.header_only",
+                )
+            ]
         )

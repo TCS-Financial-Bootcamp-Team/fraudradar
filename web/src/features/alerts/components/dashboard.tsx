@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
 import {
@@ -11,12 +12,14 @@ import {
 import { ProcessingControls } from "@/features/processing/components/processing-controls";
 import { useFeedbackSummary } from "@/features/feedback/hooks/use-feedback";
 import type { FeedbackSummary } from "@/features/feedback/schemas/feedback";
+import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
+import { getT } from "@/i18n/runtime";
+import { useFormatters } from "@/i18n/use-formatters";
 import {
-  formatCurrency,
   formatNumber,
   formatPercent,
 } from "@/lib/format";
-import { formatScore } from "@/lib/risk";
+import { formatDayMonth, formatScore } from "@/lib/risk";
 import { useAlertQueue, useMonitoring } from "../hooks/use-alerts";
 import type { AlertStatus } from "../schemas/alerts";
 import {
@@ -33,71 +36,51 @@ import { getAlertLinkLabel } from "./alerts-table";
 // Helpers
 // ---------------------------------------------------------------------------
 
-export function formatWeekPeriod(weekStr: string): string {
+export function formatWeekPeriod(
+  weekStr: string,
+  locale: AppLocale = DEFAULT_LOCALE,
+): string {
   const parts = weekStr.split("-").map(Number);
-  if (parts.length < 3 || parts.some(isNaN)) return `Semana de ${weekStr}`;
+  if (parts.length < 3 || parts.some(isNaN))
+    return getT("alerts.detail", locale)("weekOf", { week: weekStr });
   const [year, month, day] = parts;
   const start = new Date(Date.UTC(year, month - 1, day));
   const end = new Date(start.getTime() + 6 * 86400000);
-  const months = [
-    "jan",
-    "fev",
-    "mar",
-    "abr",
-    "mai",
-    "jun",
-    "jul",
-    "ago",
-    "set",
-    "out",
-    "nov",
-    "dez",
-  ];
-  const startDay = String(start.getUTCDate()).padStart(2, "0");
-  const startMonth = months[start.getUTCMonth()];
-  const endDay = String(end.getUTCDate()).padStart(2, "0");
-  const endMonth = months[end.getUTCMonth()];
-  const endYear = end.getUTCFullYear();
-
-  return `Semana de ${startDay} ${startMonth} a ${endDay} ${endMonth} ${endYear}`;
+  return getT("alerts.dashboard", locale)("weekPeriod", {
+    start: formatDayMonth(start.toISOString(), locale),
+    end: formatDayMonth(end.toISOString(), locale),
+    year: end.getUTCFullYear(),
+  });
 }
 
 /** O indicador "Precisão confirmada": alertas da fila confirmados como lavagem ÷ alertas da fila
  * com decisão conclusiva, até a semana em exibição. */
-export function confirmedPrecisionKpi(summary: FeedbackSummary | null | undefined) {
+export function confirmedPrecisionKpi(
+  summary: FeedbackSummary | null | undefined,
+  locale: AppLocale = DEFAULT_LOCALE,
+) {
+  const t = getT("alerts.dashboard.precision", locale);
   const rate = summary?.confirmed_precision;
   if (!rate || rate.value === null)
-    return { value: "—", note: "sem decisões ainda", spark: [] as number[] };
-  const lowSample = rate.low_sample ? " · amostra pequena" : "";
+    return { value: "—", note: t("none"), spark: [] as number[] };
   return {
-    value: formatPercent(rate.value),
-    note: `${formatNumber(rate.numerator)} de ${formatNumber(rate.denominator)} decididos${lowSample}`,
+    value: formatPercent(rate.value, locale),
+    note: t("note", {
+      numerator: formatNumber(rate.numerator, locale),
+      denominator: formatNumber(rate.denominator, locale),
+      lowSample: rate.low_sample ? t("lowSample") : "",
+    }),
     spark: (summary?.weekly_confirmed_precision ?? [])
       .filter((w) => w.value !== null)
       .map((w) => (w.value ?? 0) * 100),
   };
 }
 
-const STATUS_CONFIG: Record<
-  AlertStatus,
-  { label: string; dotClass: string }
-> = {
-  pending: {
-    label: "Pendente",
-    dotClass: "bg-track ring-1 ring-inset ring-muted-foreground/60",
-  },
-  escalated: {
-    label: "Em investigação",
-    dotClass: "bg-warning",
-  },
-  archived: {
-    label: "Arquivado",
-    dotClass: "bg-foreground",
-  },
-  reported: {
-    label: "Para comunicação",
-    dotClass: "bg-signal",
-  },
+const STATUS_DOTS: Record<AlertStatus, string> = {
+  pending: "bg-track ring-1 ring-inset ring-muted-foreground/60",
+  escalated: "bg-warning",
+  archived: "bg-foreground",
+  reported: "bg-signal",
 };
 
 // ---------------------------------------------------------------------------
@@ -105,12 +88,17 @@ const STATUS_CONFIG: Record<
 // ---------------------------------------------------------------------------
 
 export function Dashboard() {
+  const t = useTranslations("alerts.dashboard");
+  const tc = useTranslations("common.status");
+  const tu = useTranslations("alerts.charts.units");
+  const locale = useLocale();
+  const format = useFormatters();
   const { week } = useAppContext();
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
   const feedback = useFeedbackSummary();
 
-  const weekRangeText = week ? formatWeekPeriod(week) : "";
+  const weekRangeText = week ? formatWeekPeriod(week, locale) : "";
 
   const heading = (
     <div className="flex flex-wrap items-end justify-between gap-5">
@@ -121,11 +109,11 @@ export function Dashboard() {
             href="/alerts"
             className="text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
           >
-            trocar na fila
+            {t("changeInQueue")}
           </Link>
         </p>
         <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
-          Visão geral
+          {t("title")}
         </h1>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -142,8 +130,8 @@ export function Dashboard() {
         {heading}
         <section className="rounded-[14px] border border-border bg-card p-6">
           <EmptyState
-            title="Nenhum período processado"
-            description="Use Processar agora depois de carregar transações no conjunto."
+            title={t("noPeriodTitle")}
+            description={t("noPeriodBody")}
           />
         </section>
       </div>
@@ -155,7 +143,7 @@ export function Dashboard() {
       <div className="flex flex-col gap-9 max-w-[1320px] w-full">
         {heading}
         <ResourceError
-          message={monitoring.error ?? "Dados indisponíveis."}
+          message={monitoring.error ?? t("unavailable")}
           onRetry={monitoring.reload}
         />
       </div>
@@ -170,46 +158,46 @@ export function Dashboard() {
       const cur = data.weeks[data.weeks.length - 1].value;
       const prev = data.weeks[data.weeks.length - 2].value;
       const diff = cur - prev;
-      if (diff > 0) return `+${diff} vs. semana anterior`;
-      if (diff < 0) return `${diff} vs. semana anterior`;
-      return "= vs. semana anterior";
+      if (diff > 0) return t("diffPrev", { diff: `+${diff}` });
+      if (diff < 0) return t("diffPrev", { diff });
+      return t("diffSame");
     }
-    return "casos para análise";
+    return t("diffNone");
   })();
 
   const weekValues = data.weeks.map((w) => w.value);
   const precision = feedback.loading
-    ? { value: "…", note: "carregando o retorno", spark: [] as number[] }
-    : confirmedPrecisionKpi(feedback.data);
+    ? { value: "…", note: t("precision.loading"), spark: [] as number[] }
+    : confirmedPrecisionKpi(feedback.data, locale);
 
   const kpis = [
     {
-      label: "Alertas na semana",
-      value: formatNumber(data.indicators.alerts),
+      label: t("kpi.alerts"),
+      value: format.number(data.indicators.alerts),
       note: alertDiffNote,
       spark: weekValues,
-      sparkLabel: "Alertas na semana: evolução nas últimas semanas",
+      sparkLabel: t("kpi.alertsSpark"),
     },
     {
-      label: "Taxa de alerta",
-      value: formatPercent(data.indicators.alert_rate),
-      note: "das transações processadas",
+      label: t("kpi.rate"),
+      value: format.percent(data.indicators.alert_rate),
+      note: t("kpi.rateNote"),
       spark: weekValues,
-      sparkLabel: "Taxa de alerta: evolução nas últimas semanas",
+      sparkLabel: t("kpi.rateSpark"),
     },
     {
-      label: "Valor sinalizado",
-      value: formatCurrency(data.indicators.flagged_amount),
-      note: "volume financeiro",
+      label: t("kpi.flagged"),
+      value: format.currency(data.indicators.flagged_amount),
+      note: t("kpi.flaggedNote"),
       spark: weekValues,
-      sparkLabel: "Valor sinalizado: evolução nas últimas semanas",
+      sparkLabel: t("kpi.flaggedSpark"),
     },
     {
-      label: "Precisão confirmada",
+      label: t("kpi.precision"),
       value: precision.value,
       note: precision.note,
       spark: precision.spark,
-      sparkLabel: "Precisão confirmada pelos analistas: evolução por semana",
+      sparkLabel: t("kpi.precisionSpark"),
     },
   ];
 
@@ -221,7 +209,7 @@ export function Dashboard() {
 
       {/* KPI Strip */}
       <section
-        aria-label="Indicadores da semana"
+        aria-label={t("indicators")}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden"
       >
         {kpis.map((k) => (
@@ -249,10 +237,10 @@ export function Dashboard() {
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              Alertas por semana
+              {t("cards.weekly")}
             </h2>
             <span className="text-xs text-muted-foreground">
-              últimas {data.weeks.length} semanas
+              {t("cards.lastWeeks", { count: data.weeks.length })}
             </span>
           </header>
           <WeeklyAlertsChart data={data.weeks} />
@@ -262,10 +250,10 @@ export function Dashboard() {
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              Precisão confirmada
+              {t("cards.precision")}
             </h2>
             <span className="text-xs text-muted-foreground">
-              alertas da fila confirmados como lavagem
+              {t("cards.precisionHint")}
             </span>
           </header>
           {feedback.error ? (
@@ -273,11 +261,11 @@ export function Dashboard() {
           ) : (
             <WeeklyRateChart
               data={feedback.data?.weekly_confirmed_precision ?? []}
-              unit="decididos"
+              unit={tu("decided")}
               emptyText={
                 feedback.loading
-                  ? "Carregando o retorno dos analistas…"
-                  : "Sem decisões dos analistas ainda. Arquivar como falso positivo ou comunicar alimenta este gráfico."
+                  ? t("cards.precisionLoading")
+                  : t("cards.precisionEmpty")
               }
             />
           )}
@@ -287,10 +275,10 @@ export function Dashboard() {
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              Distribuição da nota de risco
+              {t("cards.distribution")}
             </h2>
             <span className="text-xs text-muted-foreground">
-              {data.indicators.alerts} alertas da semana
+              {t("cards.distributionHint", { count: data.indicators.alerts })}
             </span>
           </header>
           <ScoreHistogramChart
@@ -303,9 +291,11 @@ export function Dashboard() {
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-5">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              Andamento da revisão
+              {t("cards.progress")}
             </h2>
-            <span className="text-xs text-muted-foreground">esta semana</span>
+            <span className="text-xs text-muted-foreground">
+              {t("cards.thisWeek")}
+            </span>
           </header>
           <ReviewProgressCard
             reviewed={data.indicators.reviewed}
@@ -318,10 +308,10 @@ export function Dashboard() {
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-4">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              Meio de pagamento
+              {t("cards.payment")}
             </h2>
             <span className="text-xs text-muted-foreground">
-              alertas por meio predominante
+              {t("cards.paymentHint")}
             </span>
           </header>
           <HorizontalBarList items={data.payment_type_rates} isRate={true} />
@@ -331,13 +321,15 @@ export function Dashboard() {
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-4">
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
-              País
+              {t("cards.country")}
             </h2>
             <span className="text-xs text-muted-foreground">
-              {formatCurrency(data.indicators.flagged_amount)} sinalizados
+              {t("cards.countryHint", {
+                amount: format.currency(data.indicators.flagged_amount),
+              })}
             </span>
           </header>
-          <HorizontalBarList items={data.countries} unit="alertas" />
+          <HorizontalBarList items={data.countries} unit={tu("alerts")} />
         </article>
       </section>
 
@@ -345,25 +337,25 @@ export function Dashboard() {
       <section className="rounded-[14px] border border-border bg-card p-[20px_22px_12px] flex flex-col gap-3">
         <header className="flex justify-between items-baseline">
           <h2 className="m-0 text-sm font-semibold text-foreground">
-            Comece por aqui
+            {t("start.title")}
           </h2>
           <Link
             href="/alerts"
             className="text-[13px] text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
           >
-            Ver fila completa →
+            {t("start.seeAll")}
           </Link>
         </header>
 
         {queue.loading ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Carregando alertas…
+            {t("start.loading")}
           </p>
         ) : queue.error ? (
           <ResourceError message={queue.error} onRetry={queue.reload} />
         ) : topAlerts.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted-foreground">
-            Nenhum alerta nesta semana.
+            {t("start.none")}
           </p>
         ) : (
           <div className="overflow-x-auto">
@@ -371,46 +363,44 @@ export function Dashboard() {
               <thead>
                 <tr className="text-xs text-muted-foreground border-b border-border">
                   <th scope="col" className="font-normal py-2.5 pr-3">
-                    Pos.
+                    {t("table.position")}
                   </th>
                   <th scope="col" className="font-normal py-2.5 px-3">
-                    Alerta
+                    {t("table.alert")}
                   </th>
                   <th scope="col" className="font-normal py-2.5 px-3">
-                    Conta
+                    {t("table.account")}
                   </th>
                   <th scope="col" className="font-normal py-2.5 px-3">
-                    Nota de risco
+                    {t("table.score")}
                   </th>
                   <th scope="col" className="font-normal py-2.5 px-3">
-                    País
+                    {t("table.country")}
                   </th>
                   <th scope="col" className="font-normal py-2.5 px-3 text-right">
-                    Valor
+                    {t("table.amount")}
                   </th>
                   <th scope="col" className="font-normal py-2.5 pl-3">
-                    Status
+                    {t("table.status")}
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {topAlerts.map((alert) => {
-                  const cfg = STATUS_CONFIG[alert.status] ?? {
-                    label: alert.status,
-                    dotClass: "bg-muted-foreground",
-                  };
+                  const dotClass =
+                    STATUS_DOTS[alert.status] ?? "bg-muted-foreground";
                   return (
                     <tr
                       key={alert.id}
                       className="relative cursor-pointer border-b border-soft transition-colors hover:bg-soft/40 focus-within:bg-soft/40"
                     >
                       <td className="py-3.5 pr-3 font-mono text-xs text-muted-foreground">
-                        {alert.queue_position}º
+                        {t("table.positionValue", { position: alert.queue_position })}
                       </td>
                       <td className="py-3.5 px-3">
                         <Link
                           href={`/alerts/${alert.id}`}
-                          aria-label={getAlertLinkLabel(alert)}
+                          aria-label={getAlertLinkLabel(alert, locale)}
                           className="font-medium text-foreground underline underline-offset-[3px] decoration-border after:absolute after:inset-0 after:z-10 after:content-[''] hover:decoration-foreground focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
                         >
                           {alert.id}
@@ -422,7 +412,7 @@ export function Dashboard() {
                       <td className="py-3.5 px-3">
                         <div className="inline-flex items-center gap-2.5">
                           <span className="w-8 font-medium tabular-nums">
-                            {formatScore(alert.score)}
+                            {formatScore(alert.score, locale)}
                           </span>
                           <div className="w-[72px] h-1 rounded-sm bg-track overflow-hidden shrink-0">
                             <div
@@ -439,17 +429,17 @@ export function Dashboard() {
                         {alert.country}
                       </td>
                       <td className="py-3.5 px-3 text-right tabular-nums text-[13px] text-foreground">
-                        {formatCurrency(alert.amount)}
+                        {format.currency(alert.amount)}
                       </td>
                       <td className="py-3.5 pl-3">
                         <span className="inline-flex items-center gap-2 whitespace-nowrap text-[13px]">
                           <span
                             className={cn(
                               "size-2 rounded-full shrink-0",
-                              cfg.dotClass,
+                              dotClass,
                             )}
                           />
-                          <span>{cfg.label}</span>
+                          <span>{tc(alert.status)}</span>
                         </span>
                       </td>
                     </tr>

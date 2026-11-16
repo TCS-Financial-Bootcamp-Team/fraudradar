@@ -1,0 +1,54 @@
+{
+  "title": "Configurações",
+  "subtitle": "Seu ambiente de trabalho",
+  "profile": {
+    "title": "Perfil",
+    "name": "Nome",
+    "role": "Cargo",
+    "roleValue": "Analista PLD",
+    "email": "E-mail",
+    "emailHint": "Vem do login; muda só pelo Supabase.",
+    "save": "Salvar perfil",
+    "saving": "Salvando…",
+    "unavailable": "Perfil indisponível."
+  },
+  "appearance": {
+    "title": "Aparência",
+    "hideCustomizer": "Ocultar personalização",
+    "showCustomizer": "Personalizar cores",
+    "themes": {
+      "grafite": "Grafite",
+      "oceano": "Oceano",
+      "musgo": "Musgo",
+      "escuro": "Escuro",
+      "custom": "Personalizado"
+    },
+    "theme": "Tema",
+    "base": "Base",
+    "light": "Clara",
+    "dark": "Escura",
+    "colors": "Cores",
+    "textColor": "Cor do texto",
+    "fields": {
+      "primary": "Primária",
+      "accent": "Destaque (risco)",
+      "sidebar": "Barra lateral",
+      "topbar": "Barra superior",
+      "bg": "Fundo",
+      "content": "Conteúdo"
+    },
+    "textColorOf": "Cor do texto: {field}",
+    "auto": "Automático",
+    "autoLower": "automático",
+    "savedNote": "Cada analista escolhe o próprio tema. Fica salvo neste navegador, inclusive no login.",
+    "language": "Idioma",
+    "languageHint": "Fica salvo neste navegador. O texto do relatório ao COAF continua sempre em português.",
+    "contrast": {
+      "content": "O texto do conteúdo",
+      "sidebar": "O texto da barra lateral",
+      "topbar": "O texto da barra superior",
+      "accent": "O destaque",
+      "warning": "{what} fica difícil de ler (contraste de {ratio} para 1; o mínimo é {min} para 1)."
+    }
+  }
+}

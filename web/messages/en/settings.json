@@ -1,0 +1,54 @@
+{
+  "title": "Settings",
+  "subtitle": "Your workspace",
+  "profile": {
+    "title": "Profile",
+    "name": "Name",
+    "role": "Role",
+    "roleValue": "AML analyst",
+    "email": "Email",
+    "emailHint": "Comes from your sign-in; it can only be changed through Supabase.",
+    "save": "Save profile",
+    "saving": "Saving…",
+    "unavailable": "Profile unavailable."
+  },
+  "appearance": {
+    "title": "Appearance",
+    "hideCustomizer": "Hide customization",
+    "showCustomizer": "Customize colors",
+    "themes": {
+      "grafite": "Graphite",
+      "oceano": "Ocean",
+      "musgo": "Moss",
+      "escuro": "Dark",
+      "custom": "Custom"
+    },
+    "theme": "Theme",
+    "base": "Base",
+    "light": "Light",
+    "dark": "Dark",
+    "colors": "Colors",
+    "textColor": "Text color",
+    "fields": {
+      "primary": "Primary",
+      "accent": "Accent (risk)",
+      "sidebar": "Sidebar",
+      "topbar": "Top bar",
+      "bg": "Background",
+      "content": "Content"
+    },
+    "textColorOf": "Text color: {field}",
+    "auto": "Automatic",
+    "autoLower": "automatic",
+    "savedNote": "Each analyst picks their own theme. It is saved in this browser, including on the sign-in screen.",
+    "language": "Language",
+    "languageHint": "Saved in this browser. The COAF report text is always in Portuguese.",
+    "contrast": {
+      "content": "The content text",
+      "sidebar": "The sidebar text",
+      "topbar": "The top bar text",
+      "accent": "The accent",
+      "warning": "{what} is hard to read (contrast of {ratio} to 1; the minimum is {min} to 1)."
+    }
+  }
+}

@@ -2,10 +2,11 @@
 
 import json
 
-from fastapi import HTTPException, status
+from fastapi import status
 from sqlalchemy import Connection, text
 
 from api.dependencies import User
+from api.errors import AppError
 from api.repositories.datasets import _job_response
 from api.schemas.datasets import JobResponse
 from api.schemas.processing import ProcessingSettings, ProcessingSettingsUpdate, SimulationRequest
@@ -21,8 +22,11 @@ def _dataset_or_404(conn: Connection, slug: str):
     try:
         return resolve_dataset(conn, slug)
     except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Conjunto de dados '{slug}' não encontrado."
+        raise AppError(
+            status.HTTP_404_NOT_FOUND,
+            "dataset.not_found",
+            f"Conjunto de dados '{slug}' não encontrado.",
+            {"slug": slug},
         ) from exc
 
 
@@ -140,10 +144,11 @@ def delete_simulation(
         .first()
     )
     if ingestion is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Ingestão não encontrada.")
+        raise AppError(status.HTTP_404_NOT_FOUND, "ingestion.not_found", "Ingestão não encontrada.")
     if ingestion["source"] != "simulation":
-        raise HTTPException(
+        raise AppError(
             status.HTTP_409_CONFLICT,
+            "simulation.only_simulated",
             "Somente uma ingestão criada pelo simulador pode ser apagada.",
         )
     weeks = list(
@@ -161,9 +166,11 @@ def delete_simulation(
     closed = [week for week in weeks if latest_week is not None and week < latest_week]
     if closed:
         listed = ", ".join(week.isoformat() for week in closed)
-        raise HTTPException(
+        raise AppError(
             status.HTTP_409_CONFLICT,
+            "simulation.reaches_closed_period",
             f"A simulação não pode ser apagada porque alcança período fechado: {listed}.",
+            {"weeks": listed},
         )
     decided = conn.execute(
         text(
@@ -179,8 +186,9 @@ def delete_simulation(
         {"id": ingestion_id},
     ).scalar_one()
     if decided:
-        raise HTTPException(
+        raise AppError(
             status.HTTP_409_CONFLICT,
+            "simulation.has_decisions",
             "A simulação não pode ser apagada porque há decisão de analista em alerta afetado.",
         )
     conn.execute(text("DELETE FROM transactions WHERE ingestion_id = :id"), {"id": ingestion_id})

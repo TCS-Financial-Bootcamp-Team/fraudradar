@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { connection } from "next/server";
 import { cookies } from "next/headers";
 import { AppShell } from "@/components/app-shell";
+import { StatusText } from "@/components/ui/status-text";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { SIDEBAR_COOKIE, isSidebarOpenFromCookie } from "@/lib/sidebar";
 
@@ -27,9 +28,7 @@ export default function AppLayout({ children }: LayoutProps<"/">) {
   return (
     <Suspense
       fallback={
-        <p className="p-6" role="status">
-          Carregando sessão…
-        </p>
+        <StatusText className="p-6" message="loadingSession" />
       }
     >
       <AppSession>{children}</AppSession>

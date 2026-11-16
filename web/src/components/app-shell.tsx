@@ -2,13 +2,14 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { AppContextProvider, useAppContext } from "@/components/app-context";
 import { SidePanel } from "@/components/ui/side-panel";
 import { LoadingState, ResourceError } from "@/components/ui/states";
 import { AssistantDrawer } from "@/features/assistant/components/assistant";
 import { useAlertQueue } from "@/features/alerts/hooks/use-alerts";
 import { USE_MOCKS } from "@/lib/api";
-import { formatShortDate } from "@/lib/format";
+import { useFormatters } from "@/i18n/use-formatters";
 import { formatQueuePosition, formatScore } from "@/lib/risk";
 import { persistSidebarState } from "@/lib/sidebar";
 import { Header } from "./layout/header";
@@ -26,6 +27,9 @@ function ShellContent({
   children: React.ReactNode;
   initialSidebarOpen?: boolean;
 }) {
+  const t = useTranslations("shell");
+  const locale = useLocale();
+  const format = useFormatters();
   const [isSidebarOpen, setIsSidebarOpen] = useState(initialSidebarOpen);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isAssistantOpen, setIsAssistantOpen] = useState(false);
@@ -76,7 +80,7 @@ function ShellContent({
         }
         @media (min-width: 640px) {
           body:has([data-assistant-drawer="open"])
-            section[aria-label="Notificações"][aria-live="polite"]:has(> .toast) {
+            section[data-toast-region][aria-live="polite"]:has(> .toast) {
             right: 420px;
           }
         }
@@ -89,7 +93,7 @@ function ShellContent({
         href="#main-content"
         className="fixed left-4 top-4 z-[100] -translate-y-24 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-transform duration-200 focus:translate-y-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        Pular para o conteúdo
+        {t("skipToContent")}
       </a>
 
       <Sidebar
@@ -115,8 +119,7 @@ function ShellContent({
 
         {USE_MOCKS && (
           <div className="shrink-0 border-b border-border bg-soft px-4 py-2 text-center text-[11px] text-muted-foreground">
-            Ambiente demonstrativo · dados simulados · nenhuma comunicação é
-            enviada
+            {t("demoBanner")}
           </div>
         )}
 
@@ -135,8 +138,12 @@ function ShellContent({
             )}
           </div>
           <footer className="mx-auto w-full max-w-[1320px] px-[clamp(16px,3.5vw,48px)] pb-6 text-[11px] text-muted-foreground">
-            FraudRadar PLD · {datasetName}
-            {week ? " · Semana de " + formatShortDate(week) : ""}
+            {week
+              ? t("brand.footerWeek", {
+                  dataset: datasetName,
+                  week: format.shortDate(week),
+                })
+              : t("brand.footer", { dataset: datasetName })}
           </footer>
         </main>
       </div>
@@ -148,16 +155,16 @@ function ShellContent({
 
       {notificationsOpen && (
         <SidePanel
-          title="Notificações"
+          title={t("notifications.title")}
           onClose={() => setNotificationsOpen(false)}
         >
           <div className="flex flex-col gap-4 p-5">
             <p className="text-sm text-muted-foreground">
-              Alertas pendentes na semana selecionada.
+              {t("notifications.intro")}
             </p>
             {queue.loading ? (
               <p role="status" className="text-sm text-muted-foreground">
-                Carregando…
+                {t("notifications.loading")}
               </p>
             ) : queue.error ? (
               <div role="alert" className="rounded-xl border border-border p-4">
@@ -167,7 +174,7 @@ function ShellContent({
                   onClick={queue.reload}
                   className="mt-3 text-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
-                  Tentar novamente
+                  {t("notifications.retry")}
                 </button>
               </div>
             ) : queue.data?.items.length ? (
@@ -180,11 +187,17 @@ function ShellContent({
                     href={`/alerts/${alert.id}`}
                   >
                     <strong className="font-mono text-sm font-medium text-foreground">
-                      Alerta {alert.id}
+                      {t("notifications.alert", { id: alert.id })}
                     </strong>
                     <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {alert.typology} · Nota {formatScore(alert.score)} ·{" "}
-                      {formatQueuePosition(alert.queue_position)}
+                      {t("notifications.alertMeta", {
+                        typology: alert.typology,
+                        score: formatScore(alert.score, locale),
+                        position: formatQueuePosition(
+                          alert.queue_position,
+                          locale,
+                        ),
+                      })}
                     </p>
                   </Link>
                 ))}
@@ -194,13 +207,13 @@ function ShellContent({
                     onClick={() => setNotificationsOpen(false)}
                     className="mt-1 text-sm font-medium underline underline-offset-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
-                    Ver todos os {pendingCount} alertas pendentes
+                    {t("notifications.seeAll", { count: pendingCount })}
                   </Link>
                 )}
               </div>
             ) : (
               <p className="text-sm text-foreground">
-                Nenhum alerta pendente.
+                {t("notifications.none")}
               </p>
             )}
           </div>

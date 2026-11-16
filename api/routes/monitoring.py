@@ -7,7 +7,7 @@ from fastapi import APIRouter
 from api.dependencies import DbConnection
 from api.domain import week_start
 from api.repositories import monitoring as repo
-from api.schemas.monitoring import Indicators, Monitoring, Series, StatusCounts
+from api.schemas.monitoring import Indicators, Monitoring, Series, StatusCounts, WeekSeries
 
 router = APIRouter(tags=["monitoring"])
 
@@ -42,7 +42,7 @@ def get_monitoring(week: date, conn: DbConnection) -> Monitoring:
             flagged_amount=float(counts["flagged_amount"]),
         ),
         weeks=[
-            Series(name=repo.week_label(row["week"]), value=row["alerts"])
+            WeekSeries(name=repo.week_label(row["week"]), value=row["alerts"], week=row["week"])
             for row in repo.alerts_by_week(conn, week)
         ],
         typologies=[Series(**row) for row in repo.distribution(conn, week, "typology")],

@@ -1,0 +1,93 @@
+{
+  "meta": {
+    "title": "FraudRadar PLD",
+    "description": "Monitoramento antilavagem sobre o SAML-D"
+  },
+  "brand": {
+    "homeLabel": "FraudRadar — contas suspeitas",
+    "footer": "FraudRadar PLD · {dataset}",
+    "footerWeek": "FraudRadar PLD · {dataset} · Semana de {week}"
+  },
+  "nav": {
+    "groups": {
+      "analysis": "Análise",
+      "quality": "Qualidade",
+      "data": "Dados",
+      "account": "Conta"
+    },
+    "items": {
+      "accounts": "Contas suspeitas",
+      "dashboard": "Visão geral",
+      "alerts": "Fila de alertas",
+      "monitoring": "Monitoramento",
+      "ingestion": "Fontes de dados",
+      "settings": "Configurações"
+    },
+    "alertPage": "Alerta {id}",
+    "itemWithCount": "{label}, {count} pendentes",
+    "sidebarLabel": "Menu lateral",
+    "mainNav": "Navegação principal",
+    "closeSidebar": "Fechar menu lateral",
+    "closeMenu": "Fechar menu",
+    "openMenu": "Abrir menu",
+    "toggleSidebar": "Recolher ou expandir menu"
+  },
+  "skipToContent": "Pular para o conteúdo",
+  "demoBanner": "Ambiente demonstrativo · dados simulados · nenhuma comunicação é enviada",
+  "header": {
+    "assistant": "Assistente",
+    "appearance": "Aparência",
+    "closeAppearance": "Fechar aparência",
+    "notifications": "Notificações",
+    "notificationsPending": "Notificações, {count, plural, =1 {# alerta pendente} other {# alertas pendentes}}",
+    "toggleTheme": "Alternar tema claro e escuro"
+  },
+  "account": {
+    "myAccount": "Minha conta",
+    "role": "Analista PLD",
+    "menuLabel": "Menu da conta",
+    "menu": "Conta",
+    "tooltip": "{name} · conta",
+    "settings": "Configurações",
+    "signOut": "Sair"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "intro": "Alertas pendentes na semana selecionada.",
+    "loading": "Carregando…",
+    "retry": "Tentar novamente",
+    "alert": "Alerta {id}",
+    "alertMeta": "{typology} · Nota {score} · {position}",
+    "seeAll": "Ver todos os {count} alertas pendentes",
+    "none": "Nenhum alerta pendente."
+  },
+  "states": {
+    "loadingLabel": "Carregando dados",
+    "loading": "Carregando…",
+    "loadFailedTitle": "Não foi possível carregar os dados",
+    "retry": "Tentar novamente",
+    "emptyTitle": "Nenhum resultado",
+    "emptyDescription": "Ajuste os filtros para ampliar sua busca.",
+    "loadingSession": "Carregando sessão…",
+    "openingPanel": "Abrindo painel…",
+    "loadingLogin": "Carregando login…",
+    "loadingSignup": "Carregando cadastro…",
+    "loadingRecovery": "Carregando recuperação…",
+    "loadingAlert": "Carregando alerta…"
+  },
+  "toast": {
+    "region": "Notificações",
+    "hint": "Passe o mouse para pausar · botão direito fecha",
+    "close": "Fechar notificação"
+  },
+  "sidePanel": {
+    "close": "Fechar painel"
+  },
+  "errorPages": {
+    "unexpected": "Ocorreu uma falha inesperada. Tente carregar a página novamente.",
+    "area": "Ocorreu uma falha ao abrir esta área. Tente novamente.",
+    "notFoundTitle": "Página fora do radar",
+    "notFoundBody": "Este endereço não existe ou não está mais disponível.",
+    "backHome": "Voltar à visão geral"
+  }
+}

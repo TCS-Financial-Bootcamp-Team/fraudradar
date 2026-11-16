@@ -1,11 +1,13 @@
 "use client";
 import { useEffect, useRef } from "react";
 import cytoscape from "cytoscape";
+import { useTranslations } from "next-intl";
 import { useAppTheme } from "@/components/theme";
 import type { Graph } from "../schemas/alerts";
 
 export function AccountGraph({ graph }: { graph: Graph }) {
   const ref = useRef<HTMLDivElement>(null);
+  const t = useTranslations("alerts.graph");
   const { isDark, tokens } = useAppTheme();
   useEffect(() => {
     if (!ref.current) return;
@@ -92,11 +94,11 @@ export function AccountGraph({ graph }: { graph: Graph }) {
         ref={ref}
         className="h-72 w-full"
         role="img"
-        aria-label="Rede de contas pseudonimizadas em até dois saltos"
+        aria-label={t("label")}
       />
       <details className="mt-3 border-t border-soft pt-3 text-xs text-muted-foreground">
         <summary className="cursor-pointer">
-          Consultar conexões em texto · alternativa ao grafo
+          {t("textAlt")}
         </summary>
         <ul className="mt-3 space-y-2">
           {graph.edges.map((edge) => (

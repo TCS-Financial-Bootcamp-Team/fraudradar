@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { notify, subscribeToasts, type ToastItem } from "@/lib/notify";
 
 const TOAST_LIFETIME_MS = 5000;
@@ -17,6 +18,7 @@ interface ToastEntryProps {
 }
 
 function ToastEntry({ item }: ToastEntryProps) {
+  const t = useTranslations("shell.toast");
   const remainingRef = useRef(TOAST_LIFETIME_MS);
   const startRef = useRef<number | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -92,7 +94,7 @@ function ToastEntry({ item }: ToastEntryProps) {
       role="status"
       tabIndex={0}
       className="toast group pointer-events-auto relative overflow-hidden box-border p-[14px_44px_16px_16px] rounded-xl bg-card text-foreground border border-border shadow-[0_10px_30px_rgba(0,0,0,0.10)] flex gap-3 items-start select-none outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      title="Passe o mouse para pausar · botão direito fecha"
+      title={t("hint")}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onFocus={handleFocus}
@@ -133,7 +135,7 @@ function ToastEntry({ item }: ToastEntryProps) {
       <button
         type="button"
         onClick={() => notify.dismiss(item.id)}
-        aria-label="Fechar notificação"
+        aria-label={t("close")}
         className="absolute top-2 right-2 size-7 rounded-md border-0 bg-transparent text-muted-foreground hover:text-foreground grid place-items-center cursor-pointer transition-colors"
       >
         <X className="size-3.5" strokeWidth={1.5} />
@@ -150,6 +152,7 @@ function ToastEntry({ item }: ToastEntryProps) {
 }
 
 export function Toaster({ className }: ToasterProps) {
+  const t = useTranslations("shell.toast");
   const [items, setItems] = useState<ToastItem[]>([]);
 
   useEffect(() => {
@@ -160,7 +163,8 @@ export function Toaster({ className }: ToasterProps) {
 
   return (
     <section
-      aria-label="Notificações"
+      aria-label={t("region")}
+      data-toast-region
       aria-live="polite"
       className={`fixed z-50 right-5 bottom-5 w-[360px] max-w-[calc(100vw-40px)] flex flex-col gap-2.5 pointer-events-none ${className ?? ""}`}
     >

@@ -1,41 +1,39 @@
-import Link from "next/link";
-import { formatCurrency } from "@/lib/format";
-import {
-  RISK_LABELS,
-  SCORE_HINT,
-  formatScore,
-  isHighRisk,
-  riskLevel,
-} from "@/lib/risk";
-import type { Alert, AlertStatus } from "../schemas/alerts";
+"use client";
 
-export const statusLabels: Record<AlertStatus, string> = {
-  pending: "Pendente",
-  escalated: "Em investigação",
-  archived: "Arquivado",
-  reported: "Para comunicação",
-};
+import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
+import { useFormatters } from "@/i18n/use-formatters";
+import { getT } from "@/i18n/runtime";
+import { formatScore, isHighRisk, riskLabel, riskLevel, scoreHint } from "@/lib/risk";
+import type { Alert, AlertStatus } from "../schemas/alerts";
 
 export function getAlertLinkLabel(
   alert: Pick<Alert, "id" | "account"> & Partial<Pick<Alert, "origin">>,
+  locale: AppLocale = DEFAULT_LOCALE,
 ): string {
-  const sample = alert.origin === "exploration" ? " (amostra de controle)" : "";
-  return `Abrir alerta ${alert.id}, conta ${alert.account}${sample}`;
+  const t = getT("alerts", locale);
+  return t("table.linkLabel", {
+    id: alert.id,
+    account: alert.account,
+    sample: alert.origin === "exploration" ? t("controlSample.linkSuffix") : "",
+  });
 }
 
-export const CONTROL_SAMPLE_HINT =
-  "Conta sorteada abaixo do corte para medir o que o modelo deixa passar";
+// Texto em pt-BR, o idioma padrão (a tela usa a mensagem no idioma ativo).
+export const CONTROL_SAMPLE_HINT = getT("alerts.controlSample")("hint");
 
 /** Selo discreto da amostra de controle; a explicação aparece ao passar o mouse ou focar. */
 export function ControlSampleBadge() {
+  const t = useTranslations("alerts.controlSample");
   return (
     <span
-      title={CONTROL_SAMPLE_HINT}
+      title={t("hint")}
       tabIndex={0}
-      aria-label={`Amostra de controle: ${CONTROL_SAMPLE_HINT.toLowerCase()}`}
+      aria-label={t("ariaLabel", { hint: t("hint").toLowerCase() })}
       className="relative z-20 inline-flex h-5 items-center rounded-full border border-border px-2 text-[11px] font-normal text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
-      Amostra de controle
+      {t("label")}
     </span>
   );
 }
@@ -64,17 +62,23 @@ export function StatusDot({
 }
 
 export function RiskScore({ value }: { value: number }) {
-  const riskLabel = RISK_LABELS[riskLevel(value)];
+  const t = useTranslations("alerts.table");
+  const locale = useLocale();
+  const level = riskLabel(riskLevel(value), locale);
   const high = isHighRisk(value);
   return (
     <div
       className="inline-flex items-center gap-2.5"
-      title={`Nota ${formatScore(value)} de 100 · ${riskLabel}. ${SCORE_HINT}`}
+      title={t("scoreTitle", {
+        score: formatScore(value, locale),
+        level,
+        hint: scoreHint(locale),
+      })}
     >
       <span
         className={`w-9 font-medium tabular-nums ${high ? "text-signal" : ""}`}
       >
-        {formatScore(value)}
+        {formatScore(value, locale)}
       </span>
       <span className="h-1 w-[72px] overflow-hidden rounded-sm bg-track">
         <span
@@ -82,7 +86,9 @@ export function RiskScore({ value }: { value: number }) {
           style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
         />
       </span>
-      <span className="sr-only">de 100, risco {riskLabel.toLowerCase()}</span>
+      <span className="sr-only">
+        {t("scoreSr", { level: level.toLowerCase() })}
+      </span>
     </div>
   );
 }
@@ -94,17 +100,21 @@ export function AlertsTable({
   items: Alert[];
   onClearFilters?: () => void;
 }) {
+  const t = useTranslations("alerts.table");
+  const tc = useTranslations("common.status");
+  const locale = useLocale();
+  const format = useFormatters();
   if (!items.length)
     return (
       <p className="px-4 py-12 text-center text-sm text-muted-foreground">
-        Nenhum alerta com esses filtros.{" "}
+        {t("empty")}{" "}
         {onClearFilters && (
           <button
             type="button"
             onClick={onClearFilters}
             className="text-foreground underline underline-offset-[3px]"
           >
-            Limpar filtros
+            {t("clearFilters")}
           </button>
         )}
       </p>
@@ -115,33 +125,33 @@ export function AlertsTable({
     <div className="overflow-x-auto px-5 py-1">
       <table className="w-full min-w-[860px] border-collapse text-left text-sm tabular-nums">
         <caption className="sr-only">
-          Alertas ordenados pela posição na fila
+          {t("caption")}
         </caption>
         <thead className="text-muted-foreground">
           <tr>
             <th scope="col" className={`${head} w-14 pl-0`}>
-              Pos.
+              {t("columns.position")}
             </th>
             <th scope="col" className={head}>
-              Alerta
+              {t("columns.alert")}
             </th>
             <th scope="col" className={head}>
-              Conta
+              {t("columns.account")}
             </th>
-            <th scope="col" className={head} title={SCORE_HINT}>
-              Nota de risco
-            </th>
-            <th scope="col" className={head}>
-              Tipologia
+            <th scope="col" className={head} title={scoreHint(locale)}>
+              {t("columns.score")}
             </th>
             <th scope="col" className={head}>
-              País
+              {t("columns.typology")}
+            </th>
+            <th scope="col" className={head}>
+              {t("columns.country")}
             </th>
             <th scope="col" className={`${head} text-right`}>
-              Valor
+              {t("columns.amount")}
             </th>
             <th scope="col" className={`${head} pr-0`}>
-              Status
+              {t("columns.status")}
             </th>
           </tr>
         </thead>
@@ -160,7 +170,7 @@ export function AlertsTable({
                 <span className="inline-flex flex-wrap items-center gap-2">
                   <Link
                     href={"/alerts/" + alert.id}
-                    aria-label={getAlertLinkLabel(alert)}
+                    aria-label={getAlertLinkLabel(alert, locale)}
                     className="font-medium underline decoration-border underline-offset-[3px] after:absolute after:inset-0 after:z-10 after:content-[''] hover:decoration-current focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-inset focus-visible:after:ring-ring"
                   >
                     {alert.id}
@@ -179,12 +189,12 @@ export function AlertsTable({
               </td>
               <td className={cell}>{alert.country}</td>
               <td className={`${cell} text-right`}>
-                {formatCurrency(alert.amount)}
+                {format.currency(alert.amount)}
               </td>
               <td className={`${cell} pr-0`}>
                 <span className="inline-flex items-center gap-2 whitespace-nowrap">
                   <StatusDot status={alert.status} />
-                  {statusLabels[alert.status]}
+                  {tc(alert.status)}
                 </span>
               </td>
             </tr>

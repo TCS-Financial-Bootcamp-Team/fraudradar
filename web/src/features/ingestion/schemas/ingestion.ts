@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { v } from "@/i18n/validation";
 import { jobSchema } from "@/features/jobs/schemas/jobs";
 
 export const currencies = [
@@ -63,36 +64,36 @@ export const transactionSchema = z
   .object({
     Time: z
       .string()
-      .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, "Use HH:MM ou HH:MM:SS."),
-    Date: z.iso.date("Informe uma data válida."),
+      .regex(/^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/, v("timeFormat")),
+    Date: z.iso.date(v("dateInvalid")),
     Sender_account: z
       .string()
       .trim()
-      .min(1, "Informe a conta de origem.")
+      .min(1, v("senderRequired"))
       .max(64),
     Receiver_account: z
       .string()
       .trim()
-      .min(1, "Informe a conta de destino.")
+      .min(1, v("receiverRequired"))
       .max(64),
-    Amount: z.number().finite().positive("O valor deve ser maior que zero."),
+    Amount: z.number().finite().positive(v("amountPositive")),
     // Preserva códigos ISO e nomes do arquivo de origem; a API normaliza o catálogo.
-    Payment_currency: z.string().trim().min(2, "Informe a moeda.").max(40),
-    Received_currency: z.string().trim().min(2, "Informe a moeda.").max(40),
+    Payment_currency: z.string().trim().min(2, v("currencyRequired")).max(40),
+    Received_currency: z.string().trim().min(2, v("currencyRequired")).max(40),
     Sender_bank_location: z
       .string()
       .trim()
-      .min(2, "Informe o país de origem.")
+      .min(2, v("senderCountry"))
       .max(80),
     Receiver_bank_location: z
       .string()
       .trim()
-      .min(2, "Informe o país de destino.")
+      .min(2, v("receiverCountry"))
       .max(80),
     Payment_type: z
       .string()
       .trim()
-      .min(2, "Informe o meio de pagamento.")
+      .min(2, v("paymentTypeRequired"))
       .max(80),
   })
   .strict();
@@ -100,29 +101,29 @@ export const csvHeaders = Object.keys(transactionSchema.shape);
 // Formulário de nova conexão. A senha só existe aqui e no pedido; nunca volta em resposta.
 export const connectionFormSchema = z
   .object({
-    name: z.string().trim().min(2, "Informe um nome.").max(100),
-    host: z.string().trim().min(1, "Informe o host.").max(253),
+    name: z.string().trim().min(2, v("nameRequired")).max(100),
+    host: z.string().trim().min(1, v("hostRequired")).max(253),
     port: z.coerce
       .number()
-      .int("Informe uma porta entre 1 e 65535.")
-      .min(1, "Informe uma porta entre 1 e 65535.")
-      .max(65535, "Informe uma porta entre 1 e 65535."),
-    database: z.string().trim().min(1, "Informe o banco de dados.").max(63),
-    user: z.string().trim().min(1, "Informe o usuário.").max(63),
-    password: z.string().min(1, "Informe a senha.").max(500),
+      .int(v("portRange"))
+      .min(1, v("portRange"))
+      .max(65535, v("portRange")),
+    database: z.string().trim().min(1, v("databaseRequired")).max(63),
+    user: z.string().trim().min(1, v("userRequired")).max(63),
+    password: z.string().min(1, v("passwordNeeded")).max(500),
     table: z
       .string()
       .trim()
       .regex(
         /^[A-Za-z_][A-Za-z0-9_]{0,62}(\.[A-Za-z_][A-Za-z0-9_]{0,62})?$/,
-        "Use tabela ou schema.tabela, só com letras, números e _.",
+        v("tableFormat"),
       ),
     control_column: z
       .string()
       .trim()
       .regex(
         /^[A-Za-z_][A-Za-z0-9_]{0,62}$/,
-        "Use só letras, números e _ no nome da coluna.",
+        v("controlColumnFormat"),
       )
       .or(z.literal("")),
   })
@@ -140,6 +141,9 @@ export const checkItemSchema = z.object({
   label: z.string(),
   status: z.enum(["ok", "fail", "info"]),
   detail: z.string(),
+  // Código e parâmetros de `detail`: o front traduz por eles (sem código, mostra o detail).
+  code: z.string().nullish(),
+  params: z.record(z.string(), z.unknown()).nullish(),
 });
 export const compatibilityReportSchema = z.object({
   compatible: z.boolean(),
@@ -178,6 +182,8 @@ export const compatibilityReportSchema = z.object({
     .object({
       relation: z.enum(["extend", "new_dataset"]).nullable(),
       message: z.string(),
+      code: z.string().nullish(),
+      params: z.record(z.string(), z.unknown()).nullish(),
     })
     .nullable(),
 });
@@ -204,12 +210,12 @@ export const importRequestSchema = z
     relation: z.enum(["extend", "new_dataset"]),
     new_dataset: z
       .object({
-        name: z.string().trim().min(1, "Informe o nome do conjunto.").max(120),
+        name: z.string().trim().min(1, v("datasetNameRequired")).max(120),
         slug: z
           .string()
           .regex(
             /^[a-z0-9-]{1,40}$/,
-            "O slug usa letras minúsculas, números e hífen (até 40).",
+            v("slugFormat"),
           ),
       })
       .strict()
@@ -217,11 +223,11 @@ export const importRequestSchema = z
     mode: importModeSchema,
     control_column: z
       .string()
-      .regex(/^[A-Za-z_][A-Za-z0-9_]{0,62}$/, "Informe a coluna de controle."),
+      .regex(/^[A-Za-z_][A-Za-z0-9_]{0,62}$/, v("controlColumnRequired")),
   })
   .strict()
   .refine((v) => (v.relation === "new_dataset") === Boolean(v.new_dataset), {
-    message: "Informe nome e slug só quando for outro dataset.",
+    message: v("newDatasetOnly"),
     path: ["new_dataset"],
   });
 export const importResponseSchema = z.object({
@@ -232,6 +238,8 @@ export const receiptSchema = z.object({
   id: z.string(),
   status: z.enum(["received", "processing", "completed"]),
   message: z.string(),
+  message_code: z.string().nullish(),
+  message_params: z.record(z.string(), z.unknown()).nullish(),
 });
 export type TransactionRequest = z.infer<typeof transactionSchema>;
 export type ConnectionForm = z.input<typeof connectionFormSchema>;

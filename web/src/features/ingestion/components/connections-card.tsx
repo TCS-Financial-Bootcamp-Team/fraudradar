@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { Plus, FlaskConical, Trash2 } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { formatShortDate } from "@/lib/format";
+import { useFormatters } from "@/i18n/use-formatters";
 import { getCurrentDataset } from "@/lib/dataset";
 import {
   useConnections,
@@ -14,7 +15,7 @@ import type { Connection } from "../schemas/ingestion";
 import {
   canImport,
   modeLabel,
-  statusLabels,
+  statusLabel,
   statusTone,
 } from "../services/connection-model";
 import { CompatibilityReport } from "./compatibility-report";
@@ -34,6 +35,9 @@ function alreadyLinked(connection: Connection) {
 }
 
 export function ConnectionsCard() {
+  const t = useTranslations("ingestion.connections");
+  const locale = useLocale();
+  const format = useFormatters();
   const connections = useConnections();
   const [showForm, setShowForm] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -73,13 +77,11 @@ export function ConnectionsCard() {
     <article className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-3">
       <div className="flex justify-between items-center">
         <h2 className="m-0 text-sm font-semibold text-foreground">
-          Conexões com bancos externos
+          {t("title")}
         </h2>
       </div>
       <p className="m-0 text-[13px] text-muted-foreground leading-relaxed">
-        Lê transações de uma tabela Postgres no formato do SAML-D, sempre em
-        modo somente leitura. Teste antes: o relatório mostra o que bate com o
-        formato e se os dados continuam o conjunto atual.
+        {t("intro")}
       </p>
 
       {connections.error && (
@@ -108,15 +110,17 @@ export function ConnectionsCard() {
                   </p>
                   {connection.dataset && (
                     <p className="m-0 text-[11px] text-muted-foreground">
-                      Conjunto{" "}
+                      {t("dataset")}
                       <span className="font-mono">{connection.dataset}</span>
-                      {connection.mode && ` · ${modeLabel(connection.mode)}`}
+                      {connection.mode &&
+                        ` · ${modeLabel(connection.mode, locale)}`}
                     </p>
                   )}
                   {connection.last_synced_at && (
                     <p className="m-0 text-[11px] text-muted-foreground">
-                      Última leitura:{" "}
-                      {formatShortDate(connection.last_synced_at)}
+                      {t("lastRead", {
+                        date: format.shortDate(connection.last_synced_at),
+                      })}
                     </p>
                   )}
                   {connection.last_error && (
@@ -131,7 +135,7 @@ export function ConnectionsCard() {
                       aria-hidden
                       className={`size-2 rounded-full ${dotClass[tone]}`}
                     />
-                    {statusLabels[connection.status]}
+                    {statusLabel(connection.status, locale)}
                   </span>
                   <Button
                     variant="outline"
@@ -140,19 +144,19 @@ export function ConnectionsCard() {
                     onClick={() => openTest(connection)}
                   >
                     <FlaskConical className="size-3" strokeWidth={1.5} />
-                    Testar
+                    {t("test")}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    aria-label={`Remover ${connection.name}`}
+                    aria-label={t("removeAria", { name: connection.name })}
                     disabled={
                       connections.busy || connection.status === "syncing"
                     }
                     onClick={() => setRemoving(connection)}
                   >
                     <Trash2 className="size-3" strokeWidth={1.5} />
-                    Remover
+                    {t("remove")}
                   </Button>
                 </div>
               </li>
@@ -164,16 +168,14 @@ export function ConnectionsCard() {
       {removing && (
         <div
           role="alertdialog"
-          aria-label={`Remover ${removing.name}`}
+          aria-label={t("removeAria", { name: removing.name })}
           className="flex flex-col gap-3 rounded-lg border border-border bg-muted p-4"
         >
           <p className="m-0 text-sm text-foreground">
-            Remover a conexão “{removing.name}”?
+            {t("removeQuestion", { name: removing.name })}
           </p>
           <p className="m-0 text-xs text-muted-foreground">
-            A conexão e a senha cifrada deixam de existir e o acompanhamento
-            desta fonte para. As transações que já entraram no conjunto de dados
-            continuam lá. A remoção fica registrada na auditoria.
+            {t("removeNote")}
           </p>
           <div className="flex gap-2">
             <Button
@@ -181,14 +183,14 @@ export function ConnectionsCard() {
               disabled={connections.busy}
               onClick={() => void confirmRemoval(removing)}
             >
-              Confirmar remoção
+              {t("confirmRemove")}
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setRemoving(null)}
             >
-              Cancelar
+              {t("cancel")}
             </Button>
           </div>
         </div>
@@ -196,7 +198,7 @@ export function ConnectionsCard() {
 
       {active && test.testing && (
         <p className="m-0 text-xs text-muted-foreground" role="status">
-          Testando “{active.name}”…
+          {t("testing", { name: active.name })}
         </p>
       )}
       {active && test.error && (
@@ -220,7 +222,7 @@ export function ConnectionsCard() {
           ) : (
             alreadyLinked(active) && (
               <p className="m-0 text-xs text-muted-foreground">
-                Esta conexão já está ligada ao conjunto {active.dataset}.
+                {t("linked", { dataset: active.dataset ?? "" })}
               </p>
             )
           )}
@@ -244,7 +246,7 @@ export function ConnectionsCard() {
           onClick={() => setShowForm(true)}
         >
           <Plus className="size-4" strokeWidth={1.5} />
-          Nova conexão
+          {t("new")}
         </Button>
       )}
     </article>

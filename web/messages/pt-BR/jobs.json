@@ -1,0 +1,19 @@
+{
+  "kind": {
+    "import": "Importação",
+    "process": "Processamento",
+    "simulate": "Simulação",
+    "train": "Treino"
+  },
+  "status": {
+    "queued": "Na fila",
+    "running": "Em andamento",
+    "done": "Concluído",
+    "failed": "Falhou"
+  },
+  "fallback": {
+    "done": "Trabalho concluído.",
+    "failed": "O trabalho falhou.",
+    "processing": "Processando…"
+  }
+}

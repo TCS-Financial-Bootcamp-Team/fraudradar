@@ -2,6 +2,7 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.dependencies import get_current_user
+from api.errors import AppError, app_error_handler
 from api.routes import (
     accounts,
     ai,
@@ -23,6 +24,7 @@ from fraudradar.config import get_settings
 
 def create_app() -> FastAPI:
     app = FastAPI(title="FraudRadar PLD", version=__version__)
+    app.add_exception_handler(AppError, app_error_handler)  # type: ignore[arg-type]
     app.add_middleware(
         CORSMiddleware,
         allow_origins=get_settings().cors_origins,

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useAppContext } from "@/components/app-context";
 import { getErrorMessage, pseudonymize } from "@/lib/format";
 import { notify } from "@/lib/notify";
@@ -9,6 +10,7 @@ import { sendChatMessage } from "../services/assistant-service";
 import type { Message } from "../schemas/assistant";
 
 export function useAssistant(alertId?: string) {
+  const t = useTranslations("assistant");
   const [messages, setMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
   const controllerRef = useRef<AbortController | null>(null);
@@ -60,8 +62,7 @@ export function useAssistant(alertId?: string) {
           ...m,
           {
             role: "assistant",
-            content:
-              "Não foi possível responder. Tente enviar sua pergunta novamente.",
+            content: t("failed"),
           },
         ]);
       }

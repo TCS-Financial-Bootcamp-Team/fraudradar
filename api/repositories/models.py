@@ -14,11 +14,12 @@ import math
 from datetime import datetime
 from pathlib import Path
 
-from fastapi import HTTPException, status
+from fastapi import status
 from pydantic import ValidationError
 from sqlalchemy import Connection, text
 
 from api.dependencies import User
+from api.errors import AppError
 from api.repositories.datasets import _job_response
 from api.schemas.datasets import JobResponse
 from api.schemas.models import (
@@ -40,12 +41,13 @@ from fraudradar.datasets import (
     resolve_dataset,
     use_dataset,
 )
-from fraudradar.model.eligibility import training_block_reason
+from fraudradar.messages import Msg
+from fraudradar.model.eligibility import TRAIN_RUNNING, training_block_message
 from fraudradar.model.feedback import (
     ANALYST,
     SIMULATED,
     closed_label_counts,
-    feedback_block_reason,
+    feedback_block_message,
 )
 from fraudradar.model.naming import (
     DATASET_PATTERN,
@@ -64,8 +66,11 @@ def get_dataset(conn: Connection, slug: str) -> Dataset:
     try:
         return resolve_dataset(conn, slug)
     except (DatasetNotFoundError, InvalidDatasetSlugError) as exc:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"Conjunto de dados '{slug}' não encontrado."
+        raise AppError(
+            status.HTTP_404_NOT_FOUND,
+            "dataset.not_found",
+            f"Conjunto de dados '{slug}' não encontrado.",
+            {"slug": slug},
         ) from exc
 
 
@@ -189,13 +194,15 @@ def _running_train(conn: Connection, slug: str) -> JobResponse | None:
     return None if row is None else _job_response(row)
 
 
-def _training_feedback(conn: Connection, dataset: Dataset, reason: str | None) -> TrainingFeedback:
+def _training_feedback(conn: Connection, dataset: Dataset, reason: Msg | None) -> TrainingFeedback:
     """O retorno dos períodos fechados disponível para o retreino, no schema do conjunto."""
     use_dataset(conn, dataset)
     counts = closed_label_counts(conn)
 
-    def blocked(include_simulated: bool) -> str | None:
-        return reason or feedback_block_reason(counts, include_simulated)
+    def blocked(include_simulated: bool) -> Msg | None:
+        return reason or feedback_block_message(counts, include_simulated)
+
+    plain, with_simulated = blocked(False), blocked(True)
 
     return TrainingFeedback(
         analyst=FeedbackClassCounts(
@@ -205,8 +212,14 @@ def _training_feedback(conn: Connection, dataset: Dataset, reason: str | None) -
             laundering=counts.laundering(SIMULATED),
             false_positive=counts.false_positive(SIMULATED),
         ),
-        blocked_reason=blocked(False),
-        blocked_reason_with_simulated=blocked(True),
+        blocked_reason=None if plain is None else plain.text,
+        blocked_reason_code=None if plain is None else plain.code,
+        blocked_reason_params=None if plain is None else dict(plain.params),
+        blocked_reason_with_simulated=None if with_simulated is None else with_simulated.text,
+        blocked_reason_with_simulated_code=None if with_simulated is None else with_simulated.code,
+        blocked_reason_with_simulated_params=(
+            None if with_simulated is None else dict(with_simulated.params)
+        ),
     )
 
 
@@ -225,15 +238,17 @@ def list_models(conn: Connection, slug: str) -> ModelsResponse:
         versions.append(_version(official_name, official[1], "official", official_name == active))
     job = _running_train(conn, slug)
     # Só o registro: a API nunca lê ground_truth (o worker mede e grava o resumo).
-    reason = training_block_reason(conn, dataset.slug)
+    reason = training_block_message(conn, dataset.slug)
     if reason is None and job is not None:
-        reason = "Já existe um treino em andamento para este conjunto."
+        reason = TRAIN_RUNNING
     return ModelsResponse(
         dataset=dataset.slug,
         active_version=active,
         versions=versions,
         can_train=reason is None,
-        train_blocked_reason=reason,
+        train_blocked_reason=None if reason is None else reason.text,
+        train_blocked_reason_code=None if reason is None else reason.code,
+        train_blocked_reason_params=None if reason is None else dict(reason.params),
         training_job=job,
         training_feedback=_training_feedback(conn, dataset, reason),
     )
@@ -264,19 +279,17 @@ def enqueue_train(
         text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
         {"key": f"fraudradar.train.{dataset.slug}"},
     )
-    reason = training_block_reason(conn, dataset.slug)
+    reason = training_block_message(conn, dataset.slug)
     if reason is not None:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+        raise AppError.from_msg(status.HTTP_409_CONFLICT, reason)
     if _running_train(conn, dataset.slug) is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "Já existe um treino em andamento para este conjunto."
-        )
+        raise AppError.from_msg(status.HTTP_409_CONFLICT, TRAIN_RUNNING)
     use_dataset(conn, dataset)  # a auditoria e os rótulos são do schema do conjunto
     if request.use_feedback:
         # A mesma regra que o worker confere de novo antes de treinar.
-        reason = feedback_block_reason(closed_label_counts(conn), request.include_simulated)
+        reason = feedback_block_message(closed_label_counts(conn), request.include_simulated)
         if reason is not None:
-            raise HTTPException(status.HTTP_409_CONFLICT, reason)
+            raise AppError.from_msg(status.HTTP_409_CONFLICT, reason)
     options = request.model_dump()
     row = (
         conn.execute(
@@ -295,7 +308,9 @@ def enqueue_train(
 
 def promote(conn: Connection, slug: str, version: str, user: User) -> ModelsResponse:
     if not (OFFICIAL_PATTERN.fullmatch(version) or DATASET_PATTERN.fullmatch(version)):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Versão do modelo não encontrada.")
+        raise AppError(
+            status.HTTP_404_NOT_FOUND, "model.version_not_found", "Versão do modelo não encontrada."
+        )
     dataset = get_dataset(conn, slug)
     own, official = _catalog(dataset)
     if version in own:
@@ -304,14 +319,18 @@ def promote(conn: Connection, slug: str, version: str, user: User) -> ModelsResp
         # teste. Ficha antiga, sem comparação, promove como antes.
         comparison = comparison_of(own[version])
         if comparison is not None and not comparison.gate.passed:
-            raise HTTPException(
+            raise AppError(
                 status.HTTP_409_CONFLICT,
+                comparison.gate.reason_code or "model.promotion_blocked",
                 comparison.gate.reason or "A trava de promoção bloqueou esta versão.",
+                comparison.gate.reason_params,
             )
     elif official is not None and official[0] == version:
         new_value = None  # volta a seguir o modelo oficial mais novo
     else:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Versão do modelo não encontrada.")
+        raise AppError(
+            status.HTTP_404_NOT_FOUND, "model.version_not_found", "Versão do modelo não encontrada."
+        )
     # Trava a linha do conjunto: duas promoções simultâneas não se atropelam.
     previous = conn.execute(
         text("SELECT active_model_version FROM public.datasets WHERE slug = :slug FOR UPDATE"),
@@ -319,7 +338,11 @@ def promote(conn: Connection, slug: str, version: str, user: User) -> ModelsResp
     ).scalar_one()
     current = previous if previous is not None else (official[0] if official else None)
     if version == current:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Esta já é a versão ativa do conjunto.")
+        raise AppError(
+            status.HTTP_409_CONFLICT,
+            "model.already_active",
+            "Esta já é a versão ativa do conjunto.",
+        )
     conn.execute(
         text("UPDATE public.datasets SET active_model_version = :value WHERE slug = :slug"),
         {"value": new_value, "slug": dataset.slug},

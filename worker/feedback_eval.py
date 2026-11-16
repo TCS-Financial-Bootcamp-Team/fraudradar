@@ -19,7 +19,7 @@ from sqlalchemy import Engine
 from fraudradar.config import get_settings
 from fraudradar.datasets import Dataset, use_dataset
 from fraudradar.model.dataset_data import read_labeled
-from fraudradar.model.eligibility import block_reason
+from fraudradar.model.eligibility import block_message
 from worker.errors import WorkerError
 from worker.labels import refresh_label_stats
 from worker.train_job import TrainOptions, prepare_feedback
@@ -38,7 +38,7 @@ def run_feedback_eval(
     from fraudradar.model.training import measure_feedback
 
     stats = refresh_label_stats(engine, dataset)
-    reason = block_reason(stats.labeled_weeks, stats.has_laundering)
+    reason = block_message(stats.labeled_weeks, stats.has_laundering)
     if reason is not None:
         raise WorkerError(reason)
     options = TrainOptions(use_feedback=True, include_simulated=include_simulated)

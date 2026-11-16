@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
@@ -11,19 +12,22 @@ import type {
 } from "../schemas/processing";
 
 export function ProcessingSettingsCard() {
+  const t = useTranslations("processing.settings");
   const processing = useProcessing();
   const settings = processing.data?.settings;
 
   return (
     <section className="flex flex-col gap-4 rounded-[14px] border border-border bg-card p-[22px]">
       <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-sm font-semibold">Processamento</h2>
-        <span className="text-xs text-muted-foreground">conjunto atual</span>
+        <h2 className="text-sm font-semibold">{t("title")}</h2>
+        <span className="text-xs text-muted-foreground">
+          {t("currentDataset")}
+        </span>
       </div>
       {processing.loading ? (
         <LoadingState />
       ) : processing.error || !settings ? (
-        <ResourceError message={processing.error ?? "Configuração indisponível."} onRetry={processing.reload} />
+        <ResourceError message={processing.error ?? t("unavailable")} onRetry={processing.reload} />
       ) : (
         <ProcessingSettingsForm
           key={`${settings.dataset}-${settings.interval_minutes}-${settings.enabled}-${settings.demo_mode}-${settings.exploration_per_week}`}
@@ -42,6 +46,7 @@ function ProcessingSettingsForm({
   settings: ProcessingSettings;
   onSave: (update: ProcessingSettingsUpdate) => Promise<void>;
 }) {
+  const t = useTranslations("processing.settings");
   const [interval, setInterval] = useState(settings.interval_minutes);
   const [enabled, setEnabled] = useState(settings.enabled);
   const [demoMode, setDemoMode] = useState(settings.demo_mode);
@@ -60,19 +65,19 @@ function ProcessingSettingsForm({
         });
       }}
     >
-      <Field label="Intervalo automático (minutos)">
+      <Field label={t("interval")}>
         <Input type="number" min={5} max={1440} value={interval} onChange={(event) => setInterval(Number(event.target.value))} />
       </Field>
       <label className="flex min-h-11 items-center gap-3 text-sm">
         <input type="checkbox" checked={enabled} onChange={(event) => setEnabled(event.target.checked)} />
-        Processamento automático ativo
+        {t("auto")}
       </label>
       <label className="flex min-h-11 items-center gap-3 text-sm">
         <input type="checkbox" checked={demoMode} onChange={(event) => setDemoMode(event.target.checked)} />
-        Modo demonstração
+        {t("demo")}
       </label>
       <div className="grid gap-1.5">
-        <Field label="Amostra de controle por semana">
+        <Field label={t("sample")}>
           <Input
             type="number"
             min={0}
@@ -82,13 +87,12 @@ function ProcessingSettingsForm({
           />
         </Field>
         <span className="text-xs text-muted-foreground">
-          Contas sorteadas abaixo do corte a cada semana, para os analistas revisarem e o sistema
-          medir a lavagem que o modelo deixa passar. 0 desliga.
+          {t("sampleHint")}
         </span>
       </div>
       <div>
         <Button type="submit" disabled={interval < 5 || interval > 1440 || !sampleValid}>
-          Salvar processamento
+          {t("save")}
         </Button>
       </div>
     </form>

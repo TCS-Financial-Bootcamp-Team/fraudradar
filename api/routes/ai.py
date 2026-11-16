@@ -4,10 +4,11 @@ Enquanto ela não existe, as rotas validam o pedido, conferem o alerta e respond
 O LLM nunca recebe números de conta: pseudonimize antes do prompt.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
 from api.dependencies import DbConnection
 from api.domain import AlertId, get_alert_row
+from api.errors import AppError
 from api.schemas.alerts import Assessment
 from api.schemas.chat import ChatRequest, ChatResponse
 
@@ -17,8 +18,8 @@ AI_UNAVAILABLE = "O assistente de IA ainda não está disponível nesta versão 
 _RESPONSES = {503: {"description": AI_UNAVAILABLE}}
 
 
-def _unavailable() -> HTTPException:
-    return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, AI_UNAVAILABLE)
+def _unavailable() -> AppError:
+    return AppError(status.HTTP_503_SERVICE_UNAVAILABLE, "ai.unavailable", AI_UNAVAILABLE)
 
 
 @router.post("/alerts/{alert_id}/assessment", response_model=Assessment, responses=_RESPONSES)

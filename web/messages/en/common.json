@@ -1,0 +1,41 @@
+{
+  "language": {
+    "label": "Language",
+    "portuguese": "Português (Brasil)",
+    "english": "English"
+  },
+  "date": {
+    "weekLabel": "{month} {day}, {year}",
+    "dayMonth": "{month} {day}",
+    "monthsShort": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    }
+  },
+  "actions": {
+    "retry": "Try again",
+    "cancel": "Cancel",
+    "close": "Close",
+    "save": "Save",
+    "saving": "Saving…",
+    "confirm": "Confirm",
+    "back": "Back",
+    "loading": "Loading…"
+  },
+  "status": {
+    "pending": "Pending",
+    "escalated": "Under investigation",
+    "archived": "Archived",
+    "reported": "Ready to report"
+  }
+}

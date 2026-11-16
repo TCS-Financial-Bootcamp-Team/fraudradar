@@ -1,5 +1,6 @@
 import { AuthScreen } from "@/features/auth/components/auth-screen";
 import { Suspense } from "react";
+import { StatusText } from "@/components/ui/status-text";
 async function ResetPasswordContent({
   searchParams,
 }: PageProps<"/reset-password">) {
@@ -8,7 +9,7 @@ async function ResetPasswordContent({
 }
 export default function ResetPasswordPage(props: PageProps<"/reset-password">) {
   return (
-    <Suspense fallback={<p role="status">Carregando recuperação…</p>}>
+    <Suspense fallback={<StatusText message="loadingRecovery" />}>
       <ResetPasswordContent {...props} />
     </Suspense>
   );

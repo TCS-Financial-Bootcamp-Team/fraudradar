@@ -1,4 +1,5 @@
 import Papa from "papaparse";
+import { getT } from "@/i18n/runtime";
 import { apiDelete, apiGet, apiMultipart, apiPost, USE_MOCKS } from "@/lib/api";
 import {
   compatibilityReportSchema,
@@ -21,9 +22,9 @@ export function validateCsvHeaders(fields: string[]) {
   const extra = fields.filter((h) => !csvHeaders.includes(h));
   if (missing.length || extra.length || fields.length !== csvHeaders.length)
     throw new Error(
-      "O CSV deve conter exatamente as 11 colunas transacionais SAML-D. Faltando: " +
-        (missing.join(", ") || "nenhuma") +
-        ". Remova colunas extras ou duplicadas.",
+      getT("ingestion.csv.errors")("headers", {
+        missing: missing.join(", ") || getT("ingestion.csv.errors")("none"),
+      }),
     );
 }
 export function prepareCsvPreview(
@@ -31,7 +32,7 @@ export function prepareCsvPreview(
   signal?: AbortSignal,
 ): Promise<CsvPreview> {
   if (!file.name.toLowerCase().endsWith(".csv") || !file.size)
-    return Promise.reject(new Error("Selecione um arquivo CSV não vazio."));
+    return Promise.reject(new Error(getT("ingestion.csv.errors")("selectFile")));
   return new Promise((resolve, reject) => {
     let activeParser: Papa.Parser | undefined;
     let fields: string[] = [];
@@ -40,7 +41,7 @@ export function prepareCsvPreview(
     const finish = () => {
       signal?.removeEventListener("abort", handleAbort);
       if (!rows.length) {
-        reject(new Error("O CSV não contém transações."));
+        reject(new Error(getT("ingestion.csv.errors")("noTransactions")));
         return;
       }
       resolve({
@@ -61,7 +62,7 @@ export function prepareCsvPreview(
       chunkSize: 64 * 1024,
       beforeFirstChunk: (chunk) => {
         if (!chunk.includes("\n") && file.size > 64 * 1024) {
-          reject(new Error("Cabeçalho inválido ou excessivamente longo."));
+          reject(new Error(getT("ingestion.csv.errors")("headerInvalid")));
           return "";
         }
         return chunk.replace(/^\uFEFF/, "");
@@ -75,11 +76,11 @@ export function prepareCsvPreview(
         try {
           if (++chunkCount > 16)
             throw new Error(
-              "Linhas excessivamente longas. Revise o formato do CSV.",
+              getT("ingestion.csv.errors")("linesTooLong"),
             );
           if (result.errors.length)
             throw new Error(
-              "CSV inválido: verifique delimitadores, aspas e colunas.",
+              getT("ingestion.csv.errors")("invalid"),
             );
           fields = result.meta.fields ?? [];
           validateCsvHeaders(fields);
@@ -110,7 +111,7 @@ export function prepareCsvPreview(
       complete: finish,
       error: () => {
         signal?.removeEventListener("abort", handleAbort);
-        reject(new Error("Não foi possível ler o CSV."));
+        reject(new Error(getT("ingestion.csv.errors")("cannotRead")));
       },
     });
   });
@@ -124,7 +125,7 @@ function requireSecureTransport() {
     !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)
   )
     throw new Error(
-      "Credenciais de conexão exigem uma API HTTPS. HTTP é permitido apenas em localhost.",
+      getT("ingestion.csv.errors")("https"),
     );
 }
 export async function uploadCsv(

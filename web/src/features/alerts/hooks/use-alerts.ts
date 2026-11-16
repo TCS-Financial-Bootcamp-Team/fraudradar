@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useTranslations } from "next-intl";
 import { notify } from "@/lib/notify";
 import { useAppContext } from "@/components/app-context";
 import { useResource } from "@/hooks/use-resource";
@@ -53,6 +54,7 @@ export function useMonitoring() {
   );
 }
 export function useAlertDetail(id: string) {
+  const t = useTranslations("alerts.detail.toast");
   const { revision, refresh } = useAppContext();
   const resource = useResource(
     useCallback(
@@ -98,21 +100,22 @@ export function useAlertDetail(id: string) {
     generateAssessment: () =>
       runAction(
         () => alertsService.generateAssessment(id),
-        "Parecer gerado para revisão.",
+        t("assessment"),
       ),
     submitDecision: (decision: DecisionRequest) =>
       runAction(
         () => alertsService.submitDecision(id, decision),
-        "Decisão registrada.",
+        t("decision"),
       ),
     approveReport: (content: string) =>
       runAction(
         () => alertsService.approveReport(id, content),
-        "Rascunho aprovado. Nenhum envio externo foi realizado.",
+        t("approved"),
       ),
   };
 }
 export function useReplay() {
+  const t = useTranslations("alerts.detail.toast");
   const { week, setWeek, refresh, nextRelease } = useAppContext();
   const [busy, setBusy] = useState(false);
   return {
@@ -125,7 +128,7 @@ export function useReplay() {
         const result = await alertsService.advanceWeek(week);
         setWeek(result.week);
         refresh();
-        notify.success(result.alerts_generated + " alertas na nova semana.");
+        notify.success(t("newWeek", { count: result.alerts_generated }));
       } catch (error) {
         notify.error(getErrorMessage(error));
       } finally {

@@ -3,13 +3,13 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import {
-  getSupabaseConfig,
-  supabaseConfigMessage,
-} from "@/lib/supabase/config";
+import { LocaleSwitcher } from "@/i18n/locale-switcher";
+import { useValidationText } from "@/i18n/use-validation-text";
+import { getSupabaseConfig } from "@/lib/supabase/config";
 import { useAuth } from "../hooks/use-auth";
 import {
   signupSchema,
@@ -33,12 +33,13 @@ function PasswordStrengthMeter({ password }: { password: string }) {
           /[^A-Za-z0-9]/.test(password),
         ].filter(Boolean).length;
 
+  const t = useTranslations("auth.password.strength");
   const hints = [
-    "Mínimo de 8 caracteres.",
-    "Fraca: misture letras, números e símbolos.",
-    "Razoável.",
-    "Boa.",
-    "Forte.",
+    t("empty"),
+    t("weak"),
+    t("fair"),
+    t("good"),
+    t("strong"),
   ];
 
   return (
@@ -69,6 +70,8 @@ function PasswordStrengthMeter({ password }: { password: string }) {
 
 function LoginForm() {
   const auth = useAuth();
+  const t = useTranslations("auth");
+  const text = useValidationText();
   const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [showPw, setShowPw] = useState(false);
 
@@ -87,18 +90,18 @@ function LoginForm() {
     >
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
-          Entrar
+          {t("login.title")}
         </h2>
         <p className="m-0 text-sm text-muted-foreground">
-          Use a conta da sua equipe de PLD.
+          {t("login.subtitle")}
         </p>
       </div>
 
-      <Field label="E-mail" error={errors.email?.message}>
+      <Field label={t("email")} error={errors.email?.message}>
         <Input
           type="email"
           autoComplete="username"
-          placeholder="voce@banco.com"
+          placeholder={t("emailPlaceholder")}
           {...register("email")}
         />
       </Field>
@@ -106,13 +109,13 @@ function LoginForm() {
       <div className="flex flex-col gap-1.5">
         <div className="flex justify-between items-baseline">
           <label className="text-[13px] font-medium text-foreground">
-            Senha
+            {t("password.label")}
           </label>
           <Link
             href="/reset-password"
             className="text-xs text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
           >
-            Esqueci a senha
+            {t("login.forgot")}
           </Link>
         </div>
         <div className="relative flex">
@@ -127,12 +130,12 @@ function LoginForm() {
             onClick={() => setShowPw(!showPw)}
             className="absolute right-1.5 top-1.5 h-8 px-2.5 border-0 rounded-md bg-transparent text-xs text-muted-foreground hover:text-foreground cursor-pointer"
           >
-            {showPw ? "Ocultar" : "Mostrar"}
+            {showPw ? t("password.hide") : t("password.show")}
           </button>
         </div>
         {errors.password?.message && (
           <span className="text-xs text-signal">
-            {errors.password.message}
+            {text(errors.password.message)}
           </span>
         )}
       </div>
@@ -144,20 +147,20 @@ function LoginForm() {
           onChange={(e) => setKeepSignedIn(e.target.checked)}
           className="size-4 rounded border-border accent-primary"
         />
-        Manter conectado neste navegador
+        {t("login.keepSignedIn")}
       </label>
 
       <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
-        {auth.busy ? "Entrando…" : "Entrar"}
+        {auth.busy ? t("login.submitting") : t("login.submit")}
       </Button>
 
       <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
-        Ainda não tem conta?{" "}
+        {t("login.noAccount")}{" "}
         <Link
           href="/signup"
           className="font-medium text-foreground underline underline-offset-[3px]"
         >
-          Criar conta
+          {t("login.createAccount")}
         </Link>
       </p>
     </form>
@@ -166,6 +169,8 @@ function LoginForm() {
 
 function SignupForm() {
   const auth = useAuth();
+  const t = useTranslations("auth");
+  const text = useValidationText();
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
@@ -190,34 +195,34 @@ function SignupForm() {
     >
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
-          Criar conta
+          {t("signup.title")}
         </h2>
         <p className="m-0 text-sm text-muted-foreground">
-          Leva menos de um minuto.
+          {t("signup.subtitle")}
         </p>
       </div>
 
-      <Field label="Nome" error={errors.name?.message}>
+      <Field label={t("name")} error={errors.name?.message}>
         <Input
           type="text"
           autoComplete="name"
-          placeholder="Como aparece na auditoria"
+          placeholder={t("namePlaceholder")}
           {...register("name")}
         />
       </Field>
 
-      <Field label="E-mail" error={errors.email?.message}>
+      <Field label={t("email")} error={errors.email?.message}>
         <Input
           type="email"
           autoComplete="email"
-          placeholder="voce@banco.com"
+          placeholder={t("emailPlaceholder")}
           {...register("email")}
         />
       </Field>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-medium text-foreground">
-          Senha
+          {t("password.label")}
         </label>
         <div className="relative flex">
           <Input
@@ -234,18 +239,18 @@ function SignupForm() {
             onClick={() => setShowPw(!showPw)}
             className="absolute right-1.5 top-1.5 h-8 px-2.5 border-0 rounded-md bg-transparent text-xs text-muted-foreground hover:text-foreground cursor-pointer"
           >
-            {showPw ? "Ocultar" : "Mostrar"}
+            {showPw ? t("password.hide") : t("password.show")}
           </button>
         </div>
         <PasswordStrengthMeter password={password} />
         {errors.password?.message && (
           <span className="text-xs text-signal">
-            {errors.password.message}
+            {text(errors.password.message)}
           </span>
         )}
       </div>
 
-      <Field label="Confirmar senha" error={errors.confirmation?.message}>
+      <Field label={t("password.confirm")} error={errors.confirmation?.message}>
         <Input
           type={showPw ? "text" : "password"}
           autoComplete="new-password"
@@ -259,22 +264,21 @@ function SignupForm() {
           className="size-4 mt-0.5 rounded border-border accent-primary shrink-0"
         />
         <span>
-          Entendo que é um ambiente acadêmico e que nada é comunicado ao COAF de
-          verdade.
+          {t("signup.academic")}
         </span>
       </label>
 
       <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
-        {auth.busy ? "Criando conta…" : "Criar conta"}
+        {auth.busy ? t("signup.submitting") : t("signup.submit")}
       </Button>
 
       <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
-        Já tem conta?{" "}
+        {t("signup.haveAccount")}{" "}
         <Link
           href="/login"
           className="font-medium text-foreground underline underline-offset-[3px]"
         >
-          Entrar
+          {t("signup.signIn")}
         </Link>
       </p>
     </form>
@@ -283,6 +287,7 @@ function SignupForm() {
 
 function ResetPasswordForm() {
   const auth = useAuth();
+  const t = useTranslations("auth");
   const {
     register,
     handleSubmit,
@@ -301,7 +306,7 @@ function ResetPasswordForm() {
           href="/login"
           className="text-[13px] text-foreground underline underline-offset-[3px] text-center"
         >
-          Voltar para o login
+          {t("reset.back")}
         </Link>
       </div>
     );
@@ -314,24 +319,24 @@ function ResetPasswordForm() {
     >
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
-          Recuperar senha
+          {t("reset.title")}
         </h2>
         <p className="m-0 text-sm text-muted-foreground">
-          Digite seu e-mail para receber as instruções.
+          {t("reset.subtitle")}
         </p>
       </div>
 
-      <Field label="E-mail da conta" error={errors.email?.message}>
+      <Field label={t("reset.emailLabel")} error={errors.email?.message}>
         <Input
           type="email"
           autoComplete="email"
-          placeholder="voce@banco.com"
+          placeholder={t("emailPlaceholder")}
           {...register("email")}
         />
       </Field>
 
       <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
-        {auth.busy ? "Enviando…" : "Enviar link de recuperação"}
+        {auth.busy ? t("reset.submitting") : t("reset.submit")}
       </Button>
 
       <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
@@ -339,7 +344,7 @@ function ResetPasswordForm() {
           href="/login"
           className="text-foreground underline underline-offset-[3px]"
         >
-          Voltar para o login
+          {t("reset.back")}
         </Link>
       </p>
     </form>
@@ -348,6 +353,8 @@ function ResetPasswordForm() {
 
 function UpdatePasswordForm() {
   const auth = useAuth();
+  const t = useTranslations("auth");
+  const text = useValidationText();
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
 
@@ -366,16 +373,16 @@ function UpdatePasswordForm() {
     >
       <div className="flex flex-col gap-1.5">
         <h2 className="m-0 text-[26px] font-semibold tracking-[-0.025em] text-foreground">
-          Nova senha
+          {t("update.title")}
         </h2>
         <p className="m-0 text-sm text-muted-foreground">
-          Defina sua nova senha de acesso.
+          {t("update.subtitle")}
         </p>
       </div>
 
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-medium text-foreground">
-          Nova senha
+          {t("password.newLabel")}
         </label>
         <div className="relative flex">
           <Input
@@ -392,19 +399,19 @@ function UpdatePasswordForm() {
             onClick={() => setShowPw(!showPw)}
             className="absolute right-1.5 top-1.5 h-8 px-2.5 border-0 rounded-md bg-transparent text-xs text-muted-foreground hover:text-foreground cursor-pointer"
           >
-            {showPw ? "Ocultar" : "Mostrar"}
+            {showPw ? t("password.hide") : t("password.show")}
           </button>
         </div>
         <PasswordStrengthMeter password={password} />
         {errors.password?.message && (
           <span className="text-xs text-signal">
-            {errors.password.message}
+            {text(errors.password.message)}
           </span>
         )}
       </div>
 
       <Field
-        label="Confirmar nova senha"
+        label={t("password.confirmNew")}
         error={errors.confirmation?.message}
       >
         <Input
@@ -415,7 +422,7 @@ function UpdatePasswordForm() {
       </Field>
 
       <Button type="submit" className="h-11 font-medium" disabled={auth.busy}>
-        {auth.busy ? "Salvando…" : "Atualizar senha"}
+        {auth.busy ? t("update.submitting") : t("update.submit")}
       </Button>
 
       <p className="m-0 pt-4 border-t border-border text-center text-[13px] text-muted-foreground">
@@ -423,7 +430,7 @@ function UpdatePasswordForm() {
           href="/login"
           className="text-foreground underline underline-offset-[3px]"
         >
-          Voltar para o login
+          {t("reset.back")}
         </Link>
       </p>
     </form>
@@ -437,10 +444,11 @@ export function AuthScreen({
   mode: AuthMode;
   error?: string;
 }) {
+  const t = useTranslations("auth");
   return (
     <div className="auth-layout font-sans">
       {/* Brand Panel: segue a cor da barra lateral e os tokens salvos */}
-      <section aria-label="FraudRadar" className="auth-brand">
+      <section aria-label={t("brand.region")} className="auth-brand">
         <div className="flex items-center gap-2.5 font-semibold text-base tracking-[-0.015em] text-sidebar-foreground">
           <svg
             width="22"
@@ -469,31 +477,28 @@ export function AuthScreen({
           {mode === "login" ? (
             <>
               <h1 className="m-0 text-[clamp(28px,3.2vw,40px)] font-semibold tracking-[-0.03em] leading-[1.1] text-sidebar-foreground">
-                Monitoramento antilavagem, uma semana por vez.
+                {t("brand.loginTitle")}
               </h1>
               <p className="m-0 text-[15px] text-sidebar-muted">
-                O modelo ordena a fila, a IA ajuda a ler as evidências e o
-                analista decide.
+                {t("brand.loginBody")}
               </p>
             </>
           ) : mode === "signup" ? (
             <>
               <h1 className="m-0 text-[clamp(28px,3.2vw,40px)] font-semibold tracking-[-0.03em] leading-[1.1] text-sidebar-foreground">
-                Cada decisão fica registrada com o seu nome.
+                {t("brand.signupTitle")}
               </h1>
               <p className="m-0 text-[15px] text-sidebar-muted">
-                Crie sua conta de analista. O nome aparece na auditoria e nas
-                comunicações que você aprovar.
+                {t("brand.signupBody")}
               </p>
             </>
           ) : (
             <>
               <h1 className="m-0 text-[clamp(28px,3.2vw,40px)] font-semibold tracking-[-0.03em] leading-[1.1] text-sidebar-foreground">
-                Recupere o acesso à sua conta de análise.
+                {t("brand.resetTitle")}
               </h1>
               <p className="m-0 text-[15px] text-sidebar-muted">
-                Enviaremos instruções seguras para redefinir sua senha de
-                acesso.
+                {t("brand.resetBody")}
               </p>
             </>
           )}
@@ -502,21 +507,21 @@ export function AuthScreen({
         {mode === "login" ? (
           <dl className="m-0 grid grid-cols-3 gap-4 pt-5 border-t border-[var(--sidebar-divider)] tabular-nums">
             <div>
-              <dt className="text-xs text-sidebar-muted">Transações</dt>
+              <dt className="text-xs text-sidebar-muted">{t("brand.statTransactions")}</dt>
               <dd className="m-0 text-xl font-medium text-sidebar-foreground">
-                9,5 mi
+                {t("brand.statTransactionsValue")}
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-sidebar-muted">Semanas de teste</dt>
+              <dt className="text-xs text-sidebar-muted">{t("brand.statWeeks")}</dt>
               <dd className="m-0 text-xl font-medium text-sidebar-foreground">
                 14
               </dd>
             </div>
             <div>
-              <dt className="text-xs text-sidebar-muted">Recall da fila</dt>
+              <dt className="text-xs text-sidebar-muted">{t("brand.statQueue")}</dt>
               <dd className="m-0 text-xl font-medium text-sidebar-foreground">
-                95,1%
+                300
               </dd>
             </div>
           </dl>
@@ -524,30 +529,30 @@ export function AuthScreen({
           <ol className="m-0 p-0 list-none flex flex-col gap-2.5 pt-5 border-t border-[var(--sidebar-divider)] text-[13px] text-sidebar-foreground">
             <li className="flex gap-3">
               <span className="font-mono text-sidebar-muted">01</span>
-              <span>Leia a fila da semana, da maior nota para a menor</span>
+              <span>{t("brand.signupStep1")}</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-sidebar-muted">02</span>
-              <span>Confira as evidências e o parecer da IA</span>
+              <span>{t("brand.signupStep2")}</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-sidebar-muted">03</span>
-              <span>Arquive, aprofunde ou prepare a comunicação ao COAF</span>
+              <span>{t("brand.signupStep3")}</span>
             </li>
           </ol>
         ) : (
           <ol className="m-0 p-0 list-none flex flex-col gap-2.5 pt-5 border-t border-[var(--sidebar-divider)] text-[13px] text-sidebar-foreground">
             <li className="flex gap-3">
               <span className="font-mono text-sidebar-muted">01</span>
-              <span>Informe o e-mail cadastrado na equipe</span>
+              <span>{t("brand.resetStep1")}</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-sidebar-muted">02</span>
-              <span>Abra o link de confirmação recebido</span>
+              <span>{t("brand.resetStep2")}</span>
             </li>
             <li className="flex gap-3">
               <span className="font-mono text-sidebar-muted">03</span>
-              <span>Escolha uma nova senha forte</span>
+              <span>{t("brand.resetStep3")}</span>
             </li>
           </ol>
         )}
@@ -556,17 +561,17 @@ export function AuthScreen({
       {/* Form Section */}
       <main className="flex-1 flex items-center justify-center p-8 sm:p-12 lg:p-16 min-w-0">
         <div className="w-full max-w-[380px] flex flex-col gap-5">
+          <LocaleSwitcher className="self-end" />
           {error && (
             <div role="alert" className="notice text-xs text-signal">
-              O link expirou ou a sessão não pôde ser validada. Tente entrar ou
-              solicite um novo e-mail.
+              {t("linkExpired")}
             </div>
           )}
 
           {!getSupabaseConfig() ? (
             <div role="status" className="notice">
-              <strong className="mb-2 block">Configure a autenticação</strong>
-              {supabaseConfigMessage}
+              <strong className="mb-2 block">{t("configureTitle")}</strong>
+              {t("supabaseConfig")}
             </div>
           ) : mode === "login" ? (
             <LoginForm />

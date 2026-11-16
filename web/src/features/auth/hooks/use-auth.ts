@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { notify } from "@/lib/notify";
 import { getErrorMessage } from "@/lib/format";
 import * as authService from "../services/auth-service";
@@ -9,8 +10,11 @@ import type { SignupInput, LoginInput } from "../schemas/auth";
 
 export function useAuth() {
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState("");
+  const [messageKey, setMessageKey] = useState<
+    "signupConfirm" | "resetSent" | ""
+  >("");
   const router = useRouter();
+  const t = useTranslations("auth.messages");
   async function runAction(action: () => Promise<void>) {
     setBusy(true);
     try {
@@ -27,7 +31,7 @@ export function useAuth() {
   };
   return {
     busy,
-    message,
+    message: messageKey ? t(messageKey) : "",
     signIn: (data: LoginInput) =>
       runAction(async () => {
         await authService.signIn(data);
@@ -36,22 +40,17 @@ export function useAuth() {
     signUp: (data: SignupInput) =>
       runAction(async () => {
         if (await authService.signUp(data)) navigateToDashboard();
-        else
-          setMessage(
-            "Confira seu e-mail para confirmar o cadastro e acessar o FraudRadar.",
-          );
+        else setMessageKey("signupConfirm");
       }),
     requestPasswordReset: (data: { email: string }) =>
       runAction(async () => {
         await authService.requestPasswordReset(data);
-        setMessage(
-          "Se houver uma conta com esse e-mail, você receberá um link para redefinir a senha.",
-        );
+        setMessageKey("resetSent");
       }),
     updatePassword: (data: { password: string; confirmation: string }) =>
       runAction(async () => {
         await authService.updatePassword(data);
-        notify.success("Senha atualizada.");
+        notify.success(t("passwordUpdated"));
         navigateToDashboard();
       }),
     signOut: () =>

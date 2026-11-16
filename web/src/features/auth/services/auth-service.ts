@@ -1,3 +1,4 @@
+import { getT } from "@/i18n/runtime";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { setKeepSignedIn } from "@/lib/supabase/persistence";
 import {
@@ -21,7 +22,7 @@ export async function signIn(data: LoginInput) {
     },
   );
   if (error)
-    throw new Error("Não foi possível entrar. Verifique seu e-mail e senha.");
+    throw new Error(getT("auth.errors")("signIn"));
 }
 export async function signUp(data: SignupInput) {
   const parsed = signupSchema.parse(data);
@@ -37,7 +38,7 @@ export async function signUp(data: SignupInput) {
     });
   if (error)
     throw new Error(
-      "Não foi possível criar a conta. Verifique os dados e tente novamente.",
+      getT("auth.errors")("signUp"),
     );
   return Boolean(authData.session);
 }
@@ -52,7 +53,7 @@ export async function requestPasswordReset(data: { email: string }) {
     );
   if (error)
     throw new Error(
-      "Não foi possível solicitar a recuperação. Tente novamente.",
+      getT("auth.errors")("reset"),
     );
 }
 export async function updatePassword(data: {
@@ -65,17 +66,17 @@ export async function updatePassword(data: {
   });
   if (error)
     throw new Error(
-      "Link inválido ou expirado. Solicite outro e-mail de recuperação.",
+      getT("auth.errors")("invalidLink"),
     );
 }
 export async function signOut() {
   const { error } = await createSupabaseBrowserClient().auth.signOut();
-  if (error) throw new Error("Não foi possível sair. Tente novamente.");
+  if (error) throw new Error(getT("auth.errors")("signOut"));
 }
 export async function fetchProfile() {
   const { data, error } = await createSupabaseBrowserClient().auth.getUser();
   if (error || !data.user)
-    throw new Error("Sessão indisponível. Entre novamente.");
+    throw new Error(getT("auth.errors")("noSession"));
   return {
     name: String(
       data.user.user_metadata.name ?? data.user.user_metadata.nome ?? "",
@@ -87,5 +88,5 @@ export async function saveProfile(data: Profile) {
   const { error } = await createSupabaseBrowserClient().auth.updateUser({
     data: profileSchema.parse(data),
   });
-  if (error) throw new Error("Não foi possível salvar o perfil.");
+  if (error) throw new Error(getT("auth.errors")("saveProfile"));
 }

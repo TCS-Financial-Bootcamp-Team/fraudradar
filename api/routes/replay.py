@@ -4,9 +4,10 @@ A API não roda o modelo (a imagem dela não tem lightgbm): o worker processa as
 antes (`docker compose run --rm worker batch --week AAAA-MM-DD`) e o replay só as revela.
 """
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, status
 
 from api.dependencies import CurrentUser, DbConnection
+from api.errors import AppError
 from api.repositories.weeks import release_next_week
 from api.schemas.weeks import Replay
 
@@ -24,6 +25,6 @@ NO_BATCH_AVAILABLE = (
 def next_week(conn: DbConnection, user: CurrentUser) -> Replay:
     released = release_next_week(conn, user)
     if released is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, NO_BATCH_AVAILABLE)
+        raise AppError(status.HTTP_409_CONFLICT, "replay.no_batch", NO_BATCH_AVAILABLE)
     week, alerts = released
     return Replay(week=week, alerts_generated=alerts)

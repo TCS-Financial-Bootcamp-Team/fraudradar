@@ -14,6 +14,7 @@ from psycopg import sql
 from sqlalchemy import Connection, text
 
 from fraudradar.data.ingestion import InvalidTransactionsError
+from fraudradar.messages import msg
 from fraudradar.sources import reader
 from fraudradar.sources.connection import (
     ExternalSource,
@@ -125,14 +126,27 @@ def source_row_count(conn: psycopg.Connection, source: ExternalSource) -> int | 
     return None if row is None else row[0]
 
 
-def _check(key: str, label: str, status: str, detail: str) -> dict[str, str]:
-    return {"key": key, "label": label, "status": status, "detail": detail}
+def _check(
+    key: str, label: str, status: str, detail: str, code: str | None = None, **params: Any
+) -> dict[str, Any]:
+    """Um item do relatório. ``label`` e ``detail`` em português; o front traduz o rótulo pela
+    ``key`` e o detalhe por ``code`` + ``params`` (sem código, mostra o ``detail``)."""
+    return {
+        "key": key,
+        "label": label,
+        "status": status,
+        "detail": detail,
+        "code": code,
+        "params": params,
+    }
 
 
-def _failed_report(source: ExternalSource, message: str) -> dict[str, Any]:
+def _failed_report(
+    source: ExternalSource, message: str, code: str | None = None, **params: Any
+) -> dict[str, Any]:
     return {
         "compatible": False,
-        "checks": [_check("connection", "Conexão", "fail", message)],
+        "checks": [_check("connection", "Conexão", "fail", message, code, **params)],
         "missing_columns": [],
         "wrong_types": [],
         "has_ground_truth": False,
@@ -154,7 +168,7 @@ def build_report(
         with open_readonly(source) as conn:
             return _inspect(conn, source, dataset_conn, dataset_slug)
     except SourceError as exc:
-        return _failed_report(source, str(exc))
+        return _failed_report(source, str(exc), exc.code, **exc.params)
 
 
 def _inspect(
@@ -164,7 +178,13 @@ def _inspect(
     dataset_slug: str,
 ) -> dict[str, Any]:
     checks = [
-        _check("connection", "Conexão", "ok", "Conectou ao servidor em modo somente leitura.")
+        _check(
+            "connection",
+            "Conexão",
+            "ok",
+            "Conectou ao servidor em modo somente leitura.",
+            "compat.connection_ok",
+        )
     ]
     info = reader.describe_table(conn, source)
     if not info.exists:
@@ -174,12 +194,15 @@ def _inspect(
                 "Tabela de origem",
                 "fail",
                 "A tabela não existe ou o usuário não enxerga as colunas dela.",
+                "compat.table_missing",
             )
         )
         report = _failed_report(source, "")
         report["checks"] = checks
         return report
-    checks.append(_check("table", "Tabela de origem", "ok", "Tabela encontrada."))
+    checks.append(
+        _check("table", "Tabela de origem", "ok", "Tabela encontrada.", "compat.table_ok")
+    )
 
     missing = reader.missing_columns(info)
     wrong = reader.wrong_types(info)
@@ -189,6 +212,8 @@ def _inspect(
             "Colunas obrigatórias",
             "fail" if missing else "ok",
             ("Faltam: " + ", ".join(missing) + ".") if missing else "Todas as 10 colunas existem.",
+            "compat.columns_missing" if missing else "compat.columns_ok",
+            **({"columns": ", ".join(missing)} if missing else {}),
         )
     )
     checks.append(
@@ -203,13 +228,25 @@ def _inspect(
                 if wrong
                 else "Os tipos servem para o formato do SAML-D."
             ),
+            "compat.types_wrong" if wrong else "compat.types_ok",
+            **(
+                {"list": "; ".join(f"{w['column']}: {w['expected']} / {w['found']}" for w in wrong)}
+                if wrong
+                else {}
+            ),
         )
     )
     if source.control_column:
         control = info.control
         if control is None:
             checks.append(
-                _check("control", "Coluna de controle", "fail", "A coluna não existe na tabela.")
+                _check(
+                    "control",
+                    "Coluna de controle",
+                    "fail",
+                    "A coluna não existe na tabela.",
+                    "compat.control_missing",
+                )
             )
         elif control.data_type not in reader.CONTROL_TYPES:
             checks.append(
@@ -218,6 +255,8 @@ def _inspect(
                     "Coluna de controle",
                     "fail",
                     f"Use uma coluna de data/hora ou número crescente; esta é {control.data_type}.",
+                    "compat.control_type",
+                    type=control.data_type,
                 )
             )
         else:
@@ -227,6 +266,9 @@ def _inspect(
                     "Coluna de controle",
                     "ok",
                     f"{control.actual} ({control.data_type}) serve para ler só o que for novo.",
+                    "compat.control_ok",
+                    column=control.actual,
+                    type=control.data_type,
                 )
             )
     else:
@@ -236,6 +278,7 @@ def _inspect(
                 "Coluna de controle",
                 "info",
                 "Não informada: sem ela só dá para importar o histórico, não acompanhar.",
+                "compat.control_none",
             )
         )
 
@@ -258,7 +301,15 @@ def _inspect(
                 for e in exc.errors[:MAX_REPORTED_ERRORS]
             ]
     if missing:
-        checks.append(_check("sample", "Amostra validada", "fail", "Faltam colunas para validar."))
+        checks.append(
+            _check(
+                "sample",
+                "Amostra validada",
+                "fail",
+                "Faltam colunas para validar.",
+                "compat.sample_columns",
+            )
+        )
     elif sample_ok:
         checks.append(
             _check(
@@ -266,17 +317,33 @@ def _inspect(
                 "Amostra validada",
                 "ok",
                 f"{sample_size} linhas passaram nas regras da ingestão.",
+                "compat.sample_ok",
+                count=sample_size,
             )
         )
     elif not errors:
-        checks.append(_check("sample", "Amostra validada", "fail", "A tabela está vazia."))
+        checks.append(
+            _check(
+                "sample", "Amostra validada", "fail", "A tabela está vazia.", "compat.sample_empty"
+            )
+        )
     else:
         first = errors[0]
         where = f"linha {first['line']}" + (
             f", coluna {first['column']}" if first["column"] else ""
         )
         checks.append(
-            _check("sample", "Amostra validada", "fail", f"Erro na {where}: {first['message']}")
+            _check(
+                "sample",
+                "Amostra validada",
+                "fail",
+                f"Erro na {where}: {first['message']}",
+                "compat.sample_error",
+                line=first["line"],
+                column=first["column"] or "",
+                with_column="yes" if first["column"] else "no",
+                message=first["message"],
+            )
         )
 
     checks.append(
@@ -287,6 +354,7 @@ def _inspect(
             "A fonte tem gabarito: dá para medir e retreinar."
             if info.has_ground_truth
             else "A fonte não tem gabarito: só haverá notas do modelo, sem retreino.",
+            "compat.truth_yes" if info.has_ground_truth else "compat.truth_no",
         )
     )
 
@@ -350,58 +418,64 @@ def _overlap(
     }
 
 
+def _suggestion(relation: str | None, code: str, text: str, **params: Any) -> dict[str, Any]:
+    """``message`` em português; ``code`` e ``params`` deixam o front traduzir."""
+    message = msg(code, text, **params)
+    return {"relation": relation, "message": message.text, **message.as_fields()}
+
+
 def suggest(
     compatible: bool, overlap: dict[str, Any] | None, has_ground_truth: bool
-) -> dict[str, str | None] | None:
+) -> dict[str, Any] | None:
     """Sugestão (nunca decisão) de relação com o conjunto atual."""
     if not compatible:
-        return {
-            "relation": None,
-            "message": "Corrija os itens marcados em vermelho antes de importar.",
-        }
+        return _suggestion(
+            None, "compat.suggest_fix", "Corrija os itens marcados em vermelho antes de importar."
+        )
     if overlap is None or overlap["dates"] in ("empty_dataset", "unknown"):
-        return {
-            "relation": None,
-            "message": "Sem dados no conjunto atual para comparar: escolha pela origem dos dados.",
-        }
+        return _suggestion(
+            None,
+            "compat.suggest_no_data",
+            "Sem dados no conjunto atual para comparar: escolha pela origem dos dados.",
+        )
     pct = overlap["known_accounts_pct"]
     dates = overlap["dates"]
     if pct is not None and pct >= 50 and dates == "continue":
-        return {
-            "relation": "extend",
-            "message": (
-                f"{pct:g}% das contas da amostra já existem e as datas vêm logo depois dos "
-                "dados atuais: parece continuar o conjunto atual."
-            ),
-        }
+        return _suggestion(
+            "extend",
+            "compat.suggest_extend",
+            f"{pct:g}% das contas da amostra já existem e as datas vêm logo depois dos "
+            "dados atuais: parece continuar o conjunto atual.",
+            pct=pct,
+        )
     if pct is not None and pct >= SAME_BASE_KNOWN_PCT and dates == "overlap":
         # Pré-seleciona o conjunto separado (continuar é recusado com datas que cruzam), mas
         # avisa que, se for a mesma base, o melhor pode ser não importar.
-        return {
-            "relation": "new_dataset",
-            "message": (
-                f"{pct:g}% das contas da amostra já existem e as datas cruzam as do conjunto "
-                "atual: parece ser a mesma base já carregada, e importar duplicaria transações. "
-                "Confira a origem; se for mesmo outra base, importe como conjunto separado."
-            ),
-        }
+        return _suggestion(
+            "new_dataset",
+            "compat.suggest_same_base",
+            f"{pct:g}% das contas da amostra já existem e as datas cruzam as do conjunto "
+            "atual: parece ser a mesma base já carregada, e importar duplicaria transações. "
+            "Confira a origem; se for mesmo outra base, importe como conjunto separado.",
+            pct=pct,
+        )
     if pct is not None and pct >= 50 and dates == "overlap":
-        return {
-            "relation": "new_dataset",
-            "message": (
-                f"{pct:g}% das contas já existem, mas as datas cruzam períodos do conjunto atual "
-                "(semanas fechadas não mudam): prefira um conjunto separado."
-            ),
-        }
+        return _suggestion(
+            "new_dataset",
+            "compat.suggest_cross",
+            f"{pct:g}% das contas já existem, mas as datas cruzam períodos do conjunto atual "
+            "(semanas fechadas não mudam): prefira um conjunto separado.",
+            pct=pct,
+        )
     if (pct is not None and pct < 10) or dates == "other_era":
-        return {
-            "relation": "new_dataset",
-            "message": (
-                "Poucas contas em comum ou datas de outra época: parece outro conjunto de dados "
-                "com a mesma estrutura."
-            ),
-        }
-    return {
-        "relation": None,
-        "message": "O parecer é incerto (contas e datas não apontam um lado): decida pela origem.",
-    }
+        return _suggestion(
+            "new_dataset",
+            "compat.suggest_other",
+            "Poucas contas em comum ou datas de outra época: parece outro conjunto de dados "
+            "com a mesma estrutura.",
+        )
+    return _suggestion(
+        None,
+        "compat.suggest_uncertain",
+        "O parecer é incerto (contas e datas não apontam um lado): decida pela origem.",
+    )

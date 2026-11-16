@@ -1,19 +1,11 @@
+import { useTranslations } from "next-intl";
+import { useJobMessage } from "@/features/jobs/hooks/use-job-message";
 import type { Job } from "@/features/jobs/schemas/jobs";
 
-const kindLabel: Record<Job["kind"], string> = {
-  import: "Importação",
-  process: "Processamento",
-  simulate: "Simulação",
-  train: "Treino",
-};
-const statusLabel: Record<Job["status"], string> = {
-  queued: "Na fila",
-  running: "Em andamento",
-  done: "Concluído",
-  failed: "Falhou",
-};
-
 export function JobProgress({ job, error }: { job: Job; error: string }) {
+  const t = useTranslations("jobs");
+  const jobMessage = useJobMessage();
+  const message = jobMessage(job);
   return (
     <div
       className="flex flex-col gap-1.5 pt-3 border-t border-border"
@@ -21,7 +13,7 @@ export function JobProgress({ job, error }: { job: Job; error: string }) {
     >
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>
-          {kindLabel[job.kind]} · {statusLabel[job.status]}
+          {t(`kind.${job.kind}`)} · {t(`status.${job.status}`)}
         </span>
         <span className="font-mono tabular-nums">{job.progress}%</span>
       </div>
@@ -33,10 +25,10 @@ export function JobProgress({ job, error }: { job: Job; error: string }) {
           style={{ width: `${job.progress}%` }}
         />
       </div>
-      {job.message && (
-        <p className="m-0 text-xs text-muted-foreground">{job.message}</p>
+      {message && (
+        <p className="m-0 text-xs text-muted-foreground">{message}</p>
       )}
-      {error && error !== job.message && (
+      {error && error !== message && (
         <p role="alert" className="m-0 text-xs text-signal">
           {error}
         </p>

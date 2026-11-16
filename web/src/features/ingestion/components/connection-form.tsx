@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Database } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
 import {
@@ -33,6 +34,7 @@ export function ConnectionForm({
   onSubmit: (form: ConnectionFormValues) => Promise<boolean>;
   onCancel: () => void;
 }) {
+  const t = useTranslations("ingestion.form");
   const [values, setValues] = useState<ConnectionFormValues>(emptyForm);
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -70,25 +72,25 @@ export function ConnectionForm({
       autoComplete="off"
       noValidate
     >
-      <Field label="Nome da conexão" error={errors.name}>
-        <Input {...bind("name")} placeholder="Ex.: Banco do parceiro" />
+      <Field label={t("name")} error={errors.name}>
+        <Input {...bind("name")} placeholder={t("namePlaceholder")} />
       </Field>
       <div className="grid grid-cols-[1fr_96px] gap-2">
-        <Field label="Host" error={errors.host}>
-          <Input {...bind("host")} placeholder="localhost" />
+        <Field label={t("host")} error={errors.host}>
+          <Input {...bind("host")} placeholder={t("hostPlaceholder")} />
         </Field>
-        <Field label="Porta" error={errors.port}>
+        <Field label={t("port")} error={errors.port}>
           <Input {...bind("port")} inputMode="numeric" />
         </Field>
       </div>
-      <Field label="Banco de dados" error={errors.database}>
+      <Field label={t("database")} error={errors.database}>
         <Input {...bind("database")} />
       </Field>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Usuário" error={errors.user}>
+        <Field label={t("user")} error={errors.user}>
           <Input {...bind("user")} autoComplete="off" />
         </Field>
-        <Field label="Senha" error={errors.password}>
+        <Field label={t("password")} error={errors.password}>
           <Input
             {...bind("password")}
             type="password"
@@ -97,17 +99,18 @@ export function ConnectionForm({
         </Field>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Tabela de origem" error={errors.table}>
-          <Input {...bind("table")} placeholder="schema.tabela" />
+        <Field label={t("table")} error={errors.table}>
+          <Input {...bind("table")} placeholder={t("tablePlaceholder")} />
         </Field>
-        <Field label="Coluna de controle" error={errors.control_column}>
-          <Input {...bind("control_column")} placeholder="id ou created_at" />
+        <Field label={t("control")} error={errors.control_column}>
+          <Input
+            {...bind("control_column")}
+            placeholder={t("controlPlaceholder")}
+          />
         </Field>
       </div>
       <p className="m-0 text-xs text-muted-foreground leading-relaxed">
-        A senha é cifrada ao salvar e nunca aparece de novo. A coluna de
-        controle (data/hora ou número crescente) permite ler só o que for novo.
-        A leitura é sempre somente leitura.
+        {t("note")}
       </p>
       {serverError && (
         <p role="alert" className="m-0 text-xs text-signal">
@@ -117,10 +120,10 @@ export function ConnectionForm({
       <div className="flex gap-2 pt-1">
         <Button type="submit" disabled={busy}>
           <Database className="size-4" strokeWidth={1.5} />
-          {busy ? "Salvando…" : "Salvar conexão"}
+          {busy ? t("saving") : t("save")}
         </Button>
         <Button variant="outline" type="button" onClick={onCancel}>
-          Cancelar
+          {t("cancel")}
         </Button>
       </div>
     </form>

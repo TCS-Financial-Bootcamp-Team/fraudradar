@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { StatusText } from "@/components/ui/status-text";
 import { AlertDetailView } from "@/features/alerts/components/alert-detail";
 
 async function AlertDetailContent({ params }: PageProps<"/alerts/[id]">) {
@@ -8,7 +9,7 @@ async function AlertDetailContent({ params }: PageProps<"/alerts/[id]">) {
 
 export default function Page(props: PageProps<"/alerts/[id]">) {
   return (
-    <Suspense fallback={<p role="status">Carregando alerta…</p>}>
+    <Suspense fallback={<StatusText message="loadingAlert" />}>
       <AlertDetailContent {...props} />
     </Suspense>
   );

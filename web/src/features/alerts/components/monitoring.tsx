@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useAppContext } from "@/components/app-context";
 import {
   EmptyState,
   LoadingState,
   ResourceError,
 } from "@/components/ui/states";
-import { formatNumber, formatPercent, formatShortDate } from "@/lib/format";
+import { useFormatters } from "@/i18n/use-formatters";
 import { FeedbackPanel } from "@/features/feedback/components/feedback-panel";
 import { useMonitoring } from "../hooks/use-alerts";
 
@@ -24,6 +25,7 @@ function HorizontalRateBar({
   value: number;
   maxVal: number;
 }) {
+  const format = useFormatters();
   const percentWidth = Math.min(
     100,
     Math.max(2, maxVal > 0 ? (value / maxVal) * 100 : 0)
@@ -33,7 +35,7 @@ function HorizontalRateBar({
   return (
     <li
       className="grid grid-cols-[150px_minmax(0,1fr)_52px] items-center gap-3 text-sm"
-      title={`${name}: ${formatPercent(value)}`}
+      title={`${name}: ${format.percent(value)}`}
     >
       <span className="truncate text-foreground" title={name}>
         {name}
@@ -47,7 +49,7 @@ function HorizontalRateBar({
         />
       </span>
       <span className="font-mono text-xs text-right tabular-nums text-foreground">
-        {formatPercent(value)}
+        {format.percent(value)}
       </span>
     </li>
   );
@@ -62,6 +64,7 @@ function RateCard({
   subtitle: string;
   items: Array<{ name: string; value: number }>;
 }) {
+  const t = useTranslations("alerts.monitoring");
   const maxVal = Math.max(...items.map((r) => r.value), 0.01);
 
   return (
@@ -72,7 +75,7 @@ function RateCard({
       </header>
       {items.length === 0 ? (
         <p className="text-xs text-muted-foreground py-4 text-center">
-          Nenhum dado disponível.
+          {t("noData")}
         </p>
       ) : (
         <ul className="list-none m-0 p-0 flex flex-col gap-[11px]">
@@ -91,6 +94,8 @@ function RateCard({
 }
 
 export function MonitoringView() {
+  const t = useTranslations("alerts.monitoring");
+  const format = useFormatters();
   const { week } = useAppContext();
   const resource = useMonitoring();
 
@@ -101,8 +106,8 @@ export function MonitoringView() {
       <div className="flex flex-col gap-7">
         <section className="panel">
           <EmptyState
-            title="Nenhum período processado"
-            description="Use Processar agora na Visão geral depois de carregar transações no conjunto."
+            title={t("noPeriodTitle")}
+            description={t("noPeriodBody")}
           />
         </section>
         <FeedbackPanel />
@@ -112,7 +117,7 @@ export function MonitoringView() {
   if (resource.error || !resource.data)
     return (
       <ResourceError
-        message={resource.error ?? "Dados indisponíveis."}
+        message={resource.error ?? t("unavailable")}
         onRetry={resource.reload}
       />
     );
@@ -124,15 +129,15 @@ export function MonitoringView() {
     data.indicators.alert_rate !== null &&
     data.indicators.alert_rate !== undefined
       ? {
-          value: formatPercent(data.indicators.alert_rate),
-          note: "alertas ÷ contas ativas",
+          value: format.percent(data.indicators.alert_rate),
+          note: t("alertRateNote"),
         }
-      : { value: "—", note: "alertas ÷ contas ativas" };
+      : { value: "—", note: t("alertRateNote") };
 
   // Indicador de volume/contagem de alertas no lote
   const alertsCountDisplay = {
-    value: data.indicators.alerts.toLocaleString("pt-BR"),
-    note: "contas sinalizadas no lote",
+    value: format.number(data.indicators.alerts),
+    note: t("kpi.alertsNote"),
   };
 
   return (
@@ -140,40 +145,39 @@ export function MonitoringView() {
       <div className="flex flex-col gap-1.5">
         {week && (
           <p className="m-0 text-[13px] text-muted-foreground">
-            Semana de {formatShortDate(week)} ·{" "}
+            {t("weekOf", { week: format.shortDate(week) })}
             <Link
               href="/alerts"
               className="text-foreground underline underline-offset-[3px] decoration-border hover:decoration-foreground"
             >
-              trocar na fila
+              {t("changeInQueue")}
             </Link>
           </p>
         )}
         <h1 className="m-0 text-[30px] font-semibold tracking-[-0.025em] leading-[1.15] text-foreground">
-          Monitoramento
+          {t("title")}
         </h1>
         <p className="m-0 text-sm text-muted-foreground">
-          O tamanho e a distribuição da fila na semana e o que os analistas
-          confirmaram. Nada nesta tela usa o gabarito do SAML-D.
+          {t("intro")}
         </p>
       </div>
 
       <section
-        aria-label="Indicadores da fila"
+        aria-label={t("indicators")}
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden"
       >
         {[
-          { label: "Alertas no lote", ...alertsCountDisplay },
-          { label: "Taxa de alerta", ...alertRateDisplay },
+          { label: t("kpi.alerts"), ...alertsCountDisplay },
+          { label: t("kpi.rate"), ...alertRateDisplay },
           {
-            label: "Revisados",
-            value: formatNumber(data.indicators.reviewed),
-            note: "alertas com decisão",
+            label: t("kpi.reviewed"),
+            value: format.number(data.indicators.reviewed),
+            note: t("kpi.reviewedNote"),
           },
           {
-            label: "Comunicações aprovadas",
-            value: formatNumber(data.indicators.reported),
-            note: "simulação: nada é enviado",
+            label: t("kpi.reported"),
+            value: format.number(data.indicators.reported),
+            note: t("kpi.reportedNote"),
           },
         ].map((k) => (
           <div
@@ -191,13 +195,13 @@ export function MonitoringView() {
 
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         <RateCard
-          title="Taxa de alerta por país"
-          subtitle="alertas ÷ contas ativas"
+          title={t("countryRate")}
+          subtitle={t("alertRateNote")}
           items={data.country_rates}
         />
         <RateCard
-          title="Taxa de alerta por meio de pagamento"
-          subtitle="alertas ÷ contas ativas"
+          title={t("paymentRate")}
+          subtitle={t("alertRateNote")}
           items={data.payment_type_rates}
         />
       </section>
@@ -205,8 +209,7 @@ export function MonitoringView() {
       <FeedbackPanel />
 
       <p className="m-0 text-xs text-muted-foreground">
-        As versões do modelo e as métricas de validação, medidas contra o
-        gabarito no período de teste, ficam em Configurações &gt; Modelo.
+        {t("footer")}
       </p>
     </div>
   );

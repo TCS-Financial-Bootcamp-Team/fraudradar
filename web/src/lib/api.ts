@@ -1,4 +1,7 @@
 import { getCurrentDataset } from "@/lib/dataset";
+import type { AppLocale } from "@/i18n/config";
+import { getT } from "@/i18n/runtime";
+import { translateServerMessage } from "@/i18n/server-messages";
 
 export const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -20,21 +23,39 @@ async function buildHeaders() {
   return headers;
 }
 
-const SESSION_EXPIRED = "Sua sessão expirou. Entre novamente.";
-
-// A API (FastAPI) explica o erro em `detail`, em português. Só texto é mostrado: o formato
+// A API (FastAPI) explica o erro em `detail`, em português. Erro convertido também traz `code`
+// e `params`: com o código conhecido, a mensagem vem traduzida para o idioma ativo; sem ele
+// (ou com um código novo, ainda sem tradução), vale o `detail`. Só texto é mostrado: o formato
 // de lista do 422 do Pydantic cai na mensagem genérica.
 export function errorMessageFor(
   status: number,
   body: unknown,
   fallback: string,
+  locale?: AppLocale,
 ): string {
-  if (status === 401) return SESSION_EXPIRED;
-  const detail =
+  if (status === 401) return getT("errors", locale)("sessionExpired");
+  const fields =
     typeof body === "object" && body !== null
-      ? (body as { detail?: unknown }).detail
-      : undefined;
-  return typeof detail === "string" && detail.trim() ? detail : fallback;
+      ? (body as { detail?: unknown; code?: unknown; params?: unknown })
+      : {};
+  const detail =
+    typeof fields.detail === "string" && fields.detail.trim()
+      ? fields.detail
+      : null;
+  if (typeof fields.code === "string" && fields.code) {
+    const params =
+      typeof fields.params === "object" && fields.params !== null
+        ? (fields.params as Record<string, unknown>)
+        : {};
+    const translated = translateServerMessage(
+      fields.code,
+      params,
+      detail,
+      locale,
+    );
+    if (translated) return translated;
+  }
+  return detail ?? fallback;
 }
 
 async function requestJson<T>(
@@ -54,7 +75,7 @@ async function requestJson<T>(
       errorMessageFor(
         response.status,
         body,
-        `Não foi possível concluir a solicitação (${response.status}). Tente novamente.`,
+        getT("errors")("requestFailed", { status: response.status }),
       ),
     );
   }
@@ -105,7 +126,8 @@ export async function apiMultipart<T>(
     const handleAbort = () => xhr.abort();
     signal?.addEventListener("abort", handleAbort, { once: true });
     xhr.onloadend = () => signal?.removeEventListener("abort", handleAbort);
-    xhr.onerror = () => reject(new Error("Falha de conexão durante o envio."));
+    xhr.onerror = () =>
+      reject(new Error(getT("errors")("uploadConnection")));
     xhr.onabort = () =>
       reject(new DOMException("Envio cancelado", "AbortError"));
     xhr.onload = () => {
@@ -121,7 +143,7 @@ export async function apiMultipart<T>(
             errorMessageFor(
               xhr.status,
               body,
-              `Envio recusado (${xhr.status}). Verifique o arquivo e tente novamente.`,
+              getT("errors")("uploadRefused", { status: xhr.status }),
             ),
           ),
         );
@@ -129,7 +151,7 @@ export async function apiMultipart<T>(
       try {
         resolve(JSON.parse(xhr.responseText) as T);
       } catch {
-        reject(new Error("Resposta inválida da API."));
+        reject(new Error(getT("errors")("invalidResponse")));
       }
     };
     if (signal?.aborted)
