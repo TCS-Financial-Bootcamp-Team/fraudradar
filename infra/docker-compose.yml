@@ -30,6 +30,7 @@ services:
       MODEL_DIR: /app/models
     volumes:
       - ../models:/app/models:ro
+      - hf_cache:/root/.cache/huggingface
       - ../rag:/app/rag:ro
     ports:
       - "${API_PORT:-8000}:8000"
@@ -74,4 +75,5 @@ services:
       - api
 
 volumes:
+  hf_cache:
   pgdata:
