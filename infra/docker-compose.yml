@@ -30,6 +30,7 @@ services:
       MODEL_DIR: /app/models
     volumes:
       - ../models:/app/models:ro
+      - ../rag:/app/rag:ro
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
