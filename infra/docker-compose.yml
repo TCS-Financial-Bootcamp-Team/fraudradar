@@ -32,6 +32,7 @@ services:
       EXTERNAL_DB_ALLOWED_HOSTS: ${EXTERNAL_DB_ALLOWED_HOSTS:-}
     volumes:
       - ../models:/app/models:ro
+      - ../rag:/app/rag:ro
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
