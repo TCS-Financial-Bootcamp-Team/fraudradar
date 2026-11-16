@@ -197,6 +197,7 @@ fraudradar/
 │   ├── docker-compose.yml   serviços db, api, web e worker
 │   └── terraform/           os mesmos containers via Terraform
 ├── docs/
+│   ├── bpmn/                BPMN do processo: 3 diagramas (.bpmn editável, .svg e .png)
 │   ├── glossary.md          português do time → nomes do código
 │   ├── project-requirements.md  o que o bootcamp exige
 │   └── vibe-coding/prompts/ registro de cada prompt (NNN-autor-assunto.md)
