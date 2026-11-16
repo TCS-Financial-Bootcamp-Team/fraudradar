@@ -52,10 +52,7 @@ def test_chat_http_200_with_sources(http_client, chat_request):
             sources=[
                 Source(
                     title="[F1] Art. 12 - Legal source",
-                    excerpt=(
-                        "Synthetic evidence.\\n\\n"
-                        "Official source: https://example.org/test"
-                    ),
+                    excerpt=("Synthetic evidence.\\n\\nOfficial source: https://example.org/test"),
                 )
             ],
         )
@@ -74,16 +71,12 @@ def test_chat_http_200_with_sources(http_client, chat_request):
     assert calls == [chat_request["message"]]
 
 
-def test_chat_http_503_without_reviewed_sources(
-    http_client, chat_request
-):
+def test_chat_http_503_without_reviewed_sources(http_client, chat_request):
     _, client = http_client
 
     with patch(
         "api.routes.ai.answer_legal_chat",
-        side_effect=LegalEvidenceUnavailableError(
-            "No approved evidence"
-        ),
+        side_effect=LegalEvidenceUnavailableError("No approved evidence"),
     ):
         response = client.post("/chat", json=chat_request)
 
@@ -91,9 +84,7 @@ def test_chat_http_503_without_reviewed_sources(
     assert "fonte juridica" in response.json()["detail"].lower()
 
 
-def test_chat_http_422_for_empty_message(
-    http_client, chat_request
-):
+def test_chat_http_422_for_empty_message(http_client, chat_request):
     _, client = http_client
 
     with patch(
@@ -108,9 +99,7 @@ def test_chat_http_422_for_empty_message(
     assert response.status_code == 422
 
 
-def test_chat_http_422_for_numeric_identifier(
-    http_client, chat_request
-):
+def test_chat_http_422_for_numeric_identifier(http_client, chat_request):
     _, client = http_client
 
     with patch(
@@ -128,9 +117,7 @@ def test_chat_http_422_for_numeric_identifier(
     assert response.status_code == 422
 
 
-def test_chat_http_400_for_alert_context(
-    http_client, chat_request
-):
+def test_chat_http_400_for_alert_context(http_client, chat_request):
     _, client = http_client
 
     with patch(
@@ -151,9 +138,7 @@ def test_chat_http_400_for_alert_context(
     assert response.status_code == 400
 
 
-def test_chat_http_401_for_rejected_auth(
-    http_client, chat_request
-):
+def test_chat_http_401_for_rejected_auth(http_client, chat_request):
     app, client = http_client
 
     def reject_auth():

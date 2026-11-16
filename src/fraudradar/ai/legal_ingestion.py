@@ -1,4 +1,4 @@
-﻿"""Prepare versioned legal articles for FraudRadar RAG ingestion."""
+"""Prepare versioned legal articles for FraudRadar RAG ingestion."""
 
 import hashlib
 from dataclasses import dataclass
@@ -54,9 +54,7 @@ def prepare_legal_snapshot(
     if snapshot.get("article_count") != len(articles):
         raise ValueError("Quantidade de artigos inconsistente.")
 
-    full_text = "\n\n".join(
-        article["content"] for article in articles
-    )
+    full_text = "\n\n".join(article["content"] for article in articles)
 
     if _sha256(full_text) != text_hash:
         raise ValueError("Hash do texto completo nao confere.")
@@ -76,14 +74,10 @@ def prepare_legal_snapshot(
         seen_references.add(reference)
 
         if _sha256(content) != article_hash:
-            raise ValueError(
-                f"Hash do artigo nao confere: {reference}"
-            )
+            raise ValueError(f"Hash do artigo nao confere: {reference}")
 
         if not content.startswith("Art."):
-            raise ValueError(
-                f"Conteudo juridico inesperado: {reference}"
-            )
+            raise ValueError(f"Conteudo juridico inesperado: {reference}")
 
         chunks = split_document(
             content,
@@ -98,9 +92,7 @@ def prepare_legal_snapshot(
         # The snapshot hash distinguishes different text versions.
         article_key = reference.replace(" ", "").lower()
 
-        source = (
-            f"{source_id}:{text_hash[:16]}:{article_key}"
-        )
+        source = f"{source_id}:{text_hash[:16]}:{article_key}"
 
         if source in seen_sources:
             raise ValueError(f"Fonte duplicada: {source}")

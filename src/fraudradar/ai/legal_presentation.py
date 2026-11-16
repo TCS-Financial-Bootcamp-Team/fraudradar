@@ -1,4 +1,4 @@
-﻿"""Present legal RAG results with safe, auditable evidence."""
+"""Present legal RAG results with safe, auditable evidence."""
 
 from typing import Any
 
@@ -13,10 +13,7 @@ def present_legal_rag(result: LegalRagResult) -> dict[str, Any]:
     if len(result.documents) != len(result.citation_ids):
         raise ValueError("Quantidade de citacoes inconsistente.")
 
-    expected_ids = tuple(
-        f"F{index}"
-        for index in range(1, len(result.documents) + 1)
-    )
+    expected_ids = tuple(f"F{index}" for index in range(1, len(result.documents) + 1))
 
     if result.citation_ids != expected_ids:
         raise ValueError("Identificadores de evidencias invalidos.")
@@ -35,9 +32,7 @@ def present_legal_rag(result: LegalRagResult) -> dict[str, Any]:
         if review_status not in {"reviewed", "pending_review"}:
             raise ValueError("Status de revisao desconhecido.")
 
-        if not isinstance(document.content, str) or not (
-            document.content.strip()
-        ):
+        if not isinstance(document.content, str) or not (document.content.strip()):
             raise ValueError("Evidencia sem conteudo.")
 
         required = (
@@ -77,10 +72,7 @@ def present_legal_rag(result: LegalRagResult) -> dict[str, Any]:
             "model": None,
             "citations": [],
             "evidences": evidences,
-            "requires_legal_review": any(
-                item["review_status"] != "reviewed"
-                for item in evidences
-            ),
+            "requires_legal_review": any(item["review_status"] != "reviewed" for item in evidences),
         }
 
     if result.status != "generated":
@@ -106,8 +98,5 @@ def present_legal_rag(result: LegalRagResult) -> dict[str, Any]:
         "model": answer.model,
         "citations": list(answer.citations),
         "evidences": evidences,
-        "requires_legal_review": any(
-            item["review_status"] != "reviewed"
-            for item in evidences
-        ),
+        "requires_legal_review": any(item["review_status"] != "reviewed" for item in evidences),
     }

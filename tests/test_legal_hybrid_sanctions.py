@@ -39,9 +39,7 @@ def test_sanctions_concept_is_configured() -> None:
 
 
 def test_existing_customer_concepts_remain() -> None:
-    concepts = _concepts(
-        "identificacao e cadastro de clientes"
-    )
+    concepts = _concepts("identificacao e cadastro de clientes")
 
     assert {
         "identification",
@@ -51,9 +49,7 @@ def test_existing_customer_concepts_remain() -> None:
 
 
 def test_existing_communication_concepts_remain() -> None:
-    concepts = _concepts(
-        "comunicacao de operacoes suspeitas"
-    )
+    concepts = _concepts("comunicacao de operacoes suspeitas")
 
     assert {
         "communications",
@@ -63,7 +59,4 @@ def test_existing_communication_concepts_remain() -> None:
 
 
 def test_explicit_article_matching_remains() -> None:
-    assert (
-        _explicit_article("O que determina o Art. 10?")
-        == "Art. 10"
-    )
+    assert _explicit_article("O que determina o Art. 10?") == "Art. 10"

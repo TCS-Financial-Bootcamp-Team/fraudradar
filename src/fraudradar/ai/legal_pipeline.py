@@ -28,21 +28,15 @@ def generate_from_prepared_evidence(
     if not prepared.documents or not prepared.context.strip():
         raise ValueError("Evidencias preparadas ausentes.")
 
-    expected_ids = tuple(
-        f"F{index}"
-        for index in range(1, len(prepared.documents) + 1)
-    )
+    expected_ids = tuple(f"F{index}" for index in range(1, len(prepared.documents) + 1))
 
     if prepared.citation_ids != expected_ids:
         raise ValueError("Identificadores de evidencias invalidos.")
 
     if not allow_pending_review and any(
-        document.metadata.get("review_status") != "reviewed"
-        for document in prepared.documents
+        document.metadata.get("review_status") != "reviewed" for document in prepared.documents
     ):
-        raise ValueError(
-            "Documentos juridicos ainda nao revisados."
-        )
+        raise ValueError("Documentos juridicos ainda nao revisados.")
 
     if generator is None:
         generator = generate_legal_answer_from_settings

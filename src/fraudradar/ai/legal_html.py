@@ -100,10 +100,13 @@ def _is_section_heading(paragraph: str) -> bool:
     if not any(character.isalpha() for character in value):
         return False
 
-    return re.match(
-        r"^(?:[IVXLCDM]+|\d+)\s*[-.)]",
-        value,
-    ) is None
+    return (
+        re.match(
+            r"^(?:[IVXLCDM]+|\d+)\s*[-.)]",
+            value,
+        )
+        is None
+    )
 
 
 def _is_document_closing(paragraph: str) -> bool:
@@ -138,10 +141,7 @@ def extract_articles(html: str) -> list[LegalArticle]:
         )
 
     for paragraph in paragraphs:
-        if (
-            current_reference is not None
-            and _is_document_closing(paragraph)
-        ):
+        if current_reference is not None and _is_document_closing(paragraph):
             break
 
         match = ARTICLE_PATTERN.match(paragraph)
@@ -152,10 +152,7 @@ def extract_articles(html: str) -> list[LegalArticle]:
             number = match.group(1)
             suffix = match.group(2)
 
-            current_reference = (
-                f"Art. {number}"
-                + (f"-{suffix.upper()}" if suffix else "")
-            )
+            current_reference = f"Art. {number}" + (f"-{suffix.upper()}" if suffix else "")
 
             current_paragraphs = [paragraph]
             continue

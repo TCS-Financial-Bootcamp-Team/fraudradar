@@ -1,4 +1,4 @@
-﻿"""Version-scoped legal retrieval with document review controls."""
+"""Version-scoped legal retrieval with document review controls."""
 
 import re
 
@@ -42,8 +42,9 @@ def search_legal_documents(
     service = EmbeddingService()
     query_vector = service.embed_query(question.strip())
 
-    rows = conn.execute(
-        text("""
+    rows = (
+        conn.execute(
+            text("""
             SELECT
                 id,
                 source,
@@ -68,14 +69,17 @@ def search_legal_documents(
                 id
             LIMIT :limit
         """),
-        {
-            "embedding": _vector_to_pg(query_vector),
-            "source_id": source_id.strip(),
-            "snapshot_sha256": snapshot_sha256.lower(),
-            "include_pending_review": include_pending_review,
-            "limit": limit,
-        },
-    ).mappings().all()
+            {
+                "embedding": _vector_to_pg(query_vector),
+                "source_id": source_id.strip(),
+                "snapshot_sha256": snapshot_sha256.lower(),
+                "include_pending_review": include_pending_review,
+                "limit": limit,
+            },
+        )
+        .mappings()
+        .all()
+    )
 
     return [
         RetrievedDocument(

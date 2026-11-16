@@ -60,9 +60,7 @@ def _parse_context(
         if item.get("citation_id") != f"F{index}":
             raise ValueError("Identificador de citacao inconsistente.")
 
-        if not isinstance(item.get("content"), str) or not (
-            item["content"].strip()
-        ):
+        if not isinstance(item.get("content"), str) or not (item["content"].strip()):
             raise ValueError("Evidencia sem conteudo.")
 
         status = item.get("review_status")
@@ -71,9 +69,7 @@ def _parse_context(
             raise ValueError("Status juridico desconhecido.")
 
         if status != "reviewed" and not allow_pending_review:
-            raise ValueError(
-                "Evidencia pendente bloqueada para geracao."
-            )
+            raise ValueError("Evidencia pendente bloqueada para geracao.")
 
     return evidence
 
@@ -98,9 +94,7 @@ def generate_legal_answer(
         allow_pending_review=allow_pending_review,
     )
 
-    valid_citations = {
-        item["citation_id"] for item in evidence
-    }
+    valid_citations = {item["citation_id"] for item in evidence}
 
     prompt = (
         "PERGUNTA DO ANALISTA:\n"
@@ -130,9 +124,7 @@ def generate_legal_answer(
 
     found = re.findall(r"\[F([0-9]+)\]", answer)
 
-    citations = tuple(
-        dict.fromkeys(f"F{number}" for number in found)
-    )
+    citations = tuple(dict.fromkeys(f"F{number}" for number in found))
 
     if not citations:
         raise ValueError("Resposta sem citacoes verificaveis.")
@@ -140,10 +132,7 @@ def generate_legal_answer(
     unknown = set(citations) - valid_citations
 
     if unknown:
-        raise ValueError(
-            "Resposta com citacoes inexistentes: "
-            + ", ".join(sorted(unknown))
-        )
+        raise ValueError("Resposta com citacoes inexistentes: " + ", ".join(sorted(unknown)))
 
     return LegalAnswer(
         text=answer.strip(),
@@ -168,9 +157,7 @@ def generate_legal_answer_from_settings(
     model = settings.llm_model
 
     if not model:
-        raise ValueError(
-            "Defina LLM_MODEL no arquivo .env."
-        )
+        raise ValueError("Defina LLM_MODEL no arquivo .env.")
 
     api_key = settings.gemini_api_key or settings.google_api_key
 

@@ -1,4 +1,4 @@
-﻿"""Hybrid semantic and lexical retrieval for versioned legal texts."""
+"""Hybrid semantic and lexical retrieval for versioned legal texts."""
 
 import re
 import unicodedata
@@ -44,19 +44,12 @@ class HybridLegalHit:
 
 def _normalize(value: str) -> str:
     normalized = unicodedata.normalize("NFKD", value.lower())
-    return "".join(
-        char for char in normalized
-        if not unicodedata.combining(char)
-    )
+    return "".join(char for char in normalized if not unicodedata.combining(char))
 
 
 def _concepts(value: str) -> set[str]:
     normalized = _normalize(value)
-    return {
-        name
-        for name, stems in CONCEPTS.items()
-        if any(stem in normalized for stem in stems)
-    }
+    return {name for name, stems in CONCEPTS.items() if any(stem in normalized for stem in stems)}
 
 
 def _explicit_article(value: str) -> str | None:
@@ -70,10 +63,7 @@ def _explicit_article(value: str) -> str | None:
         return None
 
     number, suffix = match.groups()
-    return (
-        f"Art. {int(number)}"
-        + (f"-{suffix.upper()}" if suffix else "")
-    )
+    return f"Art. {int(number)}" + (f"-{suffix.upper()}" if suffix else "")
 
 
 def search_hybrid_legal_documents(
@@ -109,8 +99,9 @@ def search_hybrid_legal_documents(
 
     embedding = EmbeddingService().embed_query(question.strip())
 
-    rows = conn.execute(
-        text("""
+    rows = (
+        conn.execute(
+            text("""
             SELECT
                 id,
                 source,
@@ -131,13 +122,16 @@ def search_hybrid_legal_documents(
                   )
               )
         """),
-        {
-            "embedding": _vector_to_pg(embedding),
-            "source_id": source_id.strip(),
-            "snapshot_sha256": snapshot_sha256.lower(),
-            "include_pending_review": include_pending_review,
-        },
-    ).mappings().all()
+            {
+                "embedding": _vector_to_pg(embedding),
+                "source_id": source_id.strip(),
+                "snapshot_sha256": snapshot_sha256.lower(),
+                "include_pending_review": include_pending_review,
+            },
+        )
+        .mappings()
+        .all()
+    )
 
     hits = []
 
@@ -146,24 +140,14 @@ def search_hybrid_legal_documents(
         content_concepts = _concepts(row["content"])
         shared_concepts = query_concepts & content_concepts
 
-        coverage = (
-            len(shared_concepts) / len(query_concepts)
-            if query_concepts else 0.0
-        )
+        coverage = len(shared_concepts) / len(query_concepts) if query_concepts else 0.0
 
-        exact_match = (
-            requested_article is not None
-            and requested_article == metadata.get("article")
-        )
+        exact_match = requested_article is not None and requested_article == metadata.get("article")
 
         similarity = float(row["similarity"])
 
         # Experimental weights, to be evaluated on more questions.
-        score = (
-            0.65 * coverage
-            + 0.35 * similarity
-            + (2.0 if exact_match else 0.0)
-        )
+        score = 0.65 * coverage + 0.35 * similarity + (2.0 if exact_match else 0.0)
 
         document = RetrievedDocument(
             id=int(row["id"]),

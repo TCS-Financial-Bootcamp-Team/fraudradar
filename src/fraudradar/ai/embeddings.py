@@ -1,4 +1,4 @@
-﻿"""Local text embeddings for FraudRadar RAG."""
+"""Local text embeddings for FraudRadar RAG."""
 
 from functools import lru_cache
 

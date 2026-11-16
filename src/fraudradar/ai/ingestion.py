@@ -1,4 +1,4 @@
-﻿"""Document ingestion pipeline for FraudRadar RAG."""
+"""Document ingestion pipeline for FraudRadar RAG."""
 
 from typing import Any
 
@@ -56,15 +56,11 @@ def ingest_document(
     ).scalar_one()
 
     if existing:
-        raise ValueError(
-            f"A fonte {source!r} ja possui trechos cadastrados."
-        )
+        raise ValueError(f"A fonte {source!r} ja possui trechos cadastrados.")
 
     service = EmbeddingService()
 
-    vectors = service.embed_documents(
-        [chunk.content for chunk in chunks]
-    )
+    vectors = service.embed_documents([chunk.content for chunk in chunks])
 
     repository = RagDocumentRepository(conn)
     document_ids = []

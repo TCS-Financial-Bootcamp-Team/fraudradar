@@ -1,4 +1,4 @@
-﻿"""Adapt reviewed legal RAG results to the existing chat contract."""
+"""Adapt reviewed legal RAG results to the existing chat contract."""
 
 from typing import Any
 
@@ -26,15 +26,9 @@ def legal_payload_to_chat_response(
     if payload.get("requires_legal_review") is not False:
         raise ValueError("Resultado ainda depende de revisao juridica.")
 
-    expected_ids = [
-        f"F{index}"
-        for index in range(1, len(evidences) + 1)
-    ]
+    expected_ids = [f"F{index}" for index in range(1, len(evidences) + 1)]
 
-    actual_ids = [
-        item.get("citation_id")
-        for item in evidences
-    ]
+    actual_ids = [item.get("citation_id") for item in evidences]
 
     if actual_ids != expected_ids:
         raise ValueError("Identificadores de evidencias invalidos.")
@@ -50,8 +44,7 @@ def legal_payload_to_chat_response(
         content = evidence.get("content")
 
         if not all(
-            isinstance(value, str) and value.strip()
-            for value in (article, official_url, content)
+            isinstance(value, str) and value.strip() for value in (article, official_url, content)
         ):
             raise ValueError("Evidencia juridica incompleta.")
 
@@ -69,10 +62,7 @@ def legal_payload_to_chat_response(
         if len(content) > 500:
             preview += "..."
 
-        excerpt = (
-            f"{preview}\n\n"
-            f"Fonte oficial: {official_url}"
-        )
+        excerpt = f"{preview}\n\nFonte oficial: {official_url}"
 
         sources.append(
             Source(
@@ -102,10 +92,7 @@ def legal_payload_to_chat_response(
         if not isinstance(citations, list) or not citations:
             raise ValueError("Citacoes da resposta ausentes.")
 
-        if not all(
-            citation in expected_ids
-            for citation in citations
-        ):
+        if not all(citation in expected_ids for citation in citations):
             raise ValueError("Resposta com citacao desconhecida.")
 
     return ChatResponse(

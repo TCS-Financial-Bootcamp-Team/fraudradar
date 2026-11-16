@@ -1,4 +1,4 @@
-﻿"""Deterministic, overlapping text chunks for FraudRadar RAG."""
+"""Deterministic, overlapping text chunks for FraudRadar RAG."""
 
 import re
 from dataclasses import dataclass
@@ -31,9 +31,7 @@ def split_document(
         raise ValueError("max_chars deve ser positivo.")
 
     if not 0 <= overlap_chars < max_chars:
-        raise ValueError(
-            "overlap_chars deve ser >= 0 e menor que max_chars."
-        )
+        raise ValueError("overlap_chars deve ser >= 0 e menor que max_chars.")
 
     words = list(re.finditer(r"\S+", content))
 
@@ -42,8 +40,7 @@ def split_document(
 
     if any(len(word.group()) > max_chars for word in words):
         raise ValueError(
-            "Existe uma palavra maior que max_chars. "
-            "Revise o documento ou aumente o limite."
+            "Existe uma palavra maior que max_chars. Revise o documento ou aumente o limite."
         )
 
     chunks = []
@@ -53,10 +50,7 @@ def split_document(
         start = words[first].start()
         last = first
 
-        while (
-            last + 1 < len(words)
-            and words[last + 1].end() - start <= max_chars
-        ):
+        while last + 1 < len(words) and words[last + 1].end() - start <= max_chars:
             last += 1
 
         end = words[last].end()
@@ -80,10 +74,7 @@ def split_document(
         if overlap_chars > 0:
             candidate = last
 
-            while (
-                candidate > first
-                and end - words[candidate].start() <= overlap_chars
-            ):
+            while candidate > first and end - words[candidate].start() <= overlap_chars:
                 next_first = candidate
                 candidate -= 1
 

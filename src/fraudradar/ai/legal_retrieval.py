@@ -1,4 +1,4 @@
-﻿"""Prepare legal evidence before any external LLM request."""
+"""Prepare legal evidence before any external LLM request."""
 
 from dataclasses import dataclass
 
@@ -52,15 +52,10 @@ def prepare_legal_evidence(
     )
 
     if not hits:
-        raise ValueError(
-            "Nenhuma evidencia juridica autorizada foi recuperada."
-        )
+        raise ValueError("Nenhuma evidencia juridica autorizada foi recuperada.")
 
     for count in range(min(max_documents, len(hits)), 0, -1):
-        documents = tuple(
-            hit.document
-            for hit in hits[:count]
-        )
+        documents = tuple(hit.document for hit in hits[:count])
 
         try:
             context = format_legal_context(
@@ -72,10 +67,7 @@ def prepare_legal_evidence(
         except ValueError:
             continue
 
-        citation_ids = tuple(
-            f"F{index}"
-            for index in range(1, len(documents) + 1)
-        )
+        citation_ids = tuple(f"F{index}" for index in range(1, len(documents) + 1))
 
         return PreparedLegalEvidence(
             documents=documents,
@@ -83,6 +75,4 @@ def prepare_legal_evidence(
             citation_ids=citation_ids,
         )
 
-    raise ValueError(
-        "As evidencias nao cabem no limite de contexto."
-    )
+    raise ValueError("As evidencias nao cabem no limite de contexto.")

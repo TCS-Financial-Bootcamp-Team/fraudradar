@@ -1,4 +1,4 @@
-﻿"""Format retrieved legal evidence for grounded LLM responses."""
+"""Format retrieved legal evidence for grounded LLM responses."""
 
 import json
 import re
@@ -51,18 +51,14 @@ def format_legal_context(
             raise ValueError("Status juridico desconhecido.")
 
         if status != "reviewed" and not allow_pending_review:
-            raise ValueError(
-                "Documento pendente bloqueado para o contexto."
-            )
+            raise ValueError("Documento pendente bloqueado para o contexto.")
 
         article = metadata.get("article")
         url = metadata.get("official_url")
         source_id = metadata.get("source_id")
         snapshot = metadata.get("snapshot_sha256")
 
-        if not isinstance(article, str) or not re.fullmatch(
-            r"Art\. [0-9]+(?:-[A-Z])?", article
-        ):
+        if not isinstance(article, str) or not re.fullmatch(r"Art\. [0-9]+(?:-[A-Z])?", article):
             raise ValueError("Referencia de artigo invalida.")
 
         if not isinstance(url, str) or not url.startswith("https://"):
@@ -71,14 +67,10 @@ def format_legal_context(
         if not isinstance(source_id, str) or not source_id:
             raise ValueError("Identificador da fonte invalido.")
 
-        if not isinstance(snapshot, str) or not re.fullmatch(
-            r"[0-9a-fA-F]{64}", snapshot
-        ):
+        if not isinstance(snapshot, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", snapshot):
             raise ValueError("Hash de snapshot invalido.")
 
-        if not isinstance(document.content, str) or not (
-            document.content.strip()
-        ):
+        if not isinstance(document.content, str) or not (document.content.strip()):
             raise ValueError("Trecho juridico vazio.")
 
         key = (document.source, document.chunk_index)
@@ -109,9 +101,7 @@ def format_legal_context(
         entries.append(entry)
 
     if not entries:
-        raise ValueError(
-            "Nenhum trecho completo cabe no limite de contexto."
-        )
+        raise ValueError("Nenhum trecho completo cabe no limite de contexto.")
 
     payload = json.dumps(entries, ensure_ascii=True, indent=2)
     return header + payload

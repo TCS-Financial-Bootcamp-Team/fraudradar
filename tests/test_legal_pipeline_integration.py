@@ -46,11 +46,7 @@ def prepared_evidence():
 
     return PreparedLegalEvidence(
         documents=documents,
-        context=(
-            "Synthetic legal test context.\n"
-            "[F1] Article A.\n"
-            "[F2] Article B."
-        ),
+        context=("Synthetic legal test context.\n[F1] Article A.\n[F2] Article B."),
         citation_ids=("F1", "F2"),
     )
 

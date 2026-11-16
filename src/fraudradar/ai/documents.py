@@ -1,4 +1,4 @@
-﻿"""Persistence and semantic retrieval for FraudRadar RAG documents."""
+"""Persistence and semantic retrieval for FraudRadar RAG documents."""
 
 import json
 from dataclasses import dataclass
@@ -18,10 +18,7 @@ def _vector_to_pg(vector: np.ndarray) -> str:
     if not np.isfinite(array).all():
         raise ValueError("O embedding contem valores invalidos.")
 
-    return "[" + ",".join(
-        format(float(value), ".9g")
-        for value in array
-    ) + "]"
+    return "[" + ",".join(format(float(value), ".9g") for value in array) + "]"
 
 
 @dataclass(frozen=True)
@@ -100,8 +97,9 @@ class RagDocumentRepository:
         if not 1 <= limit <= 20:
             raise ValueError("O limite deve estar entre 1 e 20.")
 
-        rows = self.conn.execute(
-            text("""
+        rows = (
+            self.conn.execute(
+                text("""
                 SELECT
                     id,
                     source,
@@ -121,12 +119,15 @@ class RagDocumentRepository:
                     id
                 LIMIT :limit
             """),
-            {
-                "embedding": _vector_to_pg(embedding),
-                "source": source,
-                "limit": limit,
-            },
-        ).mappings().all()
+                {
+                    "embedding": _vector_to_pg(embedding),
+                    "source": source,
+                    "limit": limit,
+                },
+            )
+            .mappings()
+            .all()
+        )
 
         return [
             RetrievedDocument(

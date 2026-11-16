@@ -26,18 +26,12 @@ class LegalEvidenceUnavailableError(Exception):
 def _active_legal_source() -> tuple[str, str]:
     """Identify the versioned legal snapshot used by this deployment."""
     root = Path(__file__).resolve().parents[1]
-    snapshots = sorted(
-        (root / "rag" / "snapshots").glob("lei-9613-1998-*.json")
-    )
+    snapshots = sorted((root / "rag" / "snapshots").glob("lei-9613-1998-*.json"))
 
     if len(snapshots) != 1:
-        raise LegalEvidenceUnavailableError(
-            "Fonte juridica versionada nao configurada."
-        )
+        raise LegalEvidenceUnavailableError("Fonte juridica versionada nao configurada.")
 
-    snapshot = json.loads(
-        snapshots[0].read_text(encoding="utf-8-sig")
-    )
+    snapshot = json.loads(snapshots[0].read_text(encoding="utf-8-sig"))
 
     source_id = snapshot.get("source_id")
     snapshot_sha256 = snapshot.get("text_sha256")
@@ -48,9 +42,7 @@ def _active_legal_source() -> tuple[str, str]:
         or not isinstance(snapshot_sha256, str)
         or len(snapshot_sha256) != 64
     ):
-        raise LegalEvidenceUnavailableError(
-            "Metadados da fonte juridica invalidos."
-        )
+        raise LegalEvidenceUnavailableError("Metadados da fonte juridica invalidos.")
 
     return source_id, snapshot_sha256
 

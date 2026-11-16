@@ -1,4 +1,4 @@
-﻿"""Resilient legal RAG orchestration with a safe 503 fallback."""
+"""Resilient legal RAG orchestration with a safe 503 fallback."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -35,14 +35,9 @@ def _is_http_503(error: Exception) -> bool:
     response = getattr(error, "response", None)
 
     if response is not None:
-        candidates.append(
-            getattr(response, "status_code", None)
-        )
+        candidates.append(getattr(response, "status_code", None))
 
-    return any(
-        value == 503 or value == "503"
-        for value in candidates
-    )
+    return any(value == 503 or value == "503" for value in candidates)
 
 
 def run_legal_rag(
@@ -75,19 +70,14 @@ def run_legal_rag(
     )
 
     if not hits:
-        raise ValueError(
-            "Nenhuma evidencia juridica autorizada foi recuperada."
-        )
+        raise ValueError("Nenhuma evidencia juridica autorizada foi recuperada.")
 
     context = None
     documents = None
 
     # Keep complete chunks. Never silently truncate legal evidence.
     for count in range(min(3, len(hits)), 0, -1):
-        candidates = tuple(
-            hit.document
-            for hit in hits[:count]
-        )
+        candidates = tuple(hit.document for hit in hits[:count])
 
         try:
             formatted = format_legal_context(
@@ -104,14 +94,9 @@ def run_legal_rag(
         break
 
     if context is None or documents is None:
-        raise ValueError(
-            "As evidencias nao cabem no limite de contexto."
-        )
+        raise ValueError("As evidencias nao cabem no limite de contexto.")
 
-    citation_ids = tuple(
-        f"F{index}"
-        for index in range(1, len(documents) + 1)
-    )
+    citation_ids = tuple(f"F{index}" for index in range(1, len(documents) + 1))
 
     try:
         answer = generator(
