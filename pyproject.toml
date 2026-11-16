@@ -15,8 +15,10 @@ dependencies = [
 [dependency-groups]
 api = [
     "fastapi>=0.115",
+    "google-genai==3.0.0",
     "pyjwt[crypto]>=2.10",
     "python-multipart>=0.0.18",
+    "sentence-transformers>=3.0",
     "uvicorn[standard]>=0.30",
 ]
 ml = [
