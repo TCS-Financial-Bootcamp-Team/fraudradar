@@ -9,7 +9,7 @@ import {
   LoadingState,
   ResourceError,
 } from "@/components/ui/states";
-import { ReplayControls } from "@/features/alerts/components/replay-controls";
+import { WeekPicker } from "@/features/alerts/components/week-picker";
 import { useFeedbackSummary } from "@/features/feedback/hooks/use-feedback";
 import type { FeedbackSummary } from "@/features/feedback/schemas/feedback";
 import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
@@ -117,7 +117,7 @@ export function Dashboard() {
         </h1>
       </div>
       <div className="flex flex-wrap items-center gap-3">
-        <ReplayControls />
+        <WeekPicker />
       </div>
     </div>
   );
