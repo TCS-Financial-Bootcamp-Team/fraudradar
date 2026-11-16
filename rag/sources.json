@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "description": "Fontes normativas oficiais do FraudRadar RAG",
+  "sources": [
+    {
+      "id": "lei-9613-1998",
+      "title": "Lei n\u00ba 9.613, de 3 de mar\u00e7o de 1998",
+      "authority": "Congresso Nacional",
+      "official_url": "https://www2.camara.leg.br/legin/fed/lei/1998/lei-9613-3-marco-1998-372359-normaatualizada-pl.html",
+      "document_type": "law",
+      "publication_date": "1998-03-03",
+      "version_policy": "updated_official_text",
+      "ingested": false
+    },
+    {
+      "id": "circular-bcb-3978-2020",
+      "title": "Circular BCB n\u00ba 3.978, de 23 de janeiro de 2020",
+      "authority": "Banco Central do Brasil",
+      "official_url": "https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?numero=3978&tipo=Circular",
+      "document_type": "regulation",
+      "publication_date": "2020-01-23",
+      "version_policy": "current_compiled_text",
+      "ingested": false
+    }
+  ]
+}

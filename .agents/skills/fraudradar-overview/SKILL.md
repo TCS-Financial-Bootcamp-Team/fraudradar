@@ -251,7 +251,8 @@ token do Supabase (`Authorization: Bearer ...`); em desenvolvimento,
 | `GET /monitoring?week=` | indicadores e séries da semana (sem recall) |
 | `GET /feedback/summary` | retorno dos analistas: precisão confirmada, amostra de controle, retreino |
 | `GET /datasets/{slug}/models`, `POST .../train`, `POST .../models/{v}/promote` | versões, retreino (com o retorno se pedido) e promoção, com a trava |
-| `POST /alerts/{id}/assessment`, `/chat` | parecer e chat da IA |
+| `POST /chat` | chat jurídico: RAG da Lei 9.613 com citações (PR #19, frente 3) |
+| `POST /alerts/{id}/assessment`, `/alerts/{id}/chat` | parecer e chat do alerta (503) |
 | `POST /ingestion/csv`, `/ingestion/transactions` | entrada de transações, tudo ou nada |
 | `/ingestion/connections` | fontes Postgres externas |
 
@@ -350,8 +351,11 @@ Confira com `git log` antes de confiar; isto muda rápido.
 - **Pronto**: API (fila, detalhe, grafo, decisões, comunicação, monitoramento, replay,
   ingestão); front (todas as telas, também com dados simulados); esquema do banco;
   Compose, Terraform e CI; VibeLog.
-- **Responde de propósito que não existe**: parecer e chat da IA (503, esperando a
-  frente 3); cadastro de fontes Postgres (501, pede um desenho de segurança próprio).
+- **Responde de propósito que não existe**: parecer e chat do alerta (503, esperando a
+  frente 3).
+- **Chat jurídico (Victor, frente 3; na `main` desde o PR #19)**: `POST /chat` responde com o RAG
+  da Lei 9.613 (`src/fraudradar/ai`, `api/legal_chat_service.py`, `rag/`), busca híbrida em
+  `rag_documents` e resposta do Gemini com citações conferidas.
 - **Modelo (Vinicius, frente 2; na `main` desde o PR #7)**: carga do SAML-D para o treino
   (`src/fraudradar/data/saml_d.py`), 26 variáveis por transação (19 das 21 do modelo vêm do
   histórico das contas; `features/history.py`), LightGBM oficial com fila semanal por conta,

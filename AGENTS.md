@@ -43,7 +43,9 @@ docker compose run --rm worker replay
   `worker/simulate_analyst.py` (analista simulado da demonstração). A API nunca lê; o retorno dos
   analistas fica em `analyst_labels`, separado (`docs/analyst-feedback.md`).
 - O LLM nunca recebe números de conta (pseudonimize antes do prompt). Chave do LLM só na API.
-- Dependências pesadas (torch, lightgbm) ficam nos grupos `ml`/`ai`; a imagem da API usa só `api`.
+- A imagem da API usa só o grupo `api`; o pesado fica em `ml` (lightgbm, jupyter) e `ai` (langchain).
+  Exceção desde o PR #19: o `api` traz o `sentence-transformers`, com o torch de CPU, porque o chat
+  jurídico gera o vetor da pergunta dentro da API.
 - Nunca leia o `SAML-D.csv` inteiro para inspecionar (1 GB): use `head` ou `nrows`.
 - Mudança de esquema: edite `db/init/002_tables.sql` e avise o time (exige `docker compose down -v`,
   ou um script idempotente em `db/upgrades/` para bancos que já existem).

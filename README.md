@@ -47,12 +47,12 @@ fraudradar/
 │   ├── data/            # carga, dtypes, limpeza das tipologias
 │   ├── features/        # histórico da conta, sinais semanais, grafo
 │   ├── model/           # treino, score, fila, explicação
-│   └── ai/              # RAG, cadeia do parecer, validador, agente
+│   └── ai/              # RAG jurídico do chat: busca híbrida e resposta com citações
 ├── api/                 # FastAPI: rotas e schemas
 ├── worker/              # lote semanal e replay
 ├── web/                 # Next.js
 ├── db/                  # init/ (extensões e tabelas) e rules/ (cenários SQL)
-├── rag/                 # textos da lei, circular e manual interno
+├── rag/                 # fontes do RAG: sources.json e o snapshot da Lei 9.613
 ├── models/              # modelos treinados (fora do git)
 ├── infra/               # docker-compose.yml e terraform/
 ├── docs/                # BPMN, PDF, slides
@@ -158,7 +158,8 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `POST /alerts/{id}/report/approve` | aprova a comunicação e encerra o alerta |
 | `GET /monitoring?week=` | indicadores e séries da semana (score_histogram e status_counts); sem recall: as telas de operação não usam o gabarito |
 | `GET /feedback/summary` | retorno dos analistas: rótulos, precisão confirmada, amostra de controle e se dá para retreinar com ele |
-| `POST /alerts/{id}/assessment`, `/chat` | ainda respondem 503: dependem do RAG (frente 3) |
+| `POST /chat` | pergunta jurídica geral, respondida com o RAG da Lei 9.613 e citações (frente 3); precisa de `LLM_MODEL`, da chave do Gemini e da base em `rag_documents` |
+| `POST /alerts/{id}/assessment`, `/alerts/{id}/chat` | ainda respondem 503: o parecer e o chat do alerta não existem |
 | `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
 | `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
 | `/ingestion/connections` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |

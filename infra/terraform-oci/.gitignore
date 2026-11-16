@@ -1,0 +1,21 @@
+﻿# Permitir somente arquivos revisados para versionamento
+*
+
+!.gitignore
+!README.md
+!core.tf
+!provider.tf
+!vars.tf
+!versions.tf
+!.terraform.lock.hcl
+
+# Nunca versionar dados de estado ou credenciais
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.bak
+*.key
+*.pem
+.env
+.env.*
+.terraform/
