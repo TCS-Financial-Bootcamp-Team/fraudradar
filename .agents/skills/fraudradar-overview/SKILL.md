@@ -168,13 +168,13 @@ fraudradar/
 │
 ├── worker/                  CLI em lote: python -m worker load | batch --week AAAA-MM-DD |
 │                            backfill | replay | serve | labels | simulate-analyst |
-│                            feedback-eval (README, seção Worker)
+│                            feedback-eval | rag-load (README, seção Worker)
 ├── db/
 │   ├── init/                001_extensions.sql, 002_tables.sql (o esquema inteiro, comentado),
 │   │                        003 a 005 (conjuntos, trabalhos, processamento, conexões)
 │   ├── upgrades/            atualização de banco que já existe (006_analyst_feedback.sql)
 │   └── rules/               regras de cenário em SQL (NNN_rule_name.sql), uma por arquivo
-├── rag/                     textos da base do RAG (lei, circular, tipologias, manual)
+├── rag/                     base do chat jurídico: sources.json e snapshots/ (Lei 9.613)
 ├── data/                    SAML-D.csv e derivados, fora do git
 ├── models/                  modelos treinados, fora do git
 ├── notebooks/               notebooks oficiais: 01_tratamento, 02_eda, 03_modelo,
@@ -195,7 +195,9 @@ fraudradar/
 ├── vibelog/                 APP À PARTE: árvore dos prompts do vibe-coding (leia vibelog/AGENTS.md)
 ├── infra/
 │   ├── docker-compose.yml   serviços db, api, web e worker
-│   └── terraform/           os mesmos containers via Terraform
+│   ├── docker-compose.prod.yml  a VM da Oracle (Victor): banco sem porta, API no loopback
+│   ├── terraform/           os mesmos containers via Terraform
+│   └── terraform-oci/       a VM da Oracle, exportada do Resource Manager
 ├── docs/
 │   ├── glossary.md          português do time → nomes do código
 │   ├── project-requirements.md  o que o bootcamp exige
@@ -302,6 +304,7 @@ docker compose up -d --build              # db :5432, api :8000, web :3000
 uv run python -m worker load              # SAML-D no Postgres (uma vez, ~1,5 min)
 uv run python -m worker backfill          # as 14 semanas do teste (~1,5 min, ~7 GB)
 docker compose run --rm worker replay     # ou pelo Docker (o worker tem profile próprio)
+docker compose run --rm worker rag-load   # base do chat jurídico (Lei 9.613)
 cd web && pnpm install && pnpm dev        # front em modo dev
 ```
 
@@ -355,7 +358,9 @@ Confira com `git log` antes de confiar; isto muda rápido.
   frente 3).
 - **Chat jurídico (Victor, frente 3; na `main` desde o PR #19)**: `POST /chat` responde com o RAG
   da Lei 9.613 (`src/fraudradar/ai`, `api/legal_chat_service.py`, `rag/`), busca híbrida em
-  `rag_documents` e resposta do Gemini com citações conferidas.
+  `rag_documents` e resposta do Gemini com citações conferidas. A base é carregada por
+  `python -m worker rag-load`. Sem ela, 503 `ai.no_legal_sources`; sem `LLM_MODEL` ou sem a
+  chave do Gemini, 503 `ai.not_configured`.
 - **Modelo (Vinicius, frente 2; na `main` desde o PR #7)**: carga do SAML-D para o treino
   (`src/fraudradar/data/saml_d.py`), 26 variáveis por transação (19 das 21 do modelo vêm do
   histórico das contas; `features/history.py`), LightGBM oficial com fila semanal por conta,
