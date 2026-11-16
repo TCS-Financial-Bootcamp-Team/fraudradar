@@ -210,9 +210,9 @@ O `Random Forest` é interessante nos seguintes casos:
 
 Diferente da `Logistic Regression`, não necessita de padronização de features numéricas.
 
-## 4. Lighting Gradiente Boosting Machine (LightGBM)
+## 4. Lighting Gradient Boosting Machine (LightGBM)
 
-O [LightGBM](https://lightgbm.readthedocs.io/en/stable/) é um **framework de Machine Learning** desenvolvido pela **Microsoft** que utiliza **algoritmos de Gradient Boosting** baseado em `Gradient Boosting Decision Tress (GBDT)`.
+O [LightGBM](https://lightgbm.readthedocs.io/en/stable/) é um **framework de Machine Learning** desenvolvido pela **Microsoft** que utiliza **algoritmos de Gradient Boosting** baseado em `Gradient Boosting Decision Trees (GBDT)`.
 
 Ele utiliza conjuntos de árvores de decisão para resolver problemas de **classificação**, **regressão** e outras tarefas de **aprendizado supervisionado**. Seu principal diferencial é a maneira **como constrói e combina árvores**, buscando melhorar progressivamente as previsões.
 
