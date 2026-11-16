@@ -1,0 +1,71 @@
+---
+title: "Transações, gabarito e modelo"
+---
+erDiagram
+    direction LR
+    ingestions {
+        bigint id PK
+        text source "csv, api, simulation, connection"
+        text file_name
+        integer row_count
+        text status "received, processing, completed"
+        text created_by
+        timestamptz created_at
+    }
+    transactions {
+        bigint id PK
+        timestamp occurred_at
+        bigint sender FK "sem constraint"
+        bigint receiver FK "sem constraint"
+        numeric amount
+        text payment_currency
+        text received_currency
+        text sender_country
+        text receiver_country
+        text payment_type
+        bigint ingestion_id FK "sem constraint"
+    }
+    accounts {
+        bigint account PK
+        timestamp first_seen_at
+        timestamp last_seen_at
+        smallint segment
+        timestamptz updated_at
+    }
+    ground_truth {
+        bigint transaction_id PK, FK
+        smallint label
+        text original_typology
+        text typology
+    }
+    model_versions {
+        text version PK
+        timestamptz created_at
+        jsonb features
+        real threshold
+        jsonb metrics
+        boolean active
+    }
+    transaction_scores {
+        bigint transaction_id PK, FK
+        text model_version PK, FK
+        real score
+        timestamptz created_at
+    }
+    weekly_batches {
+        date week PK
+        text model_version FK
+        integer active_accounts
+        jsonb metrics
+        timestamptz processed_at
+        timestamptz released_at
+    }
+    ingestions |o..o{ transactions : "traz (sem FK)"
+    accounts ||..o{ transactions : "envia (sem FK)"
+    accounts ||..o{ transactions : "recebe (sem FK)"
+    transactions ||--o| ground_truth : "tem gabarito"
+    transactions ||--o{ transaction_scores : "recebe nota"
+    model_versions ||--o{ transaction_scores : "dá a nota"
+    model_versions ||..o{ weekly_batches : "processa"
+    classDef ground_truth_class fill:#FBE3E4,stroke:#B4232C,stroke-width:2px
+    class ground_truth ground_truth_class
