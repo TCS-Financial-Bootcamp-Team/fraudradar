@@ -243,7 +243,7 @@ O certo é os dois subirem o mesmo sistema. Hoje não sobem:
 | A API não tem healthcheck                                                                         | O front pode subir antes de a API estar pronta                                                                                             | Healthcheck no `/health` e `wait = true`                |
 | A API não lê o `.env`                                                                             | `MODEL_FILE`, `AUTH_DISABLED` e `EMBEDDING_MODEL` ficam com o padrão                                                                       | Variáveis próprias, se precisar                         |
 | Sem worker e sem executor de trabalhos                                                            | Ver a seção 8                                                                                                                              | Rodar `worker serve` pela máquina; ainda não está no Terraform |
-| A API não recebe `LLM_MODEL` e não monta `rag/` nem o cache do modelo de embeddings               | O chat jurídico responde 503: `ai.not_configured` sem o modelo e `ai.no_legal_sources` sem o snapshot da lei                               | Variável `llm_model` e os volumes de `rag/` e `hf-cache`, como no Compose. A base vem do `worker rag-load` pela máquina |
+| A API não recebe `LLM_MODEL` e não monta `rag/` nem o cache do modelo de embeddings               | O chat jurídico responde 503: `ai.not_configured` sem o modelo e `ai.no_legal_sources` sem o snapshot da lei                               | Variável `llm_model` e os volumes de `rag/` e `hf_cache`, como no Compose. A base vem do `worker rag-load` pela máquina |
 
 ## 10. Problemas comuns
 
