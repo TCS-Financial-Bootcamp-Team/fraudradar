@@ -1,0 +1,86 @@
+---
+title: "Plataforma (public), base do RAG e auditoria"
+---
+erDiagram
+    direction LR
+    datasets {
+        text slug PK
+        text name
+        text schema_name UK
+        text origin "saml-d, external"
+        text active_model_version FK "sem constraint"
+        integer labeled_weeks
+        boolean has_laundering
+        timestamptz labels_checked_at
+        timestamptz created_at
+    }
+    processing_settings {
+        text dataset PK, FK
+        integer interval_minutes
+        boolean enabled
+        boolean demo_mode
+        timestamptz last_run_at
+        timestamptz next_run_at
+        timestamptz updated_at
+        integer exploration_per_week
+    }
+    jobs {
+        bigint id PK
+        text kind "import, process, simulate, train"
+        text dataset FK
+        jsonb payload
+        text status "queued, running, done, failed"
+        integer progress
+        text message
+        text message_code
+        jsonb message_params
+        text created_by
+        timestamptz created_at
+        timestamptz started_at
+        timestamptz finished_at
+    }
+    external_connections {
+        bigint id PK
+        text name
+        text host
+        integer port
+        text database
+        text username
+        text password_encrypted
+        text source_table
+        text control_column
+        text last_position
+        text status "untested, connected, incompatible, error, syncing"
+        jsonb compatibility
+        text last_error
+        text dataset FK
+        text mode "history, follow, both"
+        timestamptz last_synced_at
+        text created_by
+        timestamptz created_at
+    }
+    model_versions {
+        text version PK
+    }
+    rag_documents {
+        bigint id PK
+        text source "único com chunk_index"
+        integer chunk_index "único com source"
+        text content
+        jsonb metadata
+        vector(384) embedding
+        timestamptz created_at
+    }
+    audit_log {
+        bigint id PK
+        text actor
+        text action
+        text entity
+        text entity_id
+        jsonb details
+        timestamptz occurred_at
+    }
+    model_versions |o..o{ datasets : "é a ativa de (sem FK)"
+    datasets ||--|| processing_settings : "é configurado por"
+    datasets ||..o{ jobs : "tem trabalhos"
+    datasets |o..o{ external_connections : "recebe dados de"

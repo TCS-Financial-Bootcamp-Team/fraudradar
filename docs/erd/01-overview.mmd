@@ -1,0 +1,50 @@
+---
+title: "Visão geral: as 19 tabelas e como se ligam"
+---
+erDiagram
+    direction TB
+    datasets
+    processing_settings
+    jobs
+    external_connections
+    ingestions
+    transactions
+    accounts
+    ground_truth
+    model_versions
+    transaction_scores
+    weekly_batches
+    alerts
+    evidence
+    assessments
+    decisions
+    reports
+    analyst_labels
+    rag_documents
+    audit_log
+    ingestions |o..o{ transactions : "traz (sem FK)"
+    accounts ||..o{ transactions : "envia (sem FK)"
+    accounts ||..o{ transactions : "recebe (sem FK)"
+    transactions ||--o| ground_truth : "tem gabarito"
+    transactions ||--o{ transaction_scores : "recebe nota"
+    model_versions ||--o{ transaction_scores : "dá a nota"
+    model_versions ||..o{ weekly_batches : "processa"
+    weekly_batches ||..o{ alerts : "agrupa (sem FK)"
+    model_versions ||..o{ alerts : "gera"
+    accounts ||..o{ alerts : "é alertada em"
+    alerts ||--o| evidence : "é explicado por"
+    alerts ||..o{ assessments : "recebe parecer"
+    alerts ||..o{ decisions : "recebe decisão"
+    assessments |o..o{ decisions : "apoia"
+    alerts ||..o{ reports : "vira comunicação"
+    decisions ||..o{ reports : "origina"
+    alerts ||--o| analyst_labels : "deixa rótulo"
+    decisions ||..o{ analyst_labels : "define"
+    model_versions |o..o{ datasets : "é a ativa de (sem FK)"
+    datasets ||--|| processing_settings : "é configurado por"
+    datasets ||..o{ jobs : "tem trabalhos"
+    datasets |o..o{ external_connections : "recebe dados de"
+    classDef ground_truth_class fill:#FBE3E4,stroke:#B4232C,stroke-width:2px
+    class ground_truth ground_truth_class
+    classDef analyst_labels_class fill:#E3F1E5,stroke:#2E7D32,stroke-width:2px
+    class analyst_labels analyst_labels_class

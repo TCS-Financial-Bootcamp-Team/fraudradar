@@ -1,0 +1,95 @@
+---
+title: "Alertas, parecer, decisão e retorno dos analistas"
+---
+erDiagram
+    direction TB
+    accounts {
+        bigint account PK
+    }
+    model_versions {
+        text version PK
+    }
+    weekly_batches {
+        date week PK
+        text model_version FK
+    }
+    alerts {
+        bigint id PK
+        bigint account FK "único com week"
+        date week FK "sem constraint; único com account"
+        real score
+        integer queue_position
+        text status "new, in_review, archived, escalated, reported"
+        text[] countries
+        text typology
+        numeric total_amount
+        integer transaction_count
+        text model_version FK
+        timestamptz created_at
+        timestamptz updated_at
+        text origin "model, exploration"
+    }
+    evidence {
+        bigint alert_id PK, FK
+        jsonb contributions
+        jsonb rules
+        jsonb weekly_signals
+        jsonb graph
+        timestamptz created_at
+    }
+    assessments {
+        bigint id PK
+        bigint alert_id FK
+        text content
+        text suggested_typology
+        jsonb sources
+        jsonb validation
+        boolean is_valid
+        text llm_model
+        timestamptz created_at
+    }
+    decisions {
+        bigint id PK
+        bigint alert_id FK
+        bigint assessment_id FK
+        text analyst
+        text decision "archive, escalate, report"
+        text justification
+        timestamptz decided_at
+        text archive_reason "false_positive, insufficient_evidence"
+    }
+    reports {
+        bigint id PK
+        bigint alert_id FK
+        bigint decision_id FK
+        text draft
+        text status "draft, approved"
+        text approved_by
+        timestamptz approved_at
+        timestamptz created_at
+    }
+    analyst_labels {
+        bigint alert_id PK, FK
+        bigint decision_id FK
+        bigint account
+        date week
+        smallint label
+        text origin "model, exploration"
+        text source "analyst, simulated"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    model_versions ||..o{ weekly_batches : "processa"
+    weekly_batches ||..o{ alerts : "agrupa (sem FK)"
+    model_versions ||..o{ alerts : "gera"
+    accounts ||..o{ alerts : "é alertada em"
+    alerts ||--o| evidence : "é explicado por"
+    alerts ||..o{ assessments : "recebe parecer"
+    alerts ||..o{ decisions : "recebe decisão"
+    assessments |o..o{ decisions : "apoia"
+    alerts ||..o{ reports : "vira comunicação"
+    decisions ||..o{ reports : "origina"
+    alerts ||--o| analyst_labels : "deixa rótulo"
+    decisions ||..o{ analyst_labels : "define"
+    classDef analyst_labels_class fill:#E3F1E5,stroke:#2E7D32,stroke-width:2px
+    class analyst_labels analyst_labels_class
