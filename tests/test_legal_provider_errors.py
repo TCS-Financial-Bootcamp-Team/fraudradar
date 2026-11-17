@@ -93,6 +93,7 @@ def test_only_current_question_reaches_legal_service(
 ):
     def simulated_service(question):
         return ChatResponse(
+            kind="legal",
             answer="Synthetic response [F1].",
             sources=[],
         )

@@ -211,16 +211,37 @@ tipo de trabalho e um só acompanhamento (`web/src/features/jobs`).
 
 Pedido: {message, context: {page, week, alert_id?}, history}.
 Histórico: até 20 entradas {role: user | assistant, content}.
-Resposta: {answer, sources: [{title, excerpt}]}.
+Resposta: {kind, answer, sources: [{title, excerpt}]}.
+`kind` é obrigatório: `small_talk | legal | domain | out_of_scope`.
 
 As rotas `/chat` e `/alerts/{id}/chat` reconhecem conversas curtas por regras
 determinísticas: saudações, agradecimentos, despedidas, confirmações e perguntas
 simples de identidade ou ajuda. Respondem em PT-BR com `sources: []`, sem configurar
 o Gemini, carregar embeddings, consultar o banco ou chamar o LLM. A comparação ignora
 caixa, acentos e pontuação; mensagens mistas, como "olá, o que diz o art. 11?", seguem
-para a consulta jurídica. A autenticação e a validação do pedido continuam obrigatórias.
+para o roteamento. A autenticação e a validação do pedido continuam obrigatórias.
 
-Respostas jurídicas pedem até 120 palavras em dois parágrafos curtos, salvo pedido
+Marcadores jurídicos (lei, artigo, prazo, obrigação, COAF, comunicação, penalidades,
+sigilo, cadastro e registros, entre outros) escolhem `legal` sem chamar o roteador.
+As demais mensagens passam por uma chamada curta ao Gemini, com JSON e enum fixo;
+falhas, timeout ou saída inválida voltam ao caminho `legal`. A classificação recebe
+somente a mensagem com números ocultados e a indicação de contexto de alerta.
+
+`domain` explica conceitos de PLD/fraude, tipologias, sinais, score e prática de análise
+sem consultar a base jurídica. A resposta pede cerca de 150 palavras, salvo pedido de
+detalhe, usa um glossário versionado de tipologias, não afirma exigências legais e mantém
+a decisão com o analista. Retorna `sources: []`, remove marcadores `[Fn]` e rejeita respostas
+vazias com 502 `ai.provider_failed`. No chat do alerta, recebe o mesmo resumo financeiro
+higienizado, com o guarda de identificadores, sem a instrução de citar fontes jurídicas.
+
+`out_of_scope` devolve, sem geração de resposta: "Só consigo ajudar com temas do FraudRadar:
+prevenção à lavagem de dinheiro, fraude financeira, os alertas e a comunicação ao COAF.
+Quer perguntar algo sobre isso?". Retorna `sources: []`. Não há recuperação, carregamento de
+embeddings ou acesso ao banco nos caminhos `small_talk`, `out_of_scope` e `domain` global;
+o `domain` contextual lê somente os dados do alerta em uma transação curta.
+
+Respostas `legal` mantêm o RAG e a validação de citações. Pedem até 120 palavras em dois
+parágrafos curtos, salvo pedido
 explícito de detalhe. Somente as fontes efetivamente citadas na resposta são retornadas,
 ordenadas pelo ID original: `[F2]` continua `[F2]` mesmo sem `[F1]`. O título segue o
 formato `[F2] Lei 9.613/1998, Art. 11`; `excerpt` termina com

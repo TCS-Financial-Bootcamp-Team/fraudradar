@@ -118,6 +118,7 @@ def legal_payload_to_chat_response(
         sources = cited_sources(answer, sources)
 
     return ChatResponse(
+        kind="legal",
         answer=answer,
         sources=sources,
     )

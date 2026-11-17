@@ -55,6 +55,7 @@ def prepared_alert():
 
 def generated_answer(content=None):
     return ChatResponse(
+        kind="legal",
         answer=content
         or (
             "O alerta apresenta sinais de risco [F1]. "
