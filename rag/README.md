@@ -34,7 +34,7 @@ Numa versão nova do texto, os trechos da antiga ficam na base, mas o chat filtr
 snapshot da pasta.
 
 A primeira carga baixa o modelo de embeddings (`EMBEDDING_MODEL`, uns 470 MB). No Docker, ele
-fica no volume `hf-cache`, que a API também usa. Assim, a primeira pergunta ao chat não baixa o
+fica no volume `hf_cache`, que a API também usa. Assim, a primeira pergunta ao chat não baixa o
 modelo de novo.
 
 ## Fontes
