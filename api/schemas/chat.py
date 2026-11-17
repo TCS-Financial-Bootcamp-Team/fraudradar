@@ -25,6 +25,6 @@ class ChatRequest(BaseModel):
 
 
 class ChatResponse(BaseModel):
-    kind: Literal["small_talk", "legal", "domain", "out_of_scope"]
+    kind: Literal["small_talk", "legal", "domain", "decision", "out_of_scope"]
     answer: str
     sources: list[Source] = []

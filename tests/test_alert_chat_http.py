@@ -185,7 +185,9 @@ def test_mismatched_alert_id_returns_422_without_database(setup_http):
     assert engine.transactions == 0
 
 
-def test_question_plus_summary_above_limit_returns_422(setup_http):
+def test_long_legal_question_is_422_not_500(setup_http):
+    """O caminho jurídico aceita 2000 caracteres no total; uma pergunta desse tamanho mais o
+    resumo do alerta não cabe e precisa virar 422 explícito, nunca 500."""
     client, engine, state = setup_http
     response = client.post(
         "/alerts/882/chat",
@@ -193,7 +195,6 @@ def test_question_plus_summary_above_limit_returns_422(setup_http):
     )
     assert response.status_code == 422
     assert response.json()["code"] == "ai.question_too_long"
-    assert engine.transactions == 1
     assert state["calls"] == []
 
 

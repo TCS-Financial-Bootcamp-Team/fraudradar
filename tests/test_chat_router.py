@@ -134,3 +134,50 @@ def test_real_router_request_uses_schema_separate_instructions_and_redacted_data
     assert factory.call_args.kwargs["http_options"].timeout >= 10_000
     assert factory.call_args.kwargs["http_options"].retry_options.attempts == 1
     factory.return_value.__exit__.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "message",
+    [
+        "Este alerta é realmente lavagem?",
+        "Devo arquivar ou aprofundar?",
+        "O que pesa a favor e contra?",
+        "O que falta para decidir?",
+        "Devo comunicar este alerta?",
+    ],
+)
+@pytest.mark.parametrize("has_alert_context", [True, False])
+def test_decision_questions_require_alert_context(message, has_alert_context):
+    classifier = Mock(side_effect=AssertionError("Atalho explícito dispensa o provedor."))
+    assert route_chat_message(
+        message, has_alert_context=has_alert_context, classifier=classifier
+    ) == ("decision" if has_alert_context else "domain")
+    classifier.assert_not_called()
+
+
+@pytest.mark.parametrize("has_alert_context", [True, False])
+@pytest.mark.parametrize(
+    "message",
+    [
+        "O que a lei exige se eu comunicar este alerta?",
+        "Devo comunicar este alerta e qual o prazo?",
+        "Devo comunicar este alerta ao COAF?",
+        "Devo arquivar ou aprofundar segundo a lei?",
+    ],
+)
+def test_decision_question_with_legal_requirement_stays_legal(message, has_alert_context):
+    assert (
+        route_chat_message(message, has_alert_context=has_alert_context, classifier=Mock())
+        == "legal"
+    )
+
+
+def test_predicted_decision_without_context_is_domain():
+    assert (
+        route_chat_message(
+            "Como avaliar?",
+            has_alert_context=False,
+            classifier=lambda **kwargs: '{"route":"decision"}',
+        )
+        == "domain"
+    )
