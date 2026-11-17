@@ -6,6 +6,7 @@ from sqlalchemy import Connection
 
 from fraudradar.ai.documents import RetrievedDocument
 from fraudradar.ai.legal_context import format_legal_context
+from fraudradar.ai.legal_generation import _parse_context
 from fraudradar.ai.legal_hybrid import search_hybrid_legal_documents
 
 
@@ -64,10 +65,17 @@ def prepare_legal_evidence(
                 max_total_chars=max_total_chars,
                 allow_pending_review=include_pending_review,
             )
+            evidence = _parse_context(
+                context,
+                allow_pending_review=include_pending_review,
+            )
         except ValueError:
             continue
 
-        citation_ids = tuple(f"F{index}" for index in range(1, len(documents) + 1))
+        if len(evidence) != len(documents):
+            continue
+
+        citation_ids = tuple(item["citation_id"] for item in evidence)
 
         return PreparedLegalEvidence(
             documents=documents,
