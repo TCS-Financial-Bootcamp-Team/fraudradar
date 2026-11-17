@@ -1,4 +1,4 @@
-"""Orchestrate legal chat while keeping the DB connection short-lived."""
+"""Orquestra o chat jurídico sem manter a conexão durante a geração."""
 
 import json
 from collections.abc import Callable
@@ -9,7 +9,7 @@ from sqlalchemy import Engine
 
 from api.schemas.chat import ChatResponse
 from fraudradar.ai.legal_chat_adapter import legal_payload_to_chat_response
-from fraudradar.ai.legal_generation import LegalAnswer
+from fraudradar.ai.legal_generation import LegalAnswer, gemini_settings
 from fraudradar.ai.legal_pipeline import generate_from_prepared_evidence
 from fraudradar.ai.legal_presentation import present_legal_rag
 from fraudradar.ai.legal_retrieval import (
@@ -20,11 +20,11 @@ from fraudradar.db import get_engine
 
 
 class LegalEvidenceUnavailableError(Exception):
-    """No approved legal evidence is available for the question."""
+    """Indica que não há evidência jurídica aprovada para a pergunta."""
 
 
 def _active_legal_source() -> tuple[str, str]:
-    """Identify the versioned legal snapshot used by this deployment."""
+    """Identifica o snapshot jurídico versionado usado nesta implantação."""
     root = Path(__file__).resolve().parents[1]
     snapshots = sorted((root / "rag" / "snapshots").glob("lei-9613-1998-*.json"))
 
@@ -50,20 +50,29 @@ def _active_legal_source() -> tuple[str, str]:
 def answer_legal_chat(
     question: str,
     *,
+    retrieval_query: str | None = None,
     engine: Engine | None = None,
     generator: Callable[..., LegalAnswer] | None = None,
     retriever: Callable[..., PreparedLegalEvidence] | None = None,
 ) -> ChatResponse:
-    """Prepare reviewed evidence, close DB, then generate a chat answer.
+    """Prepara evidências revisadas, fecha o banco e gera a resposta.
 
-    Pending-review evidence is never enabled by this service.
-    Any test doubles must be injected explicitly by the caller.
+    Este serviço nunca habilita evidências pendentes de revisão. Dublês de teste
+    precisam ser injetados explicitamente pela chamada.
     """
     if not isinstance(question, str) or not question.strip():
         raise ValueError("Pergunta juridica vazia.")
 
     if len(question) > 2000:
         raise ValueError("Pergunta juridica excede 2000 caracteres.")
+
+    search_question = question if retrieval_query is None else retrieval_query
+    if not isinstance(search_question, str) or not search_question.strip():
+        raise ValueError("Consulta de recuperação jurídica vazia.")
+
+    # Falha antes da recuperação, que carrega o modelo de embedding e consulta o banco.
+    if generator is None:
+        gemini_settings()
 
     source_id, snapshot_sha256 = _active_legal_source()
 
@@ -73,12 +82,12 @@ def answer_legal_chat(
     if retriever is None:
         retriever = prepare_legal_evidence
 
-    # Do not call Gemini inside this connection context.
+    # O Gemini nunca é chamado dentro deste contexto de conexão.
     with engine.connect() as conn:
         try:
             prepared = retriever(
                 conn,
-                question=question,
+                question=search_question,
                 source_id=source_id,
                 snapshot_sha256=snapshot_sha256,
                 include_pending_review=False,
@@ -93,7 +102,7 @@ def answer_legal_chat(
                 "Nenhuma fonte juridica aprovada foi encontrada."
             ) from error
 
-    # The connection has been closed before entering the LLM phase.
+    # A conexão já foi fechada quando a fase do LLM começa.
     result = generate_from_prepared_evidence(
         question=question,
         prepared=prepared,

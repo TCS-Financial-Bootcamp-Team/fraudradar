@@ -81,7 +81,7 @@ def test_chat_http_503_without_reviewed_sources(http_client, chat_request):
         response = client.post("/chat", json=chat_request)
 
     assert response.status_code == 503
-    assert "fonte juridica" in response.json()["detail"].lower()
+    assert response.json()["code"] == "ai.no_legal_sources"
 
 
 def test_chat_http_422_for_empty_message(http_client, chat_request):

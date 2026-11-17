@@ -7,12 +7,14 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from api.dependencies import LOCAL_USER
 from api.repositories.alert_assessments import (
     save_generated_assessment,
     validate_generated_assessment,
 )
 from api.schemas.alerts import Assessment
 from fraudradar.ai.legal_chat_adapter import (
+    LLM_UNAVAILABLE_ANSWER,
     legal_payload_to_chat_response,
 )
 
@@ -40,19 +42,23 @@ def make_payload(status="generated"):
     }
 
     if status == "generated":
-        payload.update({
-            "answer": (
-                "Existem sinais que exigem diligencia [F1]. "
-                "A avaliacao deve considerar os deveres legais [F2]. "
-                "O analista deve revisar as evidencias."
-            ),
-            "citations": ["F1", "F2"],
-        })
+        payload.update(
+            {
+                "answer": (
+                    "Existem sinais que exigem diligencia [F1]. "
+                    "A avaliacao deve considerar os deveres legais [F2]. "
+                    "O analista deve revisar as evidencias."
+                ),
+                "citations": ["F1", "F2"],
+            }
+        )
     else:
-        payload.update({
-            "answer": None,
-            "citations": [],
-        })
+        payload.update(
+            {
+                "answer": None,
+                "citations": [],
+            }
+        )
 
     return payload
 
@@ -89,18 +95,19 @@ def test_generated_answer_can_reach_persistence():
         alert_id=882,
         assessment=assessment,
         model="gemini-3.5-flash-lite",
+        suggested_typology=None,
+        user=LOCAL_USER,
     )
 
     assert result == 123
-    conn.execute.assert_called_once()
+    assert conn.execute.call_count == 2
 
 
 def test_real_adapter_fallback_is_rejected():
-    assessment = as_assessment(
-        make_payload("llm_unavailable")
-    )
+    assessment = as_assessment(make_payload("llm_unavailable"))
 
     assert len(assessment.sources) == 2
+    assert assessment.content == LLM_UNAVAILABLE_ANSWER
 
     with pytest.raises(
         ValueError,
@@ -110,9 +117,7 @@ def test_real_adapter_fallback_is_rejected():
 
 
 def test_fallback_never_reaches_database():
-    assessment = as_assessment(
-        make_payload("llm_unavailable")
-    )
+    assessment = as_assessment(make_payload("llm_unavailable"))
 
     conn = MagicMock()
 
@@ -122,6 +127,8 @@ def test_fallback_never_reaches_database():
             alert_id=882,
             assessment=assessment,
             model="gemini-3.5-flash-lite",
+            suggested_typology=None,
+            user=LOCAL_USER,
         )
 
     conn.execute.assert_not_called()
@@ -154,9 +161,7 @@ def test_unknown_legal_citation_is_blocked():
 
 def test_source_without_https_is_blocked():
     payload = make_payload()
-    payload["evidences"][0]["official_url"] = (
-        "http://example.org/inseguro"
-    )
+    payload["evidences"][0]["official_url"] = "http://example.org/inseguro"
 
     with pytest.raises(
         ValueError,

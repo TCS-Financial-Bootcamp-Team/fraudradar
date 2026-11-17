@@ -257,6 +257,30 @@ def test_draft_deterministic_content_and_length_limit(client, seed, alert_id, wi
         assert decisions.build_report_draft(row, JUSTIFICATION, assessment) == draft
 
 
+def test_draft_converts_latest_assessment_markdown_to_plain_text(client, seed, alert_id):
+    assessment = "# **Sinais observados**\n\n* Padrão `fan_out` documentado [F1]."
+    seed.assessment(alert_id, assessment)
+
+    response = client.post(
+        f"/alerts/{alert_id}/decision",
+        json={"decision": "report", "justification": JUSTIFICATION},
+    )
+
+    assert response.status_code == 200
+    draft = seed.row("SELECT draft FROM reports WHERE alert_id = :id", id=alert_id)["draft"]
+    assert "Parecer mais recente:\nSinais observados\n\n- Padrão fan_out documentado [F1]." in draft
+    assert "**" not in draft
+    assert "# Sinais" not in draft
+    assert "* " not in draft
+    assert (
+        seed.row(
+            "SELECT content FROM assessments WHERE alert_id = :id",
+            id=alert_id,
+        )["content"]
+        == assessment
+    )
+
+
 def test_draft_undefined_typology_and_countries(client, seed):
     aid = seed.alert(77, date(2023, 1, 2), typology=None, countries=())
     resp = client.post(

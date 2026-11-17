@@ -34,6 +34,9 @@ services:
       - ../models:/app/models:ro
       - hf_cache:/root/.cache/huggingface
       - ../rag:/app/rag:ro
+      # Modelo de embeddings do chat jurídico: baixado uma vez (pelo `worker rag-load` ou pela
+      # primeira pergunta) e reaproveitado pelos containers da api e do worker.
+      - hf-cache:/root/.cache/huggingface
     ports:
       - "${API_PORT:-8000}:8000"
     depends_on:
@@ -59,6 +62,9 @@ services:
     volumes:
       - ../models:/app/models
       - ../data:/app/data:ro
+      # `worker rag-load`: os snapshots da lei e o mesmo cache do modelo de embeddings da api
+      - ../rag:/app/rag:ro
+      - hf-cache:/root/.cache/huggingface
     depends_on:
       db:
         condition: service_healthy
@@ -100,3 +106,4 @@ services:
 volumes:
   hf_cache:
   pgdata:
+  hf-cache:

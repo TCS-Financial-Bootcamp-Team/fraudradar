@@ -1,327 +1,151 @@
-"""Offline tests for privacy-safe AI alert context."""
+"""Testes offline do contexto protegido usado pela IA de alertas."""
 
-from datetime import date
+import copy
 import json
 
-from api.alert_ai_context import (
+import pytest
+
+from fraudradar.ai.alert_assessment import (
+    AlertContextBlockedError,
+    PreparedAlertAI,
+    build_alert_chat_request,
     build_alert_context,
     contains_identifiers,
 )
-from api.schemas.alerts import (
-    Alert,
-    Contribution,
-    Movement,
-    Rule,
-)
 
 
-def sample_data():
-    alert = Alert(
-        id="882",
-        account="8865018891",
-        week=date(2023, 6, 19),
-        country="UK",
-        typology="Indefinida",
-        score=100.0,
-        amount=35102.0,
-        transaction_count=2,
-        status="pending",
-        queue_position=2,
-        origin="model",
-    )
-
+def sample_data(alert_id: int = 882):
+    alert = {
+        "id": str(alert_id),
+        "account": "8865018891",
+        "week": "2023-06-19",
+        "country": "UK",
+        "typology": "Indefinida",
+        "score": 91.5,
+        "amount": 35102.0,
+        "transaction_count": 2,
+        "queue_position": 2,
+        "origin": "model",
+    }
     contributions = [
-        Contribution(
-            name="Primeira transacao entre as duas contas",
-            value=29.7,
-        ),
-        Contribution(
-            name="Dias desde o ultimo recebimento",
-            value=15.7,
-        ),
+        {"name": "Primeira transação entre as duas contas", "value": 29.7},
+        {"name": "Dias desde o último recebimento", "value": 15.7},
     ]
-
-    rules = [
-        Rule(
-            code="R-TEST",
-            description="Regra demonstrativa",
-        )
-    ]
-
+    rules = [{"code": "R-TEST", "description": "Regra demonstrativa"}]
     movements = [
-        Movement(
-            id="987654321",
-            date="2023-06-21T10:00:00",
-            sender="8865018891",
-            receiver="2487415444",
-            amount=9723.84,
-            currency="GBP",
-            payment_type="Credit card",
-            payment_currency="Pound",
-        ),
-        Movement(
-            id="987654322",
-            date="2023-06-22T11:00:00",
-            sender="2321774979",
-            receiver="8865018891",
-            amount=25378.08,
-            currency="GBP",
-            payment_type="Credit card",
-            payment_currency="Pound",
-        ),
+        {
+            "id": "987654321",
+            "sender": "8865018891",
+            "receiver": "2487415444",
+            "payment_type": "Credit card",
+        },
+        {
+            "id": "987654322",
+            "sender": "2321774979",
+            "receiver": "8865018891",
+            "payment_type": "Credit card",
+        },
     ]
-
     return alert, contributions, rules, movements
 
 
-def build_sample():
-    return build_alert_context(*sample_data())
+def build_sample(alert_id: int = 882) -> PreparedAlertAI:
+    return build_alert_context(*sample_data(alert_id))
 
 
-def test_context_preserves_model_information():
-    context = build_sample()
+def test_context_preserves_facts_without_structured_identifiers():
+    prepared = build_sample()
+    context = prepared.context
 
     assert context["analysis_type"] == "alert_review"
     assert context["period_start"] == "2023-06-19"
-    assert context["country"] == "UK"
-    assert context["risk_score_0_to_100"] == 100.0
+    assert context["risk_score_0_to_100"] == 91.5
     assert context["financial_volume_gbp"] == 35102.0
-    assert context["transaction_count"] == 2
-    assert context["queue_position"] == 2
-    assert context["alert_origin"] == "model"
-
-
-def test_context_preserves_model_contributions():
-    context = build_sample()
-
-    contributions = context["model_contributions"]
-
-    assert len(contributions) == 2
-    assert contributions[0]["positive_contribution_pct"] == 29.7
-    assert contributions[1]["positive_contribution_pct"] == 15.7
-
-
-def test_context_preserves_rules():
-    context = build_sample()
-
-    assert context["triggered_rules"] == [
-        {
-            "code": "R-TEST",
-            "description": "Regra demonstrativa",
-        }
-    ]
-
-
-def test_context_aggregates_payment_methods():
-    context = build_sample()
-
-    assert context["payment_methods"] == [
-        {"method": "Credit card", "count": 2}
-    ]
-
+    assert context["model_contributions"][0]["positive_contribution_pct"] == 29.7
+    assert context["triggered_rules"] == [{"code": "R-TEST", "description": "Regra demonstrativa"}]
+    assert context["payment_methods"] == [{"method": "Credit card", "count": 2}]
     assert context["observed_movements_in_sample"] == 2
-
-
-def test_context_omits_structured_identifiers():
-    context = build_sample()
-
-    identifiers = [
-        "882",
+    assert "typology" not in context
+    assert set(prepared.forbidden_identifiers) == {
         "8865018891",
         "2487415444",
         "2321774979",
-        "987654321",
-        "987654322",
-    ]
-
-    # The short alert ID can occur in unrelated numeric
-    # values; test long identifiers separately.
+    }
+    assert "882" not in prepared.forbidden_identifiers
     assert not contains_identifiers(
         context,
-        forbidden_values=identifiers[1:],
+        forbidden_values=prepared.forbidden_identifiers,
     )
-
-    assert "account" not in context
-    assert "alert_id" not in context
-    assert "sender" not in context
-    assert "receiver" not in context
-    assert "transaction_id" not in context
+    assert all(field not in context for field in ("account", "alert_id", "sender", "receiver"))
 
 
-def test_context_is_json_serializable():
-    context = build_sample()
-
-    serialized = json.dumps(
-        context,
-        ensure_ascii=False,
-        sort_keys=True,
-    )
-
-    assert serialized
-    assert "risk_score_0_to_100" in serialized
-
-
-def test_context_preserves_human_review_warning():
-    context = build_sample()
-
+def test_context_is_serializable_and_keeps_human_review_warning():
+    context = build_sample().context
+    assert json.dumps(context, ensure_ascii=False)
     limitations = " ".join(context["limitations"]).lower()
+    assert "decisão humana" in limitations
+    assert "não confirma" in limitations
+    assert "fontes jurídicas" in limitations
 
-    assert "decisao humana" in limitations
-    assert "nao confirma" in limitations
-    assert "fontes juridicas" in limitations
+
+def test_context_does_not_mutate_plain_inputs():
+    values = sample_data()
+    original = copy.deepcopy(values)
+    build_alert_context(*values)
+    assert values == original
 
 
-def test_context_does_not_mutate_inputs():
+def test_context_redacts_known_and_unknown_identifiers_in_free_text():
     alert, contributions, rules, movements = sample_data()
-
-    original_alert = alert.model_dump()
-    original_contributions = [
-        item.model_dump() for item in contributions
-    ]
-    original_rules = [
-        item.model_dump() for item in rules
-    ]
-    original_movements = [
-        item.model_dump() for item in movements
-    ]
-
-    build_alert_context(
-        alert,
-        contributions,
-        rules,
-        movements,
+    contributions[0]["name"] = "Conta 8865018891 transferiu para 2487415444"
+    rules[0]["description"] = (
+        "Contato teste@example.com; https://example.com/private; protocolo 99999888887777"
     )
 
-    assert alert.model_dump() == original_alert
-    assert [
-        item.model_dump() for item in contributions
-    ] == original_contributions
-
-    assert [
-        item.model_dump() for item in rules
-    ] == original_rules
-
-    assert [
-        item.model_dump() for item in movements
-    ] == original_movements
+    context = build_alert_context(alert, contributions, rules, movements).context
+    serialized = json.dumps(context)
+    for secret in (
+        "8865018891",
+        "2487415444",
+        "teste@example.com",
+        "https://example.com/private",
+        "99999888887777",
+    ):
+        assert secret not in serialized
 
 
-def test_context_handles_empty_evidence():
-    alert, _, _, _ = sample_data()
-
-    context = build_alert_context(
-        alert,
-        [],
-        [],
-        [],
-    )
-
-    assert context["model_contributions"] == []
-    assert context["triggered_rules"] == []
-    assert context["payment_methods"] == []
-    assert context["observed_movements_in_sample"] == 0
+def test_identifier_match_uses_whole_integer_tokens():
+    forbidden = ["35102", "8865018891"]
+    assert contains_identifiers("Conta 8865018891", forbidden_values=forbidden)
+    assert not contains_identifiers("Conta 188650188919", forbidden_values=forbidden)
+    assert not contains_identifiers("Valor 35102.0", forbidden_values=forbidden)
+    assert not contains_identifiers("Valor 35102,50", forbidden_values=forbidden)
 
 
-def test_identifier_detector_rejects_known_value():
-    context = build_sample()
+def test_alert_database_ids_from_1_to_5000_never_block_realistic_contexts():
+    for alert_id in range(1, 5001):
+        prepared = build_sample(alert_id)
+        assert str(alert_id) not in prepared.forbidden_identifiers
 
-    assert contains_identifiers(
-        context,
-        forbidden_values=["2023-06-19"],
-    )
 
-    assert not contains_identifiers(
-        context,
-        forbidden_values=["999999999999999"],
-    )
-
-def test_redacts_identifiers_inside_free_text():
+def test_small_movement_ids_do_not_collide_with_context_date():
     alert, contributions, rules, movements = sample_data()
+    movements.append({**movements[0], "id": "2"})
+    movements[0]["id"] = "19"
+    movements[1]["id"] = "2023"
 
-    contributions[0].name = (
-        "Conta 8865018891 transferiu para 2487415444"
+    prepared = build_alert_context(alert, contributions, rules, movements)
+
+    assert prepared.context["period_start"] == "2023-06-19"
+    assert all(value not in prepared.forbidden_identifiers for value in ("2", "19", "2023"))
+
+
+@pytest.mark.parametrize("leaked", ["8865018891", "2487415444"])
+def test_context_guard_blocks_account_or_counterparty(leaked):
+    prepared = build_sample()
+    unsafe = PreparedAlertAI(
+        context={**prepared.context, "country": leaked},
+        forbidden_identifiers=prepared.forbidden_identifiers,
     )
-
-    rules[0].description = (
-        "Transacao 987654321 de 2321774979"
-    )
-
-    context = build_alert_context(
-        alert,
-        contributions,
-        rules,
-        movements,
-    )
-
-    assert not contains_identifiers(
-        context,
-        forbidden_values=[
-            "8865018891",
-            "2487415444",
-            "987654321",
-            "2321774979",
-        ],
-    )
-
-
-def test_redacts_email_and_url_from_text():
-    alert, contributions, rules, movements = sample_data()
-
-    rules[0].description = (
-        "Contato teste@example.com "
-        "https://example.com/private"
-    )
-
-    context = build_alert_context(
-        alert,
-        contributions,
-        rules,
-        movements,
-    )
-
-    text = json.dumps(context)
-
-    assert "teste@example.com" not in text
-    assert "https://example.com/private" not in text
-    assert "[EMAIL_REDACTED]" in text
-    assert "[URL_REDACTED]" in text
-
-
-def test_redacts_unknown_long_number():
-    alert, contributions, rules, movements = sample_data()
-
-    contributions[0].name = (
-        "Identificador externo 99999888887777"
-    )
-
-    context = build_alert_context(
-        alert,
-        contributions,
-        rules,
-        movements,
-    )
-
-    assert not contains_identifiers(
-        context,
-        forbidden_values=["99999888887777"],
-    )
-
-
-def test_redacts_identifier_in_payment_method():
-    alert, contributions, rules, movements = sample_data()
-
-    movements[0].payment_type = (
-        "Credit card 8865018891"
-    )
-
-    context = build_alert_context(
-        alert,
-        contributions,
-        rules,
-        movements,
-    )
-
-    assert not contains_identifiers(
-        context,
-        forbidden_values=["8865018891"],
-    )
+    with pytest.raises(AlertContextBlockedError):
+        build_alert_chat_request(unsafe, "Explique o risco.")

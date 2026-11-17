@@ -318,22 +318,15 @@ def test_week_start(day):
 # --- stubs de IA e ingestão --------------------------------------------------------------------
 
 
-def test_assessment_generates_persists_and_returns_in_detail(
-    client, seed, monkeypatch, db
-):
+def test_assessment_generates_persists_and_returns_in_detail(client, seed, monkeypatch, db):
     """Test the real HTTP and PostgreSQL persistence contract."""
-    from types import SimpleNamespace
-
     from sqlalchemy import text
 
     from api.routes import ai
     from api.schemas.alerts import Assessment, Source
+    from api.schemas.chat import ChatResponse
 
     alert_id = seed.alert(55, date(2023, 1, 2))
-
-    # The missing alert must fail before invoking any LLM.
-    missing = client.post("/alerts/999/assessment")
-    assert missing.status_code == 404, missing.text
 
     simulated_assessment = Assessment(
         content=(
@@ -344,65 +337,92 @@ def test_assessment_generates_persists_and_returns_in_detail(
         sources=[
             Source(
                 title="[F1] Art. 10 - Fonte juridica",
-                excerpt=(
-                    "Fonte revisada de teste. "
-                    "Fonte oficial: https://www.planalto.gov.br/"
-                ),
+                excerpt=("Fonte revisada de teste. Fonte oficial: https://www.planalto.gov.br/"),
             )
         ],
     )
 
     calls = []
 
-    def simulated_generation(prepared):
-        calls.append(prepared)
-        return simulated_assessment
+    def simulated_generation(prompt, *, retrieval_query=None):
+        calls.append((prompt, retrieval_query))
+        return ChatResponse(
+            answer=simulated_assessment.content + "\nTipologia sugerida: fan_out",
+            sources=simulated_assessment.sources,
+        )
 
     monkeypatch.setattr(
         ai,
-        "generate_alert_assessment",
+        "answer_legal_chat",
         simulated_generation,
     )
 
     monkeypatch.setattr(
         ai,
-        "get_settings",
-        lambda: SimpleNamespace(
-            llm_model="gemini-3.5-flash-lite"
-        ),
+        "gemini_settings",
+        lambda: ("gemini-3.5-flash-lite", "chave-de-teste"),
     )
 
-    response = client.post(
-        f"/alerts/{alert_id}/assessment"
-    )
+    # O alerta inexistente falha depois da configuração e antes de chamar o LLM.
+    missing = client.post("/alerts/999/assessment")
+    assert missing.status_code == 404, missing.text
+
+    response = client.post(f"/alerts/{alert_id}/assessment")
 
     assert response.status_code == 200, response.text
     assert response.json() == simulated_assessment.model_dump()
     assert len(calls) == 1
 
     with db.connect() as conn:
-        row = conn.execute(
-            text(
-                """
+        row = (
+            conn.execute(
+                text(
+                    """
                 SELECT
                     content,
                     sources,
                     validation,
                     is_valid,
-                    llm_model
+                    llm_model,
+                    suggested_typology
                 FROM assessments
                 WHERE alert_id = :alert_id
                 """
-            ),
-            {"alert_id": alert_id},
-        ).mappings().one()
+                ),
+                {"alert_id": alert_id},
+            )
+            .mappings()
+            .one()
+        )
 
     assert row["content"] == simulated_assessment.content
     assert row["is_valid"] is True
     assert row["llm_model"] == "gemini-3.5-flash-lite"
+    assert row["suggested_typology"] == "fan_out"
     assert row["validation"]["requires_human_review"] is True
     assert row["validation"]["legal_conclusion_verified"] is False
     assert len(row["sources"]) == 1
+
+    assert seed.row(
+        "SELECT typology FROM alerts WHERE id = :id",
+        id=alert_id,
+    ) == {"typology": "Fan-out"}
+    audit = seed.row(
+        "SELECT actor, action, entity, entity_id, details FROM audit_log"
+        " WHERE action = 'assessment_generated'",
+    )
+    assert audit["actor"] == LOCAL_USER.name
+    assert audit["entity"] == "alert"
+    assert audit["entity_id"] == str(alert_id)
+    assert audit["details"] == {
+        "assessment_id": seed.row(
+            "SELECT id FROM assessments WHERE alert_id = :id",
+            id=alert_id,
+        )["id"],
+        "llm_model": "gemini-3.5-flash-lite",
+        "suggested_typology": "fan_out",
+        "user_id": LOCAL_USER.id,
+    }
 
     detail = client.get(f"/alerts/{alert_id}")
 

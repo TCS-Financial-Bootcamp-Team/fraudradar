@@ -1,0 +1,357 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_model_retraining" targetNamespace="https://github.com/TCS-Financial-Bootcamp-Team/fraudradar/docs/bpmn">
+  <bpmn:collaboration id="Collaboration_model_retraining">
+    <bpmn:participant id="Participant_fraudradar" name="FraudRadar PLD" processRef="Process_model_retraining" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_model_retraining" name="Retreino com o retorno dos analistas e promoção do modelo" isExecutable="false">
+    <bpmn:documentation>O retorno nasce das decisões do diagrama 1 (01-aml-monitoring.bpmn). Regras em docs/analyst-feedback.md e docs/external-data.md.</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_model_retraining">
+      <bpmn:lane id="Lane_analyst" name="Analista de PLD">
+        <bpmn:flowNodeRef>Event_retrain_wanted</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_request_training</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_compare_versions</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_promote</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_active_kept</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_system" name="Sistema (API e worker)">
+        <bpmn:flowNodeRef>Gateway_request_allowed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_request_refused</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_enqueue_training</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_train_version</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_measure_versions</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_promotion_gate</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_gate_passed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_version_blocked</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_promote_version</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_new_version_active</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Event_retrain_wanted" name="Decide treinar uma versão nova">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:userTask id="Task_request_training" name="Pedir 'Treinar nova versão' (com ou sem o retorno)">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_request_allowed" name="Pedido pode seguir?">
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_request_refused" name="Pedido recusado (409, com o motivo)">
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_enqueue_training" name="Enfileirar o treino (com auditoria)">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_train_version" name="Treinar a versão nova (corte no tempo)">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+      <bpmn:property id="Property_Task_train_version_1" name="__targetRef_placeholder" />
+      <bpmn:property id="Property_Task_train_version_2" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_1">
+        <bpmn:sourceRef>DataStore_analyst_labels</bpmn:sourceRef>
+        <bpmn:targetRef>Property_Task_train_version_1</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+      <bpmn:dataInputAssociation id="DataInputAssociation_2">
+        <bpmn:sourceRef>DataStore_ground_truth</bpmn:sourceRef>
+        <bpmn:targetRef>Property_Task_train_version_2</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_measure_versions" name="Medir a nova e a ativa nas mesmas semanas de teste">
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+      <bpmn:property id="Property_Task_measure_versions_1" name="__targetRef_placeholder" />
+      <bpmn:dataInputAssociation id="DataInputAssociation_3">
+        <bpmn:sourceRef>DataStore_ground_truth</bpmn:sourceRef>
+        <bpmn:targetRef>Property_Task_measure_versions_1</bpmn:targetRef>
+      </bpmn:dataInputAssociation>
+    </bpmn:serviceTask>
+    <bpmn:businessRuleTask id="Task_promotion_gate" name="Aplicar a trava de promoção">
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+    </bpmn:businessRuleTask>
+    <bpmn:exclusiveGateway id="Gateway_gate_passed" name="Passou na trava?">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_version_blocked" name="Versão fica registrada, mas bloqueada para promoção">
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:userTask id="Task_compare_versions" name="Comparar as duas versões na tela do modelo">
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:userTask>
+    <bpmn:exclusiveGateway id="Gateway_promote" name="Promover?">
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_active_kept" name="Versão ativa continua">
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_promote_version" name="Promover a versão (com auditoria)">
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_14</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:endEvent id="Event_new_version_active" name="Próximas rodadas usam a versão nova">
+      <bpmn:incoming>Flow_14</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:dataStoreReference id="DataStore_analyst_labels" name="Rótulos do retorno (analyst_labels)" />
+    <bpmn:dataStoreReference id="DataStore_ground_truth" name="Gabarito do conjunto (ground_truth)" />
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="Event_retrain_wanted" targetRef="Task_request_training" />
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_request_training" targetRef="Gateway_request_allowed" />
+    <bpmn:sequenceFlow id="Flow_03" name="Não" sourceRef="Gateway_request_allowed" targetRef="Event_request_refused" />
+    <bpmn:sequenceFlow id="Flow_04" name="Sim" sourceRef="Gateway_request_allowed" targetRef="Task_enqueue_training" />
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_enqueue_training" targetRef="Task_train_version" />
+    <bpmn:sequenceFlow id="Flow_06" sourceRef="Task_train_version" targetRef="Task_measure_versions" />
+    <bpmn:sequenceFlow id="Flow_07" sourceRef="Task_measure_versions" targetRef="Task_promotion_gate" />
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="Task_promotion_gate" targetRef="Gateway_gate_passed" />
+    <bpmn:sequenceFlow id="Flow_09" name="Sim" sourceRef="Gateway_gate_passed" targetRef="Task_compare_versions" />
+    <bpmn:sequenceFlow id="Flow_10" name="Não" sourceRef="Gateway_gate_passed" targetRef="Event_version_blocked" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Task_compare_versions" targetRef="Gateway_promote" />
+    <bpmn:sequenceFlow id="Flow_12" name="Não" sourceRef="Gateway_promote" targetRef="Event_active_kept" />
+    <bpmn:sequenceFlow id="Flow_13" name="Sim" sourceRef="Gateway_promote" targetRef="Task_promote_version" />
+    <bpmn:sequenceFlow id="Flow_14" sourceRef="Task_promote_version" targetRef="Event_new_version_active" />
+    <bpmn:textAnnotation id="Note_request_rules">
+      <bpmn:text>Precisa de gabarito em pelo menos 6 semanas e de alguma lavagem, sem outro treino em andamento. Com o retorno: pelo menos 50 rótulos de semanas fechadas, das duas classes.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_request_rules" associationDirection="None" sourceRef="Note_request_rules" targetRef="Gateway_request_allowed" />
+    <bpmn:textAnnotation id="Note_gate_rule">
+      <bpmn:text>Passa se a versão nova achar, na fila, no máximo 1 ponto percentual a menos de contas lavadoras que a ativa, nas mesmas semanas.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_gate_rule" associationDirection="None" sourceRef="Note_gate_rule" targetRef="Task_promotion_gate" />
+    <bpmn:textAnnotation id="Note_ground_truth_wins">
+      <bpmn:text>O gabarito sempre ganha: o rótulo do analista que concorda com ele pesa 3; se discorda, vale o gabarito, com peso 1. Só entram rótulos de semanas fechadas.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_ground_truth_wins" associationDirection="None" sourceRef="Note_ground_truth_wins" targetRef="Task_train_version" />
+    <bpmn:textAnnotation id="Note_labels_source">
+      <bpmn:text>Gravados a cada decisão do analista (diagrama 1): comunicar = 1; falso positivo confirmado = 0.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_labels_source" associationDirection="None" sourceRef="Note_labels_source" targetRef="DataStore_analyst_labels" />
+    <bpmn:textAnnotation id="Note_closed_periods">
+      <bpmn:text>Períodos fechados não mudam: a versão nova vale das próximas rodadas em diante.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_closed_periods" associationDirection="None" sourceRef="Note_closed_periods" targetRef="Task_promote_version" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_model_retraining" name="Retreino com o retorno dos analistas e promoção do modelo">
+    <bpmndi:BPMNPlane id="BPMNPlane_model_retraining" bpmnElement="Collaboration_model_retraining">
+      <bpmndi:BPMNShape id="Participant_fraudradar_di" bpmnElement="Participant_fraudradar" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="2120" height="615" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_analyst_di" bpmnElement="Lane_analyst" isHorizontal="true">
+        <dc:Bounds x="30" y="0" width="2090" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_system_di" bpmnElement="Lane_system" isHorizontal="true">
+        <dc:Bounds x="30" y="250" width="2090" height="365" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_retrain_wanted_di" bpmnElement="Event_retrain_wanted">
+        <dc:Bounds x="165" y="50" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="138" y="92" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_request_training_di" bpmnElement="Task_request_training">
+        <dc:Bounds x="283" y="23" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_request_allowed_di" bpmnElement="Gateway_request_allowed" isMarkerVisible="true">
+        <dc:Bounds x="488" y="293" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="390" y="304" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_request_refused_di" bpmnElement="Event_request_refused">
+        <dc:Bounds x="495" y="415" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="468" y="457" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_enqueue_training_di" bpmnElement="Task_enqueue_training">
+        <dc:Bounds x="613" y="273" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_train_version_di" bpmnElement="Task_train_version">
+        <dc:Bounds x="778" y="273" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_measure_versions_di" bpmnElement="Task_measure_versions">
+        <dc:Bounds x="943" y="273" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_promotion_gate_di" bpmnElement="Task_promotion_gate">
+        <dc:Bounds x="1108" y="273" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_gate_passed_di" bpmnElement="Gateway_gate_passed" isMarkerVisible="true">
+        <dc:Bounds x="1313" y="293" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1371" y="304" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_version_blocked_di" bpmnElement="Event_version_blocked">
+        <dc:Bounds x="1320" y="415" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1293" y="457" width="90" height="56" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_compare_versions_di" bpmnElement="Task_compare_versions">
+        <dc:Bounds x="1438" y="23" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_promote_di" bpmnElement="Gateway_promote" isMarkerVisible="true">
+        <dc:Bounds x="1643" y="43" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1639" y="23" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_active_kept_di" bpmnElement="Event_active_kept">
+        <dc:Bounds x="1815" y="50" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1788" y="92" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_promote_version_di" bpmnElement="Task_promote_version">
+        <dc:Bounds x="1768" y="273" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_new_version_active_di" bpmnElement="Event_new_version_active">
+        <dc:Bounds x="1980" y="300" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1953" y="342" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStore_analyst_labels_di" bpmnElement="DataStore_analyst_labels">
+        <dc:Bounds x="735" y="408" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="715" y="464" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="DataStore_ground_truth_di" bpmnElement="DataStore_ground_truth">
+        <dc:Bounds x="900" y="408" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="880" y="464" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_request_rules_di" bpmnElement="Note_request_rules">
+        <dc:Bounds x="533" y="145" width="300" height="72" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_gate_rule_di" bpmnElement="Note_gate_rule">
+        <dc:Bounds x="873" y="153" width="290" height="57" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_ground_truth_wins_di" bpmnElement="Note_ground_truth_wins">
+        <dc:Bounds x="658" y="518" width="330" height="72" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_labels_source_di" bpmnElement="Note_labels_source">
+        <dc:Bounds x="378" y="518" width="250" height="57" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_closed_periods_di" bpmnElement="Note_closed_periods">
+        <dc:Bounds x="1773" y="403" width="240" height="57" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="201" y="68" />
+        <di:waypoint x="283" y="68" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="413" y="68" />
+        <di:waypoint x="513" y="68" />
+        <di:waypoint x="513" y="293" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="513" y="343" />
+        <di:waypoint x="513" y="415" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="519" y="349" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="538" y="318" />
+        <di:waypoint x="613" y="318" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="544" y="301" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="743" y="318" />
+        <di:waypoint x="778" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06">
+        <di:waypoint x="908" y="318" />
+        <di:waypoint x="943" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="1073" y="318" />
+        <di:waypoint x="1108" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="1238" y="318" />
+        <di:waypoint x="1313" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="1338" y="293" />
+        <di:waypoint x="1338" y="68" />
+        <di:waypoint x="1438" y="68" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1344" y="271" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="1338" y="343" />
+        <di:waypoint x="1338" y="415" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1344" y="349" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="1568" y="68" />
+        <di:waypoint x="1643" y="68" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="1693" y="68" />
+        <di:waypoint x="1815" y="68" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1699" y="51" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">
+        <di:waypoint x="1668" y="93" />
+        <di:waypoint x="1668" y="318" />
+        <di:waypoint x="1768" y="318" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1674" y="99" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14">
+        <di:waypoint x="1898" y="318" />
+        <di:waypoint x="1980" y="318" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_request_rules_di" bpmnElement="Association_Note_request_rules">
+        <di:waypoint x="638" y="217" />
+        <di:waypoint x="526" y="306" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_gate_rule_di" bpmnElement="Association_Note_gate_rule">
+        <di:waypoint x="1050" y="210" />
+        <di:waypoint x="1121" y="273" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_ground_truth_wins_di" bpmnElement="Association_Note_ground_truth_wins">
+        <di:waypoint x="826" y="518" />
+        <di:waypoint x="839" y="363" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_labels_source_di" bpmnElement="Association_Note_labels_source">
+        <di:waypoint x="567" y="518" />
+        <di:waypoint x="735" y="444" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_closed_periods_di" bpmnElement="Association_Note_closed_periods">
+        <di:waypoint x="1877" y="403" />
+        <di:waypoint x="1856" y="363" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_1_di" bpmnElement="DataInputAssociation_1">
+        <di:waypoint x="778" y="408" />
+        <di:waypoint x="810" y="363" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_2_di" bpmnElement="DataInputAssociation_2">
+        <di:waypoint x="907" y="408" />
+        <di:waypoint x="875" y="363" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="DataInputAssociation_3_di" bpmnElement="DataInputAssociation_3">
+        <di:waypoint x="943" y="408" />
+        <di:waypoint x="975" y="363" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

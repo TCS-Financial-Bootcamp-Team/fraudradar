@@ -1,0 +1,4 @@
+# Copie para terraform.tfvars (fora do git) e preencha com os dados da sua conta.
+# O Resource Manager da Oracle preenche compartment_ocid sozinho.
+compartment_ocid    = "ocid1.tenancy.oc1..<sua-tenancy-ou-compartimento>"
+ssh_public_key_path = "/caminho/para/id_ed25519.pub"

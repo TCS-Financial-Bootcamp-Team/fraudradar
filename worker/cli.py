@@ -8,9 +8,11 @@ python -m worker labels [--dataset SLUG]        # mede o gabarito e grava no reg
 python -m worker simulate-analyst [--dataset SLUG] [--from DATA] [--to DATA] [--error-rate 0.1]
                                   [--insufficient-rate 0.2] [--seed N] [--undo]
 python -m worker feedback-eval [--dataset SLUG] [--include-simulated]
+python -m worker rag-load [--snapshots PASTA]   # carrega a base do chat jurídico (rag_documents)
 
 Aqui ficam só os argumentos, o log e o código de saída; a lógica está em `worker/load.py`,
-`worker/batch.py`, `worker/labels.py`, `worker/simulate_analyst.py` e `worker/feedback_eval.py`.
+`worker/batch.py`, `worker/labels.py`, `worker/simulate_analyst.py`, `worker/feedback_eval.py`
+e `worker/rag.py`.
 Sai com 0 quando dá certo ou não há nada a fazer, e com 1 em erro, com uma mensagem que diz o
 que rodar.
 """
@@ -23,7 +25,7 @@ from time import perf_counter
 
 from sqlalchemy.exc import OperationalError
 
-from fraudradar.config import get_settings
+from fraudradar.config import ROOT_DIR, get_settings
 from fraudradar.datasets import (
     DatasetNotFoundError,
     InvalidDatasetSlugError,
@@ -149,6 +151,20 @@ def _parser() -> argparse.ArgumentParser:
     )
     evaluate.add_argument(
         "--include-simulated", action="store_true", help="inclui o retorno do analista simulado"
+    )
+    rag_load = sub.add_parser(
+        "rag-load",
+        help=(
+            "carrega os snapshots de rag/snapshots/ em rag_documents, a base do chat jurídico;"
+            " rodar de novo só refaz o que mudou"
+        ),
+    )
+    rag_load.add_argument(
+        "--snapshots",
+        type=Path,
+        default=ROOT_DIR / "rag" / "snapshots",
+        metavar="PASTA",
+        help="pasta dos snapshots (padrão: rag/snapshots)",
     )
     return p
 
@@ -310,6 +326,52 @@ def _feedback_eval(args) -> int:
     return 0
 
 
+def _rag_load(args) -> int:
+    from worker.rag import load_snapshots, read_snapshots
+
+    snapshots = read_snapshots(args.snapshots)
+    _require_database()
+    log.info(
+        "%d snapshot(s) em %s. Se precisar gerar os embeddings, a primeira vez baixa o modelo %s",
+        len(snapshots),
+        args.snapshots,
+        get_settings().embedding_model,
+    )
+    clock = perf_counter()
+    for name, result in load_snapshots(get_engine(), snapshots):
+        if result.loaded:
+            replaced = (
+                f"; {result.replaced_chunks} trechos antigos substituídos"
+                if result.replaced_chunks
+                else ""
+            )
+            log.info(
+                "%s (%s): %d artigos em %d trechos carregados%s",
+                result.source_id,
+                name,
+                result.articles,
+                result.chunks,
+                replaced,
+            )
+        else:
+            log.info(
+                "%s (%s): já está na base (%d artigos, %d trechos): nada a fazer",
+                result.source_id,
+                name,
+                result.articles,
+                result.chunks,
+            )
+        if result.review_status != "reviewed":
+            log.warning(
+                "%s está como %s: o chat só usa a fonte depois de revisada (review_status"
+                " reviewed no snapshot; depois rode rag-load de novo)",
+                result.source_id,
+                result.review_status,
+            )
+    log.info("pronto em %.0f s", perf_counter() - clock)
+    return 0
+
+
 def _batch(args) -> int:
     # Os argumentos são conferidos antes de tudo: data errada não espera o banco nem o modelo.
     dates = {
@@ -360,6 +422,8 @@ def main(argv: list[str] | None = None) -> int:
             return _simulate(args)
         if args.command == "feedback-eval":
             return _feedback_eval(args)
+        if args.command == "rag-load":
+            return _rag_load(args)
         if args.command == "serve":
             _require_database()
             from worker.jobs import serve

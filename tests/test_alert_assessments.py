@@ -9,6 +9,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from api.dependencies import LOCAL_USER
 from api.repositories.alert_assessments import (
     save_generated_assessment,
     validate_generated_assessment,
@@ -49,9 +50,7 @@ def fake_connection(assessment_id=42):
 
 
 def test_valid_assessment_has_verified_citations():
-    result = validate_generated_assessment(
-        valid_assessment()
-    )
+    result = validate_generated_assessment(valid_assessment())
 
     assert result == ("F1", "F2")
 
@@ -69,9 +68,7 @@ def test_duplicate_citations_are_deduplicated():
 def test_assessment_without_citations_is_rejected():
     assessment = valid_assessment()
 
-    assessment.content = (
-        "Texto sem nenhuma referencia juridica."
-    )
+    assessment.content = "Texto sem nenhuma referencia juridica."
 
     with pytest.raises(
         ValueError,
@@ -83,9 +80,7 @@ def test_assessment_without_citations_is_rejected():
 def test_unknown_citation_is_rejected():
     assessment = valid_assessment()
 
-    assessment.content = (
-        "Referencia inexistente [F99]."
-    )
+    assessment.content = "Referencia inexistente [F99]."
 
     with pytest.raises(
         ValueError,
@@ -108,9 +103,7 @@ def test_empty_sources_are_rejected():
 def test_invalid_source_number_is_rejected():
     assessment = valid_assessment()
 
-    assessment.sources[0].title = (
-        "[F3] Fonte com identificador incorreto"
-    )
+    assessment.sources[0].title = "[F3] Fonte com identificador incorreto"
 
     with pytest.raises(
         ValueError,
@@ -122,9 +115,7 @@ def test_invalid_source_number_is_rejected():
 def test_source_without_official_https_is_rejected():
     assessment = valid_assessment()
 
-    assessment.sources[0].excerpt = (
-        "Fonte sem endereco oficial HTTPS."
-    )
+    assessment.sources[0].excerpt = "Fonte sem endereco oficial HTTPS."
 
     with pytest.raises(
         ValueError,
@@ -174,12 +165,14 @@ def test_valid_assessment_is_persisted():
         alert_id=882,
         assessment=valid_assessment(),
         model="gemini-3.5-flash-lite",
+        suggested_typology=None,
+        user=LOCAL_USER,
     )
 
     assert assessment_id == 42
-    conn.execute.assert_called_once()
+    assert conn.execute.call_count == 2
 
-    sql, params = conn.execute.call_args.args
+    sql, params = conn.execute.call_args_list[0].args
 
     sql_text = str(sql)
 
@@ -201,6 +194,29 @@ def test_valid_assessment_is_persisted():
     # A persistencia nao deve criar uma decisao de analista.
     assert "INSERT INTO decisions" not in sql_text
 
+    audit_sql, audit_params = conn.execute.call_args_list[1].args
+    assert "INSERT INTO audit_log" in str(audit_sql)
+    assert audit_params["actor"] == LOCAL_USER.name
+    assert audit_params["action"] == "assessment_generated"
+
+
+def test_suggested_typology_updates_alert_in_same_transaction():
+    conn = fake_connection(assessment_id=42)
+
+    save_generated_assessment(
+        conn,
+        alert_id=882,
+        assessment=valid_assessment(),
+        model="gemini-3.5-flash-lite",
+        suggested_typology="fan_out",
+        user=LOCAL_USER,
+    )
+
+    assert conn.execute.call_count == 3
+    update_sql, update_params = conn.execute.call_args_list[1].args
+    assert "UPDATE alerts" in str(update_sql)
+    assert update_params == {"id": 882, "typology": "Fan-out"}
+
 
 def test_invalid_assessment_never_reaches_database():
     conn = fake_connection()
@@ -214,6 +230,8 @@ def test_invalid_assessment_never_reaches_database():
             alert_id=882,
             assessment=assessment,
             model="gemini-3.5-flash-lite",
+            suggested_typology=None,
+            user=LOCAL_USER,
         )
 
     conn.execute.assert_not_called()
@@ -235,6 +253,8 @@ def test_invalid_alert_id_is_rejected(alert_id):
             alert_id=alert_id,
             assessment=valid_assessment(),
             model="gemini-3.5-flash-lite",
+            suggested_typology=None,
+            user=LOCAL_USER,
         )
 
     conn.execute.assert_not_called()
@@ -252,6 +272,8 @@ def test_empty_model_is_rejected():
             alert_id=882,
             assessment=valid_assessment(),
             model=" ",
+            suggested_typology=None,
+            user=LOCAL_USER,
         )
 
     conn.execute.assert_not_called()
@@ -269,4 +291,6 @@ def test_invalid_returned_id_is_rejected():
             alert_id=882,
             assessment=valid_assessment(),
             model="gemini-3.5-flash-lite",
+            suggested_typology=None,
+            user=LOCAL_USER,
         )

@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" xmlns:di="http://www.omg.org/spec/DD/20100524/DI" xmlns:color="http://www.omg.org/spec/BPMN/non-normative/color/1.0" id="Definitions_period_processing" targetNamespace="https://github.com/TCS-Financial-Bootcamp-Team/fraudradar/docs/bpmn">
+  <bpmn:collaboration id="Collaboration_period_processing">
+    <bpmn:participant id="Participant_data_sources" name="Fontes de dados (CSV, API, banco externo, simulador)" />
+    <bpmn:participant id="Participant_fraudradar" name="FraudRadar PLD" processRef="Process_period_processing" />
+    <bpmn:participant id="Participant_analyst" name="Analista de PLD (pelas telas)" />
+    <bpmn:messageFlow id="MessageFlow_transactions" name="Transações (sem gabarito)" sourceRef="Participant_data_sources" targetRef="Event_transactions_arrive" />
+    <bpmn:messageFlow id="MessageFlow_process_now" name="Clique no botão" sourceRef="Participant_analyst" targetRef="Event_process_now" />
+  </bpmn:collaboration>
+  <bpmn:process id="Process_period_processing" name="Entrada de dados e processamento do período" isExecutable="false">
+    <bpmn:documentation>Detalhe da entrada de transações e da atividade &quot;Processar o período aberto&quot; do diagrama 1 (01-aml-monitoring.bpmn).</bpmn:documentation>
+    <bpmn:laneSet id="LaneSet_period_processing">
+      <bpmn:lane id="Lane_api" name="API (entrada de dados)">
+        <bpmn:flowNodeRef>Event_transactions_arrive</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_validate_submission</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_submission_valid</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_submission_rejected</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_store_transactions</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_submission_source</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_wait_next_run</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_processing_requested</bpmn:flowNodeRef>
+      </bpmn:lane>
+      <bpmn:lane id="Lane_worker" name="Worker (processamento em lote)">
+        <bpmn:flowNodeRef>Event_processing_requested_catch</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_run_interval</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_process_now</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_run_merge</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_enqueue_process</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Task_read_new_transactions</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Gateway_has_new</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_nothing_new</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>SubProcess_week</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_week_error</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_job_failed</bpmn:flowNodeRef>
+        <bpmn:flowNodeRef>Event_queue_updated</bpmn:flowNodeRef>
+      </bpmn:lane>
+    </bpmn:laneSet>
+    <bpmn:startEvent id="Event_transactions_arrive" name="Transações recebidas">
+      <bpmn:outgoing>Flow_01</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Event_transactions_arrive_definition" messageRef="Message_transacoes_recebidas" />
+    </bpmn:startEvent>
+    <bpmn:serviceTask id="Task_validate_submission" name="Validar o envio (CSV e API: tudo ou nada)">
+      <bpmn:incoming>Flow_01</bpmn:incoming>
+      <bpmn:outgoing>Flow_02</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_submission_valid" name="Envio válido?">
+      <bpmn:incoming>Flow_02</bpmn:incoming>
+      <bpmn:outgoing>Flow_03</bpmn:outgoing>
+      <bpmn:outgoing>Flow_04</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_submission_rejected" name="Envio recusado, com a lista de erros">
+      <bpmn:incoming>Flow_03</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:serviceTask id="Task_store_transactions" name="Gravar as transações e o registro do envio">
+      <bpmn:incoming>Flow_04</bpmn:incoming>
+      <bpmn:outgoing>Flow_05</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_submission_source" name="Importação ou simulação?">
+      <bpmn:incoming>Flow_05</bpmn:incoming>
+      <bpmn:outgoing>Flow_06</bpmn:outgoing>
+      <bpmn:outgoing>Flow_07</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_wait_next_run" name="Aguarda a próxima rodada">
+      <bpmn:incoming>Flow_06</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Event_processing_requested" name="Processamento pedido">
+      <bpmn:incoming>Flow_07</bpmn:incoming>
+      <bpmn:signalEventDefinition id="Event_processing_requested_definition" signalRef="Signal_processamento_pedido" />
+    </bpmn:endEvent>
+    <bpmn:startEvent id="Event_processing_requested_catch" name="Processamento pedido">
+      <bpmn:outgoing>Flow_08</bpmn:outgoing>
+      <bpmn:signalEventDefinition id="Event_processing_requested_catch_definition" signalRef="Signal_processamento_pedido" />
+    </bpmn:startEvent>
+    <bpmn:startEvent id="Event_run_interval" name="Horário da rodada (padrão: a cada 1 h)">
+      <bpmn:outgoing>Flow_09</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="Event_run_interval_definition">
+        <bpmn:timeCycle xsi:type="bpmn:tFormalExpression">R/PT1H</bpmn:timeCycle>
+      </bpmn:timerEventDefinition>
+    </bpmn:startEvent>
+    <bpmn:startEvent id="Event_process_now" name="Pedido 'Processar agora'">
+      <bpmn:outgoing>Flow_10</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="Event_process_now_definition" messageRef="Message_processar_agora" />
+    </bpmn:startEvent>
+    <bpmn:exclusiveGateway id="Gateway_run_merge">
+      <bpmn:incoming>Flow_08</bpmn:incoming>
+      <bpmn:incoming>Flow_09</bpmn:incoming>
+      <bpmn:incoming>Flow_10</bpmn:incoming>
+      <bpmn:outgoing>Flow_11</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:serviceTask id="Task_enqueue_process" name="Pegar da fila o trabalho 'process' do conjunto">
+      <bpmn:incoming>Flow_11</bpmn:incoming>
+      <bpmn:outgoing>Flow_12</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:serviceTask id="Task_read_new_transactions" name="Ler as transações novas (e da fonte acompanhada)">
+      <bpmn:incoming>Flow_12</bpmn:incoming>
+      <bpmn:outgoing>Flow_13</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:exclusiveGateway id="Gateway_has_new" name="Há transação nova?">
+      <bpmn:incoming>Flow_13</bpmn:incoming>
+      <bpmn:outgoing>Flow_14</bpmn:outgoing>
+      <bpmn:outgoing>Flow_15</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+    <bpmn:endEvent id="Event_nothing_new" name="Nada novo">
+      <bpmn:incoming>Flow_14</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:subProcess id="SubProcess_week" name="Para cada semana nova ou aberta, em ordem" triggeredByEvent="false">
+      <bpmn:incoming>Flow_15</bpmn:incoming>
+      <bpmn:outgoing>Flow_23</bpmn:outgoing>
+      <bpmn:multiInstanceLoopCharacteristics isSequential="true" />
+      <bpmn:startEvent id="Event_week_start">
+        <bpmn:outgoing>Flow_16</bpmn:outgoing>
+      </bpmn:startEvent>
+      <bpmn:serviceTask id="Task_compute_features" name="Calcular as variáveis das contas (histórico)">
+        <bpmn:incoming>Flow_16</bpmn:incoming>
+        <bpmn:outgoing>Flow_17</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Task_score_transactions" name="Dar nota a cada transação com o modelo ativo">
+        <bpmn:incoming>Flow_17</bpmn:incoming>
+        <bpmn:outgoing>Flow_18</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Task_build_queue" name="Montar a fila por conta (nota ≥ corte, até 300)">
+        <bpmn:incoming>Flow_18</bpmn:incoming>
+        <bpmn:outgoing>Flow_19</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Task_control_sample" name="Sortear a amostra de controle fora da fila">
+        <bpmn:incoming>Flow_19</bpmn:incoming>
+        <bpmn:outgoing>Flow_20</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Task_store_evidence" name="Gravar as evidências (contribuições, regras, sinais)">
+        <bpmn:incoming>Flow_20</bpmn:incoming>
+        <bpmn:outgoing>Flow_21</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:serviceTask id="Task_store_week" name="Gravar a semana de uma vez (alertas com decisão ficam)">
+        <bpmn:incoming>Flow_21</bpmn:incoming>
+        <bpmn:outgoing>Flow_22</bpmn:outgoing>
+      </bpmn:serviceTask>
+      <bpmn:endEvent id="Event_week_end">
+        <bpmn:incoming>Flow_22</bpmn:incoming>
+      </bpmn:endEvent>
+      <bpmn:sequenceFlow id="Flow_16" sourceRef="Event_week_start" targetRef="Task_compute_features" />
+      <bpmn:sequenceFlow id="Flow_17" sourceRef="Task_compute_features" targetRef="Task_score_transactions" />
+      <bpmn:sequenceFlow id="Flow_18" sourceRef="Task_score_transactions" targetRef="Task_build_queue" />
+      <bpmn:sequenceFlow id="Flow_19" sourceRef="Task_build_queue" targetRef="Task_control_sample" />
+      <bpmn:sequenceFlow id="Flow_20" sourceRef="Task_control_sample" targetRef="Task_store_evidence" />
+      <bpmn:sequenceFlow id="Flow_21" sourceRef="Task_store_evidence" targetRef="Task_store_week" />
+      <bpmn:sequenceFlow id="Flow_22" sourceRef="Task_store_week" targetRef="Event_week_end" />
+    </bpmn:subProcess>
+    <bpmn:boundaryEvent id="Event_week_error" name="Falha" attachedToRef="SubProcess_week">
+      <bpmn:outgoing>Flow_24</bpmn:outgoing>
+      <bpmn:errorEventDefinition id="Event_week_error_definition" errorRef="Error_falha_ao_processar_a_semana" />
+    </bpmn:boundaryEvent>
+    <bpmn:endEvent id="Event_job_failed" name="Trabalho falhou: a semana com erro não é gravada">
+      <bpmn:incoming>Flow_24</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:endEvent id="Event_queue_updated" name="Fila atualizada">
+      <bpmn:incoming>Flow_23</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_01" sourceRef="Event_transactions_arrive" targetRef="Task_validate_submission" />
+    <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_validate_submission" targetRef="Gateway_submission_valid" />
+    <bpmn:sequenceFlow id="Flow_03" name="Não" sourceRef="Gateway_submission_valid" targetRef="Event_submission_rejected" />
+    <bpmn:sequenceFlow id="Flow_04" name="Sim" sourceRef="Gateway_submission_valid" targetRef="Task_store_transactions" />
+    <bpmn:sequenceFlow id="Flow_05" sourceRef="Task_store_transactions" targetRef="Gateway_submission_source" />
+    <bpmn:sequenceFlow id="Flow_06" name="Não (CSV ou API)" sourceRef="Gateway_submission_source" targetRef="Event_wait_next_run" />
+    <bpmn:sequenceFlow id="Flow_07" name="Sim" sourceRef="Gateway_submission_source" targetRef="Event_processing_requested" />
+    <bpmn:sequenceFlow id="Flow_08" sourceRef="Event_processing_requested_catch" targetRef="Gateway_run_merge" />
+    <bpmn:sequenceFlow id="Flow_09" sourceRef="Event_run_interval" targetRef="Gateway_run_merge" />
+    <bpmn:sequenceFlow id="Flow_10" sourceRef="Event_process_now" targetRef="Gateway_run_merge" />
+    <bpmn:sequenceFlow id="Flow_11" sourceRef="Gateway_run_merge" targetRef="Task_enqueue_process" />
+    <bpmn:sequenceFlow id="Flow_12" sourceRef="Task_enqueue_process" targetRef="Task_read_new_transactions" />
+    <bpmn:sequenceFlow id="Flow_13" sourceRef="Task_read_new_transactions" targetRef="Gateway_has_new" />
+    <bpmn:sequenceFlow id="Flow_14" name="Não" sourceRef="Gateway_has_new" targetRef="Event_nothing_new" />
+    <bpmn:sequenceFlow id="Flow_15" name="Sim" sourceRef="Gateway_has_new" targetRef="SubProcess_week" />
+    <bpmn:sequenceFlow id="Flow_23" sourceRef="SubProcess_week" targetRef="Event_queue_updated" />
+    <bpmn:sequenceFlow id="Flow_24" sourceRef="Event_week_error" targetRef="Event_job_failed" />
+    <bpmn:textAnnotation id="Note_entry_rules">
+      <bpmn:text>O gabarito nunca entra pela API. Banco externo: antes de importar, o analista vê o teste de compatibilidade e escolhe se os dados continuam o conjunto atual ou formam um conjunto novo.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_entry_rules" associationDirection="None" sourceRef="Note_entry_rules" targetRef="Event_transactions_arrive" />
+    <bpmn:textAnnotation id="Note_open_period">
+      <bpmn:text>Uma semana por vez, numa transação só do banco. Só o período aberto (a semana mais recente) é recalculado; os períodos fechados ficam congelados.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_open_period" associationDirection="None" sourceRef="Note_open_period" targetRef="SubProcess_week" />
+    <bpmn:textAnnotation id="Note_control_sample">
+      <bpmn:text>Padrão: 5 contas por semana (de 0 a 50), sorteadas sem olhar a nota. Ficam fora das contagens e mostram o que a fila deixa passar.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_control_sample" associationDirection="None" sourceRef="Note_control_sample" targetRef="Task_control_sample" />
+    <bpmn:textAnnotation id="Note_decided_alerts">
+      <bpmn:text>Alertas que já têm decisão ficam como estão; os sem decisão são trocados pela fila nova. Conta com decisão não ganha outro alerta na mesma semana.</bpmn:text>
+    </bpmn:textAnnotation>
+    <bpmn:association id="Association_Note_decided_alerts" associationDirection="None" sourceRef="Note_decided_alerts" targetRef="Task_store_week" />
+  </bpmn:process>
+  <bpmn:message id="Message_transacoes_recebidas" name="Transações recebidas" />
+  <bpmn:message id="Message_processar_agora" name="Processar agora" />
+  <bpmn:signal id="Signal_processamento_pedido" name="Processamento pedido" />
+  <bpmn:error id="Error_falha_ao_processar_a_semana" name="Falha ao processar a semana" />
+  <bpmndi:BPMNDiagram id="BPMNDiagram_period_processing" name="Entrada de dados e processamento do período">
+    <bpmndi:BPMNPlane id="BPMNPlane_period_processing" bpmnElement="Collaboration_period_processing">
+      <bpmndi:BPMNShape id="Participant_data_sources_di" bpmnElement="Participant_data_sources" isHorizontal="true">
+        <dc:Bounds x="0" y="0" width="2285" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_fraudradar_di" bpmnElement="Participant_fraudradar" isHorizontal="true">
+        <dc:Bounds x="0" y="110" width="2285" height="660" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Participant_analyst_di" bpmnElement="Participant_analyst" isHorizontal="true">
+        <dc:Bounds x="0" y="820" width="2285" height="60" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_api_di" bpmnElement="Lane_api" isHorizontal="true">
+        <dc:Bounds x="30" y="110" width="2255" height="250" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Lane_worker_di" bpmnElement="Lane_worker" isHorizontal="true">
+        <dc:Bounds x="30" y="360" width="2255" height="410" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="SubProcess_week_di" bpmnElement="SubProcess_week" isExpanded="true">
+        <dc:Bounds x="958" y="490" width="1164" height="150" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_transactions_arrive_di" bpmnElement="Event_transactions_arrive">
+        <dc:Bounds x="165" y="275" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="138" y="317" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_validate_submission_di" bpmnElement="Task_validate_submission">
+        <dc:Bounds x="283" y="248" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_submission_valid_di" bpmnElement="Gateway_submission_valid" isMarkerVisible="true">
+        <dc:Bounds x="488" y="268" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="472" y="324" width="82" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_submission_rejected_di" bpmnElement="Event_submission_rejected">
+        <dc:Bounds x="660" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="704" y="157" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_store_transactions_di" bpmnElement="Task_store_transactions">
+        <dc:Bounds x="613" y="248" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_submission_source_di" bpmnElement="Gateway_submission_source" isMarkerVisible="true">
+        <dc:Bounds x="818" y="268" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="798" y="324" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_wait_next_run_di" bpmnElement="Event_wait_next_run">
+        <dc:Bounds x="990" y="275" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="963" y="317" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_processing_requested_di" bpmnElement="Event_processing_requested">
+        <dc:Bounds x="990" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1034" y="164" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_processing_requested_catch_di" bpmnElement="Event_processing_requested_catch">
+        <dc:Bounds x="165" y="417" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="138" y="459" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_run_interval_di" bpmnElement="Event_run_interval">
+        <dc:Bounds x="165" y="547" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="138" y="589" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_process_now_di" bpmnElement="Event_process_now">
+        <dc:Bounds x="165" y="677" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="205" y="715" width="90" height="42" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_run_merge_di" bpmnElement="Gateway_run_merge" isMarkerVisible="true">
+        <dc:Bounds x="323" y="540" width="50" height="50" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_enqueue_process_di" bpmnElement="Task_enqueue_process">
+        <dc:Bounds x="448" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_read_new_transactions_di" bpmnElement="Task_read_new_transactions">
+        <dc:Bounds x="613" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Gateway_has_new_di" bpmnElement="Gateway_has_new" isMarkerVisible="true">
+        <dc:Bounds x="818" y="540" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="798" y="596" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_nothing_new_di" bpmnElement="Event_nothing_new">
+        <dc:Bounds x="825" y="417" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="869" y="428" width="58" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_week_start_di" bpmnElement="Event_week_start">
+        <dc:Bounds x="990" y="547" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_compute_features_di" bpmnElement="Task_compute_features">
+        <dc:Bounds x="1066" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_score_transactions_di" bpmnElement="Task_score_transactions">
+        <dc:Bounds x="1231" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_build_queue_di" bpmnElement="Task_build_queue">
+        <dc:Bounds x="1396" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_control_sample_di" bpmnElement="Task_control_sample">
+        <dc:Bounds x="1561" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_store_evidence_di" bpmnElement="Task_store_evidence">
+        <dc:Bounds x="1726" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Task_store_week_di" bpmnElement="Task_store_week">
+        <dc:Bounds x="1891" y="520" width="130" height="90" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_week_end_di" bpmnElement="Event_week_end">
+        <dc:Bounds x="2054" y="547" width="36" height="36" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_week_error_di" bpmnElement="Event_week_error">
+        <dc:Bounds x="2012" y="622" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2053" y="660" width="34" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_job_failed_di" bpmnElement="Event_job_failed">
+        <dc:Bounds x="2128" y="677" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2172" y="667" width="90" height="56" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Event_queue_updated_di" bpmnElement="Event_queue_updated">
+        <dc:Bounds x="2186" y="547" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="2159" y="589" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_entry_rules_di" bpmnElement="Note_entry_rules">
+        <dc:Bounds x="213" y="136" width="250" height="102" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_open_period_di" bpmnElement="Note_open_period">
+        <dc:Bounds x="1018" y="390" width="300" height="72" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_control_sample_di" bpmnElement="Note_control_sample">
+        <dc:Bounds x="1793" y="390" width="270" height="72" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Note_decided_alerts_di" bpmnElement="Note_decided_alerts">
+        <dc:Bounds x="1318" y="655" width="330" height="57" />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
+        <di:waypoint x="201" y="293" />
+        <di:waypoint x="283" y="293" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_02_di" bpmnElement="Flow_02">
+        <di:waypoint x="413" y="293" />
+        <di:waypoint x="488" y="293" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_03_di" bpmnElement="Flow_03">
+        <di:waypoint x="513" y="268" />
+        <di:waypoint x="513" y="178" />
+        <di:waypoint x="660" y="178" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="519" y="246" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_04_di" bpmnElement="Flow_04">
+        <di:waypoint x="538" y="293" />
+        <di:waypoint x="613" y="293" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="544" y="276" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_05_di" bpmnElement="Flow_05">
+        <di:waypoint x="743" y="293" />
+        <di:waypoint x="818" y="293" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_06_di" bpmnElement="Flow_06">
+        <di:waypoint x="868" y="293" />
+        <di:waypoint x="990" y="293" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="874" y="262" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_07_di" bpmnElement="Flow_07">
+        <di:waypoint x="843" y="268" />
+        <di:waypoint x="843" y="178" />
+        <di:waypoint x="990" y="178" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="849" y="246" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_08_di" bpmnElement="Flow_08">
+        <di:waypoint x="201" y="435" />
+        <di:waypoint x="348" y="435" />
+        <di:waypoint x="348" y="540" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_09_di" bpmnElement="Flow_09">
+        <di:waypoint x="201" y="565" />
+        <di:waypoint x="323" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_10_di" bpmnElement="Flow_10">
+        <di:waypoint x="201" y="695" />
+        <di:waypoint x="348" y="695" />
+        <di:waypoint x="348" y="590" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_11_di" bpmnElement="Flow_11">
+        <di:waypoint x="373" y="565" />
+        <di:waypoint x="448" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_12_di" bpmnElement="Flow_12">
+        <di:waypoint x="578" y="565" />
+        <di:waypoint x="613" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_13_di" bpmnElement="Flow_13">
+        <di:waypoint x="743" y="565" />
+        <di:waypoint x="818" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_14_di" bpmnElement="Flow_14">
+        <di:waypoint x="843" y="540" />
+        <di:waypoint x="843" y="453" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="849" y="518" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_15_di" bpmnElement="Flow_15">
+        <di:waypoint x="868" y="565" />
+        <di:waypoint x="958" y="565" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="874" y="548" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
+        <di:waypoint x="1026" y="565" />
+        <di:waypoint x="1066" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17">
+        <di:waypoint x="1196" y="565" />
+        <di:waypoint x="1231" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_18_di" bpmnElement="Flow_18">
+        <di:waypoint x="1361" y="565" />
+        <di:waypoint x="1396" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_19_di" bpmnElement="Flow_19">
+        <di:waypoint x="1526" y="565" />
+        <di:waypoint x="1561" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_20_di" bpmnElement="Flow_20">
+        <di:waypoint x="1691" y="565" />
+        <di:waypoint x="1726" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_21_di" bpmnElement="Flow_21">
+        <di:waypoint x="1856" y="565" />
+        <di:waypoint x="1891" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_22_di" bpmnElement="Flow_22">
+        <di:waypoint x="2021" y="565" />
+        <di:waypoint x="2054" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_23_di" bpmnElement="Flow_23">
+        <di:waypoint x="2122" y="565" />
+        <di:waypoint x="2186" y="565" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_24_di" bpmnElement="Flow_24">
+        <di:waypoint x="2030" y="658" />
+        <di:waypoint x="2030" y="695" />
+        <di:waypoint x="2128" y="695" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_transactions_di" bpmnElement="MessageFlow_transactions">
+        <di:waypoint x="183" y="60" />
+        <di:waypoint x="183" y="275" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="191" y="66" width="90" height="28" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="MessageFlow_process_now_di" bpmnElement="MessageFlow_process_now">
+        <di:waypoint x="183" y="820" />
+        <di:waypoint x="183" y="713" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="191" y="800" width="90" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_entry_rules_di" bpmnElement="Association_Note_entry_rules">
+        <di:waypoint x="263" y="238" />
+        <di:waypoint x="197" y="282" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_open_period_di" bpmnElement="Association_Note_open_period">
+        <di:waypoint x="1264" y="462" />
+        <di:waypoint x="1339" y="490" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_control_sample_di" bpmnElement="Association_Note_control_sample">
+        <di:waypoint x="1849" y="462" />
+        <di:waypoint x="1691" y="535" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Association_Note_decided_alerts_di" bpmnElement="Association_Note_decided_alerts">
+        <di:waypoint x="1596" y="655" />
+        <di:waypoint x="1891" y="581" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>
