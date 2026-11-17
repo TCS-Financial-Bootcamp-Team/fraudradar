@@ -4,10 +4,18 @@ from __future__ import annotations
 
 import json
 import re
+import unicodedata
 from collections import Counter
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
+
+from fraudradar.ai.legal_generation import (
+    ASSESSMENT_MAX_OUTPUT_TOKENS,
+    ASSESSMENT_SYSTEM_INSTRUCTION,
+    CHAT_MAX_OUTPUT_TOKENS,
+    SYSTEM_INSTRUCTION,
+)
 
 TYPOLOGY_LABELS = {
     "structuring": "Estruturação",
@@ -76,6 +84,8 @@ class AlertAIRequest:
 
     prompt: str
     retrieval_query: str
+    system_instruction: str = SYSTEM_INSTRUCTION
+    max_output_tokens: int = CHAT_MAX_OUTPUT_TOKENS
 
 
 @dataclass(frozen=True)
@@ -108,6 +118,64 @@ def assessment_plain_text(content: str) -> str:
         plain_lines.append(line.rstrip())
 
     return re.sub(r"\n{3,}", "\n\n", "\n".join(plain_lines)).strip()
+
+
+def _section_heading(line: str) -> str | None:
+    """Reconhece títulos ATX ou uma linha inteira em negrito."""
+    stripped = line.strip()
+    if _HEADING_PREFIX.match(line):
+        return _HEADING_PREFIX.sub("", line).strip().rstrip("#").strip().strip("*").strip()
+    if stripped.startswith("**") and stripped.endswith("**") and len(stripped) > 4:
+        return stripped[2:-2].strip()
+    return None
+
+
+def _summary_excerpt(paragraph: str) -> str:
+    """Limita o texto legado perto de 300 caracteres, preferindo uma frase completa."""
+    if len(paragraph) <= 300:
+        return paragraph
+    boundaries = [match.end() for match in re.finditer(r"[.!?](?=\s|$)", paragraph)]
+    nearby = [end for end in boundaries if 180 <= end <= 360]
+    if nearby:
+        end = min(nearby, key=lambda boundary: abs(boundary - 300))
+    else:
+        earlier = [end for end in boundaries if end <= 300]
+        end = earlier[-1] if earlier else paragraph.rfind(" ", 0, 301)
+        if end <= 0:
+            end = 300
+    return paragraph[:end].rstrip() + ("…" if paragraph[end:].strip() else "")
+
+
+def assessment_summary(content: str) -> str:
+    """Extrai o Resumo ou o primeiro parágrafo de um parecer legado, sem serviços externos."""
+    lines = content.splitlines()
+    summary_lines: list[str] = []
+    in_summary = False
+    for line in lines:
+        heading = _section_heading(line)
+        if heading is not None:
+            if in_summary:
+                break
+            normalized = unicodedata.normalize("NFKD", heading.casefold())
+            normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+            in_summary = normalized == "resumo"
+        elif in_summary:
+            summary_lines.append(line)
+    summary = assessment_plain_text("\n".join(summary_lines))
+    if summary:
+        return " ".join(summary.split())
+
+    paragraph_lines: list[str] = []
+    for line in lines:
+        if _section_heading(line) is not None or not line.strip():
+            if paragraph_lines:
+                break
+            continue
+        paragraph_lines.append(line.strip())
+    paragraph = assessment_plain_text(" ".join(paragraph_lines))
+    # Mesmo um parecer antigo composto só de títulos precisa ter uma prévia.
+    fallback = paragraph or assessment_plain_text(content) or content.strip() or content
+    return _summary_excerpt(fallback)
 
 
 def _identifier_pattern(forbidden_values: Iterable[str]) -> re.Pattern[str] | None:
@@ -294,14 +362,16 @@ def build_assessment_request(prepared: PreparedAlertAI) -> AlertAIRequest:
     """Cria a solicitação de rascunho com uma linha final de tipologia controlada."""
     codes = ", ".join((*TYPOLOGY_LABELS, "indefinida"))
     question = (
-        "Elabore uma síntese preliminar deste alerta. Explique os principais sinais de risco, "
-        "as limitações das evidências e as diligências que o analista pode considerar. "
+        "Elabore um parecer preliminar deste alerta na estrutura Markdown definida nas "
+        "instruções do sistema, com resumo curto e relatório completo. "
         "Não afirme que houve lavagem de dinheiro. Termine com uma única linha no formato "
         f"'Tipologia sugerida: <code>', usando somente um destes códigos: {codes}."
     )
     return AlertAIRequest(
         prompt=_build_prompt(prepared, question),
         retrieval_query=ASSESSMENT_RETRIEVAL_QUERY,
+        system_instruction=ASSESSMENT_SYSTEM_INSTRUCTION,
+        max_output_tokens=ASSESSMENT_MAX_OUTPUT_TOKENS,
     )
 
 

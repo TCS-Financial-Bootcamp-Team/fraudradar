@@ -3,6 +3,8 @@
 from collections.abc import Callable
 
 from fraudradar.ai.legal_generation import (
+    CHAT_MAX_OUTPUT_TOKENS,
+    SYSTEM_INSTRUCTION,
     LegalAnswer,
     generate_legal_answer_from_settings,
 )
@@ -16,6 +18,8 @@ def generate_from_prepared_evidence(
     prepared: PreparedLegalEvidence,
     generator: Callable[..., LegalAnswer] | None = None,
     allow_pending_review: bool = False,
+    system_instruction: str = SYSTEM_INSTRUCTION,
+    max_output_tokens: int = CHAT_MAX_OUTPUT_TOKENS,
 ) -> LegalRagResult:
     """Generate outside the database connection, with safe 503 fallback.
 
@@ -46,6 +50,8 @@ def generate_from_prepared_evidence(
             question=question,
             context=prepared.context,
             allow_pending_review=allow_pending_review,
+            system_instruction=system_instruction,
+            max_output_tokens=max_output_tokens,
         )
     except Exception as error:
         if not _is_http_503(error):

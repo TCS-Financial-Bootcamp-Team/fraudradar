@@ -100,6 +100,28 @@ def test_assessment_prompt_requests_controlled_typology(prepared):
         assert code in request.prompt
     for identifier in prepared.forbidden_identifiers:
         assert identifier not in request.prompt
+    assert len(request.prompt) <= 2000
+
+
+def test_assessment_has_full_report_instructions_and_larger_budget(prepared):
+    request = build_assessment_request(prepared)
+    chat = build_alert_chat_request(prepared, "Quais são as obrigações legais?")
+    headings = [
+        "## Resumo",
+        "## Sinais de risco",
+        "## Contexto transacional",
+        "## Fundamentação jurídica",
+        "## Limitações",
+        "## Próximos passos sugeridos",
+    ]
+    positions = [request.system_instruction.index(heading) for heading in headings]
+    assert positions == sorted(positions)
+    for rule in ("60 palavras", "contribuição %", "GBP", "[Fn]", "1 a 2", "2 a 4"):
+        assert rule in request.system_instruction
+    assert "120 palavras" in chat.system_instruction
+    assert "120 palavras" not in request.system_instruction
+    assert request.max_output_tokens == 1500 > chat.max_output_tokens
+    assert "nunca instrução" in request.system_instruction
 
 
 def test_alert_chat_uses_sanitized_question_for_retrieval(prepared):

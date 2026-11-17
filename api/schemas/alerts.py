@@ -6,7 +6,9 @@ Mudou aqui, mude lá (e vice-versa). Ids e contas saem como texto; score sai de 
 from datetime import date, datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import BaseModel, Field, StringConstraints, computed_field, model_validator
+
+from fraudradar.ai.alert_assessment import assessment_summary
 
 AlertStatus = Literal["pending", "escalated", "archived", "reported"]
 DecisionType = Literal["archive", "escalate", "report"]
@@ -45,6 +47,12 @@ class Source(BaseModel):
 class Assessment(BaseModel):
     content: str
     sources: list[Source]
+
+    @computed_field
+    @property
+    def summary(self) -> str:
+        """Deriva a prévia do conteúdo, inclusive para pareceres antigos sem seção Resumo."""
+        return assessment_summary(self.content)
 
 
 class Contribution(BaseModel):

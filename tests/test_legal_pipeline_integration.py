@@ -1,14 +1,20 @@
 """Offline integration tests for the legal RAG pipeline."""
 
+from contextlib import contextmanager
 from dataclasses import replace
 
 import pytest
 
+from api.legal_chat_service import answer_legal_chat
 from fraudradar.ai.documents import RetrievedDocument
 from fraudradar.ai.legal_chat_adapter import (
     legal_payload_to_chat_response,
 )
-from fraudradar.ai.legal_generation import LegalAnswer
+from fraudradar.ai.legal_generation import (
+    ASSESSMENT_MAX_OUTPUT_TOKENS,
+    ASSESSMENT_SYSTEM_INSTRUCTION,
+    LegalAnswer,
+)
 from fraudradar.ai.legal_pipeline import (
     generate_from_prepared_evidence,
 )
@@ -73,6 +79,38 @@ def test_generated_answer_has_valid_citations(prepared_evidence):
     assert result.answer.evidence_count == 2
 
 
+def test_service_passes_assessment_settings_through_pipeline(prepared_evidence):
+    class Engine:
+        active = False
+
+        @contextmanager
+        def connect(self):
+            self.active = True
+            try:
+                yield object()
+            finally:
+                self.active = False
+
+    engine = Engine()
+    calls = []
+
+    def generator(**kwargs):
+        assert not engine.active
+        calls.append(kwargs)
+        return valid_generator()
+
+    answer_legal_chat(
+        "Elabore um parecer deste alerta.",
+        engine=engine,
+        retriever=lambda *args, **kwargs: prepared_evidence,
+        generator=generator,
+        system_instruction=ASSESSMENT_SYSTEM_INSTRUCTION,
+        max_output_tokens=ASSESSMENT_MAX_OUTPUT_TOKENS,
+    )
+    assert calls[0]["system_instruction"] == ASSESSMENT_SYSTEM_INSTRUCTION
+    assert calls[0]["max_output_tokens"] == ASSESSMENT_MAX_OUTPUT_TOKENS
+
+
 def test_frontend_receives_cited_sources(prepared_evidence):
     result = generate_from_prepared_evidence(
         question="What are the legal requirements?",
@@ -114,7 +152,7 @@ def test_provider_503_preserves_evidence(prepared_evidence):
     response = legal_payload_to_chat_response(payload)
 
     assert len(response.sources) == 2
-    assert "indisponivel" in response.answer.lower()
+    assert "indisponível" in response.answer.lower()
 
 
 def test_unknown_citation_is_rejected(prepared_evidence):
