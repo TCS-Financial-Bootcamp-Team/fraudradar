@@ -1,18 +1,30 @@
 {
   "title": "Assistente",
   "general": "Geral",
-  "alertContext": "Alerta {id}",
+  "alertContext": "Contexto: Alerta #{id}",
+  "alertContextTooltip": "A IA recebe os dados deste alerta sem números de conta.",
+  "disableAlertContext": "Não usar o contexto desta página",
+  "enableAlertContext": "Usar contexto",
   "weekContext": "Semana de {week}",
   "close": "Fechar assistente",
   "suggestions": {
     "typology": "O que é a tipologia fan-out?",
     "legal": "O que a lei exige ao comunicar ao COAF?",
-    "checkAlert": "O que verificar primeiro neste alerta?"
+    "decisionLaundering": "Isso parece lavagem de verdade?",
+    "decisionAgainst": "O que pesa contra este alerta?",
+    "decisionMissing": "O que falta verificar antes de decidir?"
   },
   "badge": {
     "legal": "Com base na Lei 9.613/1998",
     "domain": "Resposta geral, sem fonte jurídica",
-    "domainTooltip": "Explicação de conceito; para obrigações legais, pergunte o que a lei exige."
+    "domainTooltip": "Explicação de conceito; para obrigações legais, pergunte o que a lei exige.",
+    "decision": "Apoio à decisão — a decisão é sua",
+    "decisionTooltip": "Sugestão baseada nos dados do alerta; não registra decisão."
+  },
+  "strength": {
+    "weak": "Força dos indícios: fraca",
+    "moderate": "Força dos indícios: moderada",
+    "strong": "Força dos indícios: forte"
   },
   "disclaimer": "A IA auxilia a análise; a decisão é humana.",
   "pseudonymized": "Contas pseudonimizadas. A IA auxilia a análise; a decisão é humana.",

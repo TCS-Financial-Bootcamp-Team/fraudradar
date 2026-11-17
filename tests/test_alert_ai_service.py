@@ -73,6 +73,11 @@ def prepared(monkeypatch, evidence):
         "account_movements",
         lambda conn, account, week: movements,
     )
+    monkeypatch.setattr(
+        alert_ai_service,
+        "read_alert_ai_facts",
+        lambda *args: {"raw_contributions": {"amount": 7.0, "hour": -3.0}},
+    )
     return alert_ai_service.prepare_alert_ai(object(), 882)
 
 
@@ -137,9 +142,14 @@ def test_alert_chat_uses_sanitized_question_for_retrieval(prepared):
         assert identifier not in request.prompt
 
 
-def test_question_and_summary_above_legal_limit_are_rejected(prepared):
+def test_chat_accepts_full_question_with_richer_context(prepared):
+    request = build_alert_chat_request(prepared, "x" * 2000, cite_legal_sources=False)
+    assert len(request.prompt) <= 8000
+
+
+def test_chat_above_new_limit_is_rejected(prepared):
     with pytest.raises(AlertQuestionTooLongError):
-        build_alert_chat_request(prepared, "x" * 2000)
+        build_alert_chat_request(prepared, "x" * 8000)
 
 
 @pytest.mark.parametrize(

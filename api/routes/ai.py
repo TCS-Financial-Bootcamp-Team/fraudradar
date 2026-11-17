@@ -30,6 +30,7 @@ from fraudradar.ai.alert_assessment import (
     AlertQuestionTooLongError,
     build_alert_chat_request,
     build_assessment_request,
+    build_global_chat_prompt,
     parse_suggested_typology,
 )
 from fraudradar.ai.chat_router import route_chat_message
@@ -139,7 +140,7 @@ def _question_too_long() -> AppError:
     return AppError(
         status.HTTP_422_UNPROCESSABLE_CONTENT,
         "ai.question_too_long",
-        "A pergunta e o resumo do alerta excedem o limite de 2.000 caracteres.",
+        "A pergunta, o histórico e o resumo do alerta excedem o limite seguro.",
     )
 
 
@@ -242,7 +243,10 @@ def chat_about_alert(
             _set_dataset(conn, x_dataset)
             prepared = prepare_alert_ai(conn, alert_id)
         chat_request = build_alert_chat_request(
-            prepared, request.message, cite_legal_sources=route == "legal"
+            prepared,
+            request.message,
+            cite_legal_sources=route == "legal",
+            history=[item.model_dump() for item in request.history],
         )
     except AlertQuestionTooLongError as error:
         raise _question_too_long() from error
@@ -287,7 +291,14 @@ def chat(request: ChatRequest) -> ChatResponse:
         )
     try:
         route = route_chat_message(request.message, has_alert_context=False)
-        return answer_chat_message(request.message, route=route, legal_answerer=answer_legal_chat)
+        question = (
+            build_global_chat_prompt(
+                request.message, [item.model_dump() for item in request.history]
+            )
+            if route == "domain"
+            else request.message
+        )
+        return answer_chat_message(question, route=route, legal_answerer=answer_legal_chat)
     except (
         LegalLlmNotConfiguredError,
         LegalEvidenceUnavailableError,

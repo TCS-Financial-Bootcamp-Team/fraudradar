@@ -212,7 +212,14 @@ tipo de trabalho e um só acompanhamento (`web/src/features/jobs`).
 Pedido: {message, context: {page, week, alert_id?}, history}.
 Histórico: até 20 entradas {role: user | assistant, content}.
 Resposta: {kind, answer, sources: [{title, excerpt}]}.
-`kind` é obrigatório: `small_talk | legal | domain | out_of_scope`.
+`kind` é obrigatório: `small_talk | legal | domain | decision | out_of_scope`.
+`decision` só é retornado por `/alerts/{id}/chat`; no chat global vira `domain`.
+O pedido mantém o mesmo formato: pergunta com até 2.000 caracteres e até 20 mensagens
+de histórico, com até 8.000 caracteres por mensagem. O servidor usa somente as últimas
+seis, higieniza contas conhecidas e identificadores em texto livre antes de truncar,
+e limita falas anteriores do assistente a 1.500 caracteres (ou menos para caber no prompt).
+O histórico entra como dados na geração do alerta e de `domain` global; não entra na
+classificação nem na consulta de recuperação jurídica, que usa apenas a pergunta atual.
 
 As rotas `/chat` e `/alerts/{id}/chat` reconhecem conversas curtas por regras
 determinísticas: saudações, agradecimentos, despedidas, confirmações e perguntas
@@ -223,6 +230,10 @@ para o roteamento. A autenticação e a validação do pedido continuam obrigat�
 
 Marcadores jurídicos (lei, artigo, prazo, obrigação, COAF, comunicação, penalidades,
 sigilo, cadastro e registros, entre outros) escolhem `legal` sem chamar o roteador.
+Exceção: "devo comunicar este alerta?" usa `decision`, pois é um pedido explícito
+de apoio à decisão sem outro marcador jurídico. "O que a lei exige se eu comunicar
+este alerta?" permanece `legal`. Pedidos explícitos sobre arquivar/aprofundar,
+indícios a favor/contra ou o que falta decidir também dispensam classificação.
 As demais mensagens passam por uma chamada curta ao Gemini, com JSON e enum fixo;
 falhas, timeout ou saída inválida voltam ao caminho `legal`. A classificação recebe
 somente a mensagem com números ocultados e a indicação de contexto de alerta.
@@ -233,6 +244,26 @@ detalhe, usa um glossário versionado de tipologias, não afirma exigências leg
 a decisão com o analista. Retorna `sources: []`, remove marcadores `[Fn]` e rejeita respostas
 vazias com 502 `ai.provider_failed`. No chat do alerta, recebe o mesmo resumo financeiro
 higienizado, com o guarda de identificadores, sem a instrução de citar fontes jurídicas.
+
+O resumo do chat contextual inclui corte da versão ativa em `model_versions` e
+distância em pontos percentuais, posição e total da fila semanal (`origin=model`),
+origem com aviso de amostra de controle, versões ativa e do alerta, contribuições
+positivas e negativas (% do total absoluto SHAP), agregados do fluxo semanal completo
+(contrapartes em cada direção, totais GBP, percentuais entre países, em espécie e
+de valores redondos), histórico de até seis semanas/decisões com códigos de motivo e
+segmento K-Means quando existente. As contas nunca são serializadas. A coexistência
+de entradas e saídas não prova repasse; o grafo atual não detecta ciclos.
+O contexto tem até 5.000 caracteres e o prompt do chat até 8.000, com redução do
+histórico e dos registros antigos quando necessário. O parecer mantém o resumo compacto.
+
+`decision` usa geração própria, sem RAG, com cerca de 250 palavras e cinco seções
+Markdown: **Indícios a favor**, **Indícios contra**, **O que falta verificar**,
+**Força dos indícios: fraca | moderada | forte** (um valor e motivo na mesma linha),
+**Leitura sugerida**. A última traz "Sugestão: arquivar", "Sugestão: aprofundar" ou
+"Sugestão: comunicar" e "A decisão é do analista.". Não registra decisão nem afirma
+crime. Retorna `sources: []`; remove `[Fn]`. Resposta vazia, título ausente ou força
+inválida devolve 502 `ai.provider_failed`, sem retentativa. Os títulos são conferidos
+sem diferenciar caixa ou acentos.
 
 `out_of_scope` devolve, sem geração de resposta: "Só consigo ajudar com temas do FraudRadar:
 prevenção à lavagem de dinheiro, fraude financeira, os alertas e a comunicação ao COAF.

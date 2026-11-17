@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowUp, ChevronRight, Sparkles, X } from "lucide-react";
+import { ArrowUp, ChevronRight, ShieldCheck, Sparkles, X } from "lucide-react";
 import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
 import { LegalSourceItem } from "@/components/legal-source-item";
@@ -11,14 +11,103 @@ import { Markdown } from "@/components/markdown";
 import { Badge } from "@/components/ui/badge";
 import { useFormatters } from "@/i18n/use-formatters";
 import { getAlertIdFromPathname } from "@/lib/sidebar";
-import { useAssistant } from "../hooks/use-assistant";
+import { useAlertContextPreference, useAssistant } from "../hooks/use-assistant";
 import { getAnswerBadge } from "../lib/answer-badge";
+import { getSuggestionKeys, resolveEffectiveAlertId } from "../lib/context";
+import {
+  parseEvidenceStrength,
+  type EvidenceStrength,
+} from "../lib/decision-strength";
 import type { ChatKind, Source } from "../schemas/assistant";
 
-function getSuggestionKeys(alertId?: string) {
-  return alertId
-    ? (["typology", "legal", "checkAlert"] as const)
-    : (["typology", "legal"] as const);
+const STRENGTH_STYLES: Record<
+  EvidenceStrength,
+  { pill: string; dot: string }
+> = {
+  weak: {
+    pill: "border-border bg-soft/60 text-muted-foreground",
+    dot: "bg-muted-foreground",
+  },
+  moderate: {
+    pill: "border-warning/40 bg-warning/10 text-foreground",
+    dot: "bg-warning",
+  },
+  strong: {
+    pill: "border-signal/40 bg-signal/10 text-foreground",
+    dot: "bg-signal",
+  },
+};
+
+function EvidenceStrengthPill({ strength }: { strength: EvidenceStrength }) {
+  const t = useTranslations("assistant");
+  const styles = STRENGTH_STYLES[strength];
+
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        "h-auto max-w-full gap-1.5 whitespace-normal px-2 py-0.5 text-[11px] font-medium",
+        styles.pill,
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn("size-1.5 shrink-0 rounded-full", styles.dot)}
+      />
+      <span>{t(`strength.${strength}`)}</span>
+    </Badge>
+  );
+}
+
+function AlertContextControl({
+  alertId,
+  enabled,
+  onToggle,
+  className,
+}: {
+  alertId: string;
+  enabled: boolean;
+  onToggle: () => void;
+  className?: string;
+}) {
+  const t = useTranslations("assistant");
+
+  return (
+    <div
+      className={cn(
+        "flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border bg-soft/50 px-4 py-2 text-xs",
+        className,
+      )}
+    >
+      <span
+        title={t("alertContextTooltip")}
+        tabIndex={0}
+        className={cn(
+          "inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-0.5 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          enabled
+            ? "text-foreground"
+            : "text-muted-foreground line-through opacity-65",
+        )}
+      >
+        <ShieldCheck
+          className="size-3.5 shrink-0 text-muted-foreground"
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+        <span className="truncate tabular-nums">
+          {t("alertContext", { id: alertId })}
+        </span>
+      </span>
+      <button
+        type="button"
+        aria-pressed={enabled}
+        onClick={onToggle}
+        className="inline-flex min-h-7 shrink-0 items-center rounded-md border border-border bg-card px-2 py-0.5 text-[11px] font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {enabled ? t("disableAlertContext") : t("enableAlertContext")}
+      </button>
+    </div>
+  );
 }
 
 function AssistantKindBadge({
@@ -45,18 +134,24 @@ function AssistantKindBadge({
 
 function AssistantAnswerMeta({
   kind,
+  content,
   sources,
   className,
   withDivider = false,
 }: {
   kind?: ChatKind;
+  content?: string;
   sources?: Source[];
   className?: string;
   withDivider?: boolean;
 }) {
   const badge = getAnswerBadge(kind, sources);
+  const strength =
+    (!kind || kind === "decision") && content
+      ? parseEvidenceStrength(content)
+      : null;
   const hasSources = Boolean(sources && sources.length > 0);
-  if (!badge && !hasSources) return null;
+  if (!badge && !strength && !hasSources) return null;
 
   return (
     <div
@@ -66,7 +161,12 @@ function AssistantAnswerMeta({
         className,
       )}
     >
-      <AssistantKindBadge kind={kind} sources={sources} />
+      {(badge || strength) && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <AssistantKindBadge kind={kind} sources={sources} />
+          {strength && <EvidenceStrengthPill strength={strength} />}
+        </div>
+      )}
       <AssistantSources sources={sources} className="w-full" />
     </div>
   );
@@ -119,7 +219,10 @@ function AssistantSources({
  */
 export function Chat({ alertId }: { alertId?: string }) {
   const t = useTranslations("assistant");
-  const { messages, busy, send } = useAssistant(alertId);
+  const { enabled: shareAlertContext, toggle: toggleAlertContext } =
+    useAlertContextPreference();
+  const effectiveAlertId = resolveEffectiveAlertId(alertId, shareAlertContext);
+  const { messages, busy, send } = useAssistant(alertId, shareAlertContext);
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -140,6 +243,13 @@ export function Chat({ alertId }: { alertId?: string }) {
       <p className="border-b border-border bg-soft px-4 py-2.5 text-xs text-muted-foreground">
         {t("pseudonymized")}
       </p>
+      {alertId && (
+        <AlertContextControl
+          alertId={alertId}
+          enabled={shareAlertContext}
+          onToggle={toggleAlertContext}
+        />
+      )}
       <div
         role="log"
         aria-label={t("logAssistant")}
@@ -155,7 +265,7 @@ export function Chat({ alertId }: { alertId?: string }) {
               {t("emptyShort")}
             </p>
             <div className="mt-4 flex flex-col gap-2">
-              {getSuggestionKeys(alertId).map((key) => (
+              {getSuggestionKeys(effectiveAlertId).map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -190,6 +300,7 @@ export function Chat({ alertId }: { alertId?: string }) {
             {m.role === "assistant" && (
               <AssistantAnswerMeta
                 kind={m.kind}
+                content={m.content}
                 sources={m.sources}
                 withDivider
               />
@@ -249,8 +360,11 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
   const format = useFormatters();
   const pathname = usePathname();
   const alertId = getAlertIdFromPathname(pathname);
+  const { enabled: shareAlertContext, toggle: toggleAlertContext } =
+    useAlertContextPreference();
+  const effectiveAlertId = resolveEffectiveAlertId(alertId, shareAlertContext);
   const { week } = useAppContext();
-  const { messages, busy, send } = useAssistant(alertId);
+  const { messages, busy, send } = useAssistant(alertId, shareAlertContext);
   const [draft, setDraft] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -277,12 +391,15 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
 
   if (!isOpen) return null;
 
-  const contextChip = alertId
-    ? t("alertContext", { id: alertId })
-    : week
-      ? t("weekContext", { week: format.shortDate(week) })
-      : t("general");
-  const suggestions = getSuggestionKeys(alertId).map((key) =>
+  const nonAlertChip = week
+    ? t("weekContext", { week: format.shortDate(week) })
+    : t("general");
+  const headerChip = alertId
+    ? shareAlertContext
+      ? null
+      : t("general")
+    : nonAlertChip;
+  const suggestions = getSuggestionKeys(effectiveAlertId).map((key) =>
     t(`suggestions.${key}`),
   );
 
@@ -309,16 +426,18 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
       data-assistant-drawer="open"
       className="fixed inset-y-0 right-0 z-40 flex h-screen w-[400px] max-w-full flex-col border-l border-border bg-card text-foreground shadow-xl [animation:assistant-drawer-in_0.2s_ease-out]"
     >
-      {/* Topo do drawer: 60px com ícone, título, chip de contexto e fechar */}
+      {/* Topo do drawer: 60px com ícone, título, chip de contexto geral e fechar */}
       <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-border px-4 sm:px-5">
         <div className="flex min-w-0 items-center gap-2.5">
           <Sparkles className="size-4 shrink-0 text-foreground" strokeWidth={1.5} />
           <span className="text-sm font-semibold text-foreground">
             {t("title")}
           </span>
-          <span className="truncate rounded-full bg-soft px-2 py-0.5 text-xs font-normal text-muted-foreground">
-            {contextChip}
-          </span>
+          {headerChip && (
+            <span className="truncate rounded-full bg-soft px-2 py-0.5 text-xs font-normal text-muted-foreground">
+              {headerChip}
+            </span>
+          )}
         </div>
         <button
           type="button"
@@ -329,6 +448,15 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
           <X className="size-4" strokeWidth={1.5} />
         </button>
       </div>
+
+      {alertId && (
+        <AlertContextControl
+          alertId={alertId}
+          enabled={shareAlertContext}
+          onToggle={toggleAlertContext}
+          className="sm:px-5"
+        />
+      )}
 
       {/* Histórico de mensagens / estado vazio */}
       <div
@@ -387,6 +515,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
               {m.role === "assistant" && (
                 <AssistantAnswerMeta
                   kind={m.kind}
+                  content={m.content}
                   sources={m.sources}
                   className="w-full max-w-[92%]"
                 />

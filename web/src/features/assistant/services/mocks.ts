@@ -3,6 +3,8 @@ import type { ChatRequest, ChatResponse } from "../schemas/assistant";
 const GREETING_RE =
   /^(oi|ol[aá]|bom dia|boa tarde|boa noite|tudo bem|e a[ií]|hello|hi|hey)(\s+(tudo bem|pessoal|assistente))?[!?.]*$/i;
 const LEGAL_RE = /\b(lei|artigo|law)\b|art\.|9\.?613/i;
+const DECISION_RE =
+  /\b(lavagem de verdade|parece lavagem|(?:isso|isto)\s+[eé]\s+lavagem|pesa contra|falta verificar|antes de decidir|devo (arquivar|aprofundar|comunicar)|arquivar ou comunicar|real money laundering|look like.*laundering|weighs against|missing before deciding|should i (archive|escalate|report))\b/i;
 const DOMAIN_RE =
   /\b(fan[-\s]?out|fan[-\s]?in|alerta|alerts?|tipologia|typology|pld|aml|lavagem|laundering|smurf\w*|regra|rules?|score|semana|week|verificar|check|analis\w*|analy\w*|conta|account|transa[cç][aã]o|transaction|parecer|assessment|comunica\w*|report\w*|coaf|ciclo|cycle|gather|scatter)\b/i;
 
@@ -30,6 +32,33 @@ export function chatResponseMock(request: ChatRequest): ChatResponse {
             "As pessoas referidas no art. 9º dispensarão especial atenção às operações que possam constituir-se em sérios indícios dos crimes previstos nesta Lei e deverão comunicá-las ao COAF no prazo de 24 horas.",
         },
       ],
+    };
+  }
+
+  if (DECISION_RE.test(normalized)) {
+    const alertLabel = request.context.alert_id
+      ? `no alerta #${request.context.alert_id}`
+      : "nos dados analisados";
+    return {
+      kind: "decision",
+      answer: [
+        `**Indícios a favor**`,
+        `- Concentração atípica de transferências na janela semanal ${alertLabel}, compatível com dispersão rápida de valores.`,
+        `- Regras de cenário e contribuições SHAP apontam desvio relevante frente ao histórico recente da conta titular.`,
+        ``,
+        `**Indícios contra**`,
+        `- Parte das contrapartes aparece em movimentações recorrentes de mesma moeda e praça, o que pode refletir atividade operacional legítima.`,
+        `- Não há confirmação automática de vínculo ilícito nem histórico prévio de comunicação aprovada.`,
+        ``,
+        `**O que falta verificar**`,
+        `- Confirmar a finalidade econômica das saídas no grafo de conexões e checar se houve alertas em semanas anteriores.`,
+        `- Validar justificativa cadastral e compatibilidade de renda/faturamento fora do recorte transacional.`,
+        ``,
+        `**Força dos indícios:** moderada`,
+        ``,
+        `**Leitura sugerida:** aprofundar — revisar as contrapartes principais e a linha do tempo antes de decidir entre arquivar ou comunicar ao COAF.`,
+      ].join("\n"),
+      sources: [],
     };
   }
 
