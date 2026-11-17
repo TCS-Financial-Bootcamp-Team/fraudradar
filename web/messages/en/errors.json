@@ -81,6 +81,7 @@
     "ingestion_malformed_csv": "Malformed CSV: check the quotes.",
     "ingestion_header_only": "The CSV has no transactions, only the header.",
     "ai_unavailable": "The AI assistant is not yet available in this API version.",
+    "ai_not_configured": "The legal chat is not configured on the API (set LLM_MODEL and the Gemini key).",
     "ai_chat_alert_route": "Use the alert chat for questions about an alert.",
     "ai_chat_personal_data": "Remove personal or financial identifiers from the question (long numbers or e-mails).",
     "ai_no_legal_sources": "No reviewed legal source is available.",

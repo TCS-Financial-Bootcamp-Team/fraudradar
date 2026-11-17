@@ -34,6 +34,41 @@ class LegalAnswer:
     evidence_count: int
 
 
+class LegalLlmNotConfiguredError(ValueError):
+    """The Gemini settings are missing (LLM_PROVIDER, LLM_MODEL or the API key).
+
+    The API answers 503: it is a server setup problem, not a bad question.
+    """
+
+
+class LegalAnswerRejectedError(ValueError):
+    """Gemini answered, but the text cannot be shown (empty or without valid citations).
+
+    The API answers 502: the provider returned an unusable response.
+    """
+
+
+def gemini_settings() -> tuple[str, str]:
+    """Return the Gemini model and API key, or raise LegalLlmNotConfiguredError."""
+    settings = get_settings()
+
+    if settings.llm_provider != "gemini":
+        raise LegalLlmNotConfiguredError("O provedor configurado nao e Gemini.")
+
+    model = (settings.llm_model or "").strip()
+
+    if not model:
+        raise LegalLlmNotConfiguredError("Defina LLM_MODEL no arquivo .env.")
+
+    # GEMINI_API_KEY, or GOOGLE_API_KEY when the first one is empty.
+    api_key = settings.llm_api_key
+
+    if not api_key:
+        raise LegalLlmNotConfiguredError("Chave do Gemini nao configurada.")
+
+    return model, api_key
+
+
 def _parse_context(
     context: str,
     *,
@@ -120,19 +155,21 @@ def generate_legal_answer(
     answer = response.text
 
     if not isinstance(answer, str) or not answer.strip():
-        raise ValueError("Gemini retornou resposta vazia.")
+        raise LegalAnswerRejectedError("Gemini retornou resposta vazia.")
 
     found = re.findall(r"\[F([0-9]+)\]", answer)
 
     citations = tuple(dict.fromkeys(f"F{number}" for number in found))
 
     if not citations:
-        raise ValueError("Resposta sem citacoes verificaveis.")
+        raise LegalAnswerRejectedError("Resposta sem citacoes verificaveis.")
 
     unknown = set(citations) - valid_citations
 
     if unknown:
-        raise ValueError("Resposta com citacoes inexistentes: " + ", ".join(sorted(unknown)))
+        raise LegalAnswerRejectedError(
+            "Resposta com citacoes inexistentes: " + ", ".join(sorted(unknown))
+        )
 
     return LegalAnswer(
         text=answer.strip(),
@@ -149,20 +186,7 @@ def generate_legal_answer_from_settings(
     allow_pending_review: bool = False,
 ) -> LegalAnswer:
     """Generate through the configured Gemini provider."""
-    settings = get_settings()
-
-    if settings.llm_provider != "gemini":
-        raise ValueError("O provedor configurado nao e Gemini.")
-
-    model = settings.llm_model
-
-    if not model:
-        raise ValueError("Defina LLM_MODEL no arquivo .env.")
-
-    api_key = settings.gemini_api_key or settings.google_api_key
-
-    if not api_key:
-        raise ValueError("Chave do Gemini nao configurada.")
+    model, api_key = gemini_settings()
 
     # Validate the context before creating the external client.
     _parse_context(

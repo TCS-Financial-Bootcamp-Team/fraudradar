@@ -1,10 +1,17 @@
-"""Prepare versioned legal articles for FraudRadar RAG ingestion."""
+"""Prepare and load versioned legal articles for FraudRadar RAG ingestion.
+
+`python -m worker rag-load` calls load_legal_snapshot for each file in rag/snapshots/.
+"""
 
 import hashlib
 from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy import Connection, text
+
 from fraudradar.ai.chunking import split_document
+from fraudradar.ai.ingestion import ingest_document
+from fraudradar.config import get_settings
 
 
 @dataclass(frozen=True)
@@ -127,3 +134,98 @@ def prepare_legal_snapshot(
         )
 
     return prepared
+
+
+@dataclass(frozen=True)
+class LegalSnapshotLoad:
+    """What load_legal_snapshot did with one snapshot."""
+
+    source_id: str
+    review_status: str
+    articles: int
+    chunks: int
+    loaded: bool
+    replaced_chunks: int
+
+
+def load_legal_snapshot(
+    conn: Connection,
+    snapshot: dict[str, Any],
+) -> LegalSnapshotLoad:
+    """Make rag_documents match one snapshot. The caller controls the transaction.
+
+    Each source carries the snapshot hash, so the same source always holds the same
+    text. When every article already has its chunks, with the snapshot review status
+    and the configured embedding model, nothing changes and nothing is embedded.
+    Otherwise the chunks of the snapshot sources are deleted and inserted again, which
+    also applies an approval (pending_review -> reviewed) or a new embedding model.
+    Chunks of other snapshot versions are kept: the chat filters by the active hash.
+    """
+    articles = prepare_legal_snapshot(snapshot)
+    review_status = snapshot["review_status"]
+    sources = [article.source for article in articles]
+    expected = {article.source: article.expected_chunks for article in articles}
+    chunks = sum(expected.values())
+
+    rows = conn.execute(
+        text("""
+            SELECT
+                source,
+                count(*) AS chunks,
+                bool_and(
+                    coalesce(
+                        metadata->>'review_status' = :review_status
+                        AND metadata->>'embedding_model' = :embedding_model,
+                        false
+                    )
+                ) AS up_to_date
+            FROM rag_documents
+            WHERE source = ANY(:sources)
+            GROUP BY source
+        """),
+        {
+            "sources": sources,
+            "review_status": review_status,
+            "embedding_model": get_settings().embedding_model,
+        },
+    ).all()
+
+    stored = {row.source: (row.chunks, row.up_to_date) for row in rows}
+
+    if stored == {source: (count, True) for source, count in expected.items()}:
+        return LegalSnapshotLoad(
+            source_id=snapshot["source_id"],
+            review_status=review_status,
+            articles=len(articles),
+            chunks=chunks,
+            loaded=False,
+            replaced_chunks=0,
+        )
+
+    replaced = conn.execute(
+        text("DELETE FROM rag_documents WHERE source = ANY(:sources)"),
+        {"sources": sources},
+    ).rowcount
+
+    for article in articles:
+        # The same chunking that prepare_legal_snapshot measured and recorded.
+        ids = ingest_document(
+            conn,
+            source=article.source,
+            content=article.content,
+            metadata=article.metadata,
+            max_chars=article.metadata["chunking_max_chars"],
+            overlap_chars=article.metadata["chunking_overlap_chars"],
+        )
+
+        if len(ids) != article.expected_chunks:
+            raise ValueError(f"Quantidade de trechos inesperada: {article.reference}")
+
+    return LegalSnapshotLoad(
+        source_id=snapshot["source_id"],
+        review_status=review_status,
+        articles=len(articles),
+        chunks=chunks,
+        loaded=True,
+        replaced_chunks=replaced,
+    )

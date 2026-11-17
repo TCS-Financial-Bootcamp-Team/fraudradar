@@ -82,6 +82,7 @@ uv run pytest                               # testes; os da API usam o Postgres 
 uv run ruff check . && uv run ruff format .  # lint e formatação
 docker compose run --rm worker replay       # roda o worker (job em lote; seção Worker)
 docker compose run --rm worker batch --week 2023-05-22
+docker compose run --rm worker rag-load     # carrega a Lei 9.613 na base do chat jurídico
 uv run --group ml python -m fraudradar.model train  # treina o LightGBM (SAML-D.csv em data/)
 cd web && pnpm install && pnpm dev          # front em modo dev (com a API rodando)
 docker compose down                         # para tudo (o volume do banco fica)
@@ -158,7 +159,7 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `POST /alerts/{id}/report/approve` | aprova a comunicação e encerra o alerta |
 | `GET /monitoring?week=` | indicadores e séries da semana (score_histogram e status_counts); sem recall: as telas de operação não usam o gabarito |
 | `GET /feedback/summary` | retorno dos analistas: rótulos, precisão confirmada, amostra de controle e se dá para retreinar com ele |
-| `POST /chat` | pergunta jurídica geral, respondida com o RAG da Lei 9.613 e citações (frente 3); precisa de `LLM_MODEL`, da chave do Gemini e da base em `rag_documents` |
+| `POST /chat` | pergunta jurídica geral, respondida com o RAG da Lei 9.613 e citações (frente 3); precisa de `LLM_MODEL` e da chave do Gemini (sem eles, 503 `ai.not_configured`) e da base em `rag_documents`, que o `python -m worker rag-load` carrega (sem ela, 503 `ai.no_legal_sources`) |
 | `POST /alerts/{id}/assessment`, `/alerts/{id}/chat` | ainda respondem 503: o parecer e o chat do alerta não existem |
 | `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
 | `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
@@ -227,6 +228,7 @@ todo período processado. Precisa do grupo `ml` e de um modelo treinado em `mode
 | `python -m worker labels [--dataset SLUG]` | mede de novo o gabarito (semanas rotuladas e se há lavagem) e grava em `public.datasets`, que a API usa para liberar o retreino; sem `--dataset`, todos os conjuntos registrados. Para um banco que já existia (seção "Como rodar") |
 | `python -m worker simulate-analyst [--from DATA] [--to DATA] [--error-rate 0.1] [--insufficient-rate 0.2] [--seed N] [--undo]` | analista simulado da demonstração: decide pelo gabarito os alertas sem decisão das semanas fechadas, com erro de propósito; `--undo` desfaz (`docs/analyst-feedback.md`) |
 | `python -m worker feedback-eval [--include-simulated]` | o experimento honesto do retorno: controle e tratamento na mesma divisão, em `models/<slug>/feedback-eval-*.json`, sem registrar versão |
+| `python -m worker rag-load [--snapshots PASTA]` | carrega os snapshots de `rag/snapshots/` (hoje, a Lei 9.613) em `rag_documents`, a base do chat jurídico. Confere os hashes e grava tudo ou nada. Rodar de novo só refaz o snapshot que mudou, como a aprovação da revisão. Não precisa do grupo `ml`, só do `ai` |
 
 `batch` e `backfill` aceitam `--force` (refaz uma semana já processada) e `--allow-in-sample`
 (aceita uma semana do período de treino do modelo). O worker sai com 0 quando dá certo ou não

@@ -9,7 +9,7 @@ from sqlalchemy import Engine
 
 from api.schemas.chat import ChatResponse
 from fraudradar.ai.legal_chat_adapter import legal_payload_to_chat_response
-from fraudradar.ai.legal_generation import LegalAnswer
+from fraudradar.ai.legal_generation import LegalAnswer, gemini_settings
 from fraudradar.ai.legal_pipeline import generate_from_prepared_evidence
 from fraudradar.ai.legal_presentation import present_legal_rag
 from fraudradar.ai.legal_retrieval import (
@@ -64,6 +64,11 @@ def answer_legal_chat(
 
     if len(question) > 2000:
         raise ValueError("Pergunta juridica excede 2000 caracteres.")
+
+    # Without the Gemini settings the answer would fail anyway: fail before the
+    # retrieval, which loads the embedding model and queries the database.
+    if generator is None:
+        gemini_settings()
 
     source_id, snapshot_sha256 = _active_legal_source()
 
