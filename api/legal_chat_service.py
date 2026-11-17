@@ -76,7 +76,7 @@ def answer_legal_chat(
 
     reply = small_talk_reply(question)
     if reply is not None:
-        return ChatResponse(answer=reply, sources=[])
+        return ChatResponse(kind="small_talk", answer=reply, sources=[])
 
     search_question = question if retrieval_query is None else retrieval_query
     if not isinstance(search_question, str) or not search_question.strip():

@@ -141,11 +141,12 @@ def test_small_movement_ids_do_not_collide_with_context_date():
 
 
 @pytest.mark.parametrize("leaked", ["8865018891", "2487415444"])
-def test_context_guard_blocks_account_or_counterparty(leaked):
+@pytest.mark.parametrize("cite_legal_sources", [True, False])
+def test_context_guard_blocks_account_or_counterparty(leaked, cite_legal_sources):
     prepared = build_sample()
     unsafe = PreparedAlertAI(
         context={**prepared.context, "country": leaked},
         forbidden_identifiers=prepared.forbidden_identifiers,
     )
     with pytest.raises(AlertContextBlockedError):
-        build_alert_chat_request(unsafe, "Explique o risco.")
+        build_alert_chat_request(unsafe, "Explique o risco.", cite_legal_sources=cite_legal_sources)

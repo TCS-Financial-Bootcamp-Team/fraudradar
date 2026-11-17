@@ -232,7 +232,7 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 | `ChatRequest` / `chatRequestSchema` | `PedidoChat {mensagem, contexto, historico}` | `message`, `context`, `history` |
 | `ChatContext` | `ContextoChat {pagina, semana, alerta_id}` | `page`, `week`, `alert_id` |
 | `Message` / `messageSchema` | `Mensagem {papel, texto}` | `role` (`user`, `assistant`), `content` |
-| `ChatResponse` / `chatResponseSchema` | `RespostaChat {resposta, fontes}` | `answer`, `sources` (vazio em conversa curta; só fontes citadas em respostas geradas; todas as recuperadas no fallback de indisponibilidade do LLM) |
+| `ChatResponse` / `chatResponseSchema` | `RespostaChat {resposta, fontes}` | `kind` (obrigatório: `small_talk`, `legal`, `domain`, `out_of_scope`), `answer`, `sources` (vazio fora de `legal`; só fontes citadas nas respostas jurídicas geradas; todas as recuperadas no fallback jurídico de indisponibilidade do LLM) |
 | `TransactionRequest` / `transactionSchema` | `PedidoTransacao` | colunas do SAML-D, sem mudança |
 | `Receipt` / `receiptSchema` | `Recibo {id, status, mensagem}` | `id`, `status` (`received`, `processing`, `completed`), `message` |
 | `DataSource` / `dataSourceSchema` | `FonteDados {id, nome, tipo, host_mascarado, banco_mascarado, status, ultima_sincronizacao}` | `id`, `name`, `type` (`postgres`), `masked_host`, `masked_database`, `status` (`connected`, `syncing`, `error`), `last_synced_at` |

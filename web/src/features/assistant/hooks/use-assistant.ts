@@ -51,6 +51,7 @@ export function useAssistant(alertId?: string) {
             role: "assistant",
             content: response.answer,
             sources: response.sources.length > 0 ? response.sources : undefined,
+            kind: response.kind,
           },
         ]);
       }

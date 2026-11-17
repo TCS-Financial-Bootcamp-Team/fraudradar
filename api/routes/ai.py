@@ -14,6 +14,7 @@ from fastapi import APIRouter, Header, status
 from google.genai import errors as genai_errors
 
 from api.alert_ai_service import prepare_alert_ai
+from api.chat_service import answer_chat_message
 from api.dependencies import CurrentUser
 from api.domain import AlertId, get_alert_row
 from api.errors import AppError
@@ -31,8 +32,8 @@ from fraudradar.ai.alert_assessment import (
     build_assessment_request,
     parse_suggested_typology,
 )
+from fraudradar.ai.chat_router import route_chat_message
 from fraudradar.ai.legal_chat_adapter import LLM_UNAVAILABLE_ANSWER
-from fraudradar.ai.legal_chat_intent import small_talk_reply
 from fraudradar.ai.legal_generation import (
     LegalAnswerRejectedError,
     LegalLlmNotConfiguredError,
@@ -221,7 +222,7 @@ def chat_about_alert(
     request: ChatRequest,
     x_dataset: DatasetHeader = "saml-d",
 ) -> ChatResponse:
-    """Responde sobre um alerta com fatos protegidos e fontes jurídicas revisadas."""
+    """Encaminha dúvidas sobre um alerta usando somente fatos protegidos na geração."""
     if request.context.alert_id is not None and request.context.alert_id != str(alert_id):
         raise AppError(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -229,9 +230,9 @@ def chat_about_alert(
             "O alerta informado não corresponde ao alerta selecionado.",
         )
 
-    reply = small_talk_reply(request.message)
-    if reply is not None:
-        return ChatResponse(answer=reply, sources=[])
+    route = route_chat_message(request.message, has_alert_context=True)
+    if route in {"small_talk", "out_of_scope"}:
+        return answer_chat_message(request.message, route=route)
 
     _configured_model()
     engine = get_engine()
@@ -240,16 +241,20 @@ def chat_about_alert(
             _set_timeout(conn)
             _set_dataset(conn, x_dataset)
             prepared = prepare_alert_ai(conn, alert_id)
-        legal_request = build_alert_chat_request(prepared, request.message)
+        chat_request = build_alert_chat_request(
+            prepared, request.message, cite_legal_sources=route == "legal"
+        )
     except AlertQuestionTooLongError as error:
         raise _question_too_long() from error
     except AlertContextBlockedError as error:
         raise _context_blocked() from error
 
     try:
-        return answer_legal_chat(
-            legal_request.prompt,
-            retrieval_query=legal_request.retrieval_query,
+        return answer_chat_message(
+            chat_request.prompt,
+            route=route,
+            retrieval_query=chat_request.retrieval_query,
+            legal_answerer=answer_legal_chat,
         )
     except (
         LegalLlmNotConfiguredError,
@@ -262,21 +267,27 @@ def chat_about_alert(
 
 @router.post("/chat", response_model=ChatResponse, responses=_RESPONSES)
 def chat(request: ChatRequest) -> ChatResponse:
-    """Responde perguntas jurídicas gerais com as fontes revisadas do RAG."""
+    """Encaminha perguntas gerais ao domínio, à base jurídica ou a respostas fixas."""
     if request.context.alert_id is not None:
         raise AppError(
             status.HTTP_400_BAD_REQUEST,
             "ai.chat_alert_route",
             "Use a rota de chat do alerta para perguntas sobre alertas.",
         )
-    if re.search(r"\d{5,}|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", request.message):
+    if re.search(
+        r"\d{5,}|[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}|"
+        r"\b(?:contas?|accounts?)\s*(?:n[º°o.]?\s*|número\s*|#\s*|:\s*)?\d",
+        request.message,
+        re.IGNORECASE,
+    ):
         raise AppError(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "ai.chat_personal_data",
             "Remova identificadores pessoais ou financeiros da pergunta.",
         )
     try:
-        return answer_legal_chat(request.message)
+        route = route_chat_message(request.message, has_alert_context=False)
+        return answer_chat_message(request.message, route=route, legal_answerer=answer_legal_chat)
     except (
         LegalLlmNotConfiguredError,
         LegalEvidenceUnavailableError,

@@ -6,13 +6,15 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from api import legal_chat_service
+from api import chat_service, legal_chat_service
 from api.dependencies import LOCAL_USER, get_current_user
 from api.legal_chat_service import LegalEvidenceUnavailableError
 from api.main import create_app
 from api.routes import ai
 from api.schemas.alerts import Source
 from api.schemas.chat import ChatResponse
+from fraudradar.ai import chat_router
+from fraudradar.ai.domain_chat import OUT_OF_SCOPE_REPLY
 from fraudradar.ai.legal_chat_intent import small_talk_reply
 
 
@@ -51,6 +53,7 @@ def test_chat_http_200_with_sources(http_client, chat_request):
     def simulated_service(question):
         calls.append(question)
         return ChatResponse(
+            kind="legal",
             answer="Synthetic answer supported by [F1].",
             sources=[
                 Source(
@@ -68,6 +71,7 @@ def test_chat_http_200_with_sources(http_client, chat_request):
 
     assert response.status_code == 200
     payload = response.json()
+    assert payload["kind"] == "legal"
     assert "[F1]" in payload["answer"]
     assert len(payload["sources"]) == 1
     assert "[F1]" in payload["sources"][0]["title"]
@@ -102,7 +106,8 @@ def test_chat_http_422_for_empty_message(http_client, chat_request):
     assert response.status_code == 422
 
 
-def test_chat_http_422_for_numeric_identifier(http_client, chat_request):
+@pytest.mark.parametrize("identifier", ["12345678901", "42", "nº 42", "número 42", "#42"])
+def test_chat_http_422_for_numeric_identifier(http_client, chat_request, identifier):
     _, client = http_client
 
     with patch(
@@ -113,7 +118,7 @@ def test_chat_http_422_for_numeric_identifier(http_client, chat_request):
             "/chat",
             json={
                 **chat_request,
-                "message": "Analise a conta 12345678901",
+                "message": f"Analise a conta {identifier}",
             },
         )
 
@@ -177,9 +182,92 @@ def test_small_talk_bypasses_all_external_work(
         monkeypatch.setattr(legal_chat_service, name, forbidden_service)
     for name in ("gemini_settings", "get_engine", "prepare_alert_ai"):
         monkeypatch.setattr(ai, name, forbidden_service)
+    monkeypatch.setattr(chat_router, "_classify_from_settings", forbidden_service)
+    monkeypatch.setattr(chat_service, "generate_domain_answer_from_settings", forbidden_service)
     context = {**chat_request["context"]}
     if path != "/chat":
         context["alert_id"] = "882"
     response = client.post(path, json={**chat_request, "message": message, "context": context})
     assert response.status_code == 200
-    assert response.json() == {"answer": small_talk_reply(message), "sources": []}
+    assert response.json() == {
+        "kind": "small_talk",
+        "answer": small_talk_reply(message),
+        "sources": [],
+    }
+
+
+@pytest.mark.parametrize("route", ["domain", "out_of_scope"])
+def test_global_chat_without_retrieval_or_database(http_client, chat_request, monkeypatch, route):
+    _, client = http_client
+    classifier = []
+
+    def classify(**kwargs):
+        classifier.append(kwargs)
+        return '{"route":"' + route + '"}'
+
+    monkeypatch.setattr(chat_router, "_classify_from_settings", classify)
+    for name in (
+        "get_engine",
+        "_active_legal_source",
+        "prepare_legal_evidence",
+        "generate_from_prepared_evidence",
+    ):
+        monkeypatch.setattr(legal_chat_service, name, forbidden_service)
+    monkeypatch.setattr(ai, "get_engine", forbidden_service)
+    monkeypatch.setattr(ai, "answer_legal_chat", forbidden_service)
+    generated = []
+
+    def generate(*, question):
+        generated.append(question)
+        return "Fan-out dispersa recursos de uma conta para várias contas [F1]."
+
+    monkeypatch.setattr(
+        chat_service,
+        "generate_domain_answer_from_settings",
+        generate if route == "domain" else forbidden_service,
+    )
+    message = "Explique a tipologia fan-out" if route == "domain" else "quando o titanic afundou"
+    response = client.post("/chat", json={**chat_request, "message": message})
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "kind": route,
+        "answer": (
+            "Fan-out dispersa recursos de uma conta para várias contas."
+            if route == "domain"
+            else OUT_OF_SCOPE_REPLY
+        ),
+        "sources": [],
+    }
+    assert classifier == [{"message": message, "has_alert_context": False}]
+    assert generated == ([message] if route == "domain" else [])
+
+
+@pytest.mark.parametrize("answer", [None, "", "[F1] [F2]"])
+def test_global_domain_empty_response_is_502(http_client, chat_request, monkeypatch, answer):
+    _, client = http_client
+    monkeypatch.setattr(
+        chat_router, "_classify_from_settings", lambda **kwargs: '{"route":"domain"}'
+    )
+    monkeypatch.setattr(
+        chat_service, "generate_domain_answer_from_settings", lambda **kwargs: answer
+    )
+    response = client.post("/chat", json={**chat_request, "message": "Explique fan-out"})
+    assert response.status_code == 502
+    assert response.json()["code"] == "ai.provider_failed"
+
+
+def test_global_router_failure_keeps_cited_legal_path(http_client, chat_request, monkeypatch):
+    _, client = http_client
+
+    def timeout(**kwargs):
+        raise TimeoutError("Tempo esgotado.")
+
+    monkeypatch.setattr(chat_router, "_classify_from_settings", timeout)
+    with patch(
+        "api.routes.ai.answer_legal_chat",
+        return_value=ChatResponse(kind="legal", answer="Resposta jurídica [F1].", sources=[]),
+    ) as legal:
+        response = client.post("/chat", json={**chat_request, "message": "Explique fan-out"})
+    assert response.status_code == 200
+    assert response.json()["kind"] == "legal"
+    legal.assert_called_once_with("Explique fan-out")

@@ -349,6 +349,7 @@ def test_assessment_generates_persists_and_returns_in_detail(client, seed, monke
     ):
         calls.append((prompt, retrieval_query))
         return ChatResponse(
+            kind="legal",
             answer=simulated_assessment.content + "\nTipologia sugerida: fan_out",
             sources=simulated_assessment.sources,
         )

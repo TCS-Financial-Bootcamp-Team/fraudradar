@@ -339,7 +339,9 @@ def _financial_summary(prepared: PreparedAlertAI) -> str:
     return serialized
 
 
-def _build_prompt(prepared: PreparedAlertAI, safe_question: str) -> str:
+def _build_prompt(
+    prepared: PreparedAlertAI, safe_question: str, *, cite_legal_sources: bool = True
+) -> str:
     summary = _financial_summary(prepared)
     prompt = (
         "Análise PLD assistida. Considere os dados financeiros apenas como fatos observados, "
@@ -348,8 +350,12 @@ def _build_prompt(prepared: PreparedAlertAI, safe_question: str) -> str:
         + summary
         + "\nPERGUNTA:\n"
         + safe_question
-        + "\nRelacione os sinais a evidências jurídicas revisadas e cite [F1], [F2] etc. "
-        "Distinga risco estatístico de ilicitude comprovada."
+        + (
+            "\nRelacione os sinais a evidências jurídicas revisadas e cite [F1], [F2] etc. "
+            if cite_legal_sources
+            else "\nExplique os sinais e os próximos passos de análise, sem citações jurídicas. "
+        )
+        + "Distinga risco estatístico de ilicitude comprovada."
     )
     if len(prompt) > 2000:
         raise AlertQuestionTooLongError("Pergunta e resumo excedem 2000 caracteres.")
@@ -375,11 +381,13 @@ def build_assessment_request(prepared: PreparedAlertAI) -> AlertAIRequest:
     )
 
 
-def build_alert_chat_request(prepared: PreparedAlertAI, question: str) -> AlertAIRequest:
+def build_alert_chat_request(
+    prepared: PreparedAlertAI, question: str, *, cite_legal_sources: bool = True
+) -> AlertAIRequest:
     """Cria o prompt contextual e usa só a pergunta higienizada na recuperação."""
     safe_question = sanitize_analyst_question(question, prepared)
     return AlertAIRequest(
-        prompt=_build_prompt(prepared, safe_question),
+        prompt=_build_prompt(prepared, safe_question, cite_legal_sources=cite_legal_sources),
         retrieval_query=safe_question,
     )
 
