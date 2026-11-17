@@ -158,7 +158,10 @@ function ShellContent({
           title={t("notifications.title")}
           onClose={() => setNotificationsOpen(false)}
         >
-          <div className="flex flex-col gap-4 p-5">
+          <div
+            aria-busy={queue.refreshing || undefined}
+            className="flex flex-col gap-4 p-5"
+          >
             <p className="text-sm text-muted-foreground">
               {t("notifications.intro")}
             </p>

@@ -30,6 +30,7 @@ export const queueSchema = z.object({
 });
 export const assessmentSchema = z.object({
   content: z.string(),
+  summary: z.string().nullish(),
   sources: z.array(z.object({ title: z.string(), excerpt: z.string() })),
 });
 export const alertDetailSchema = alertSchema.extend({

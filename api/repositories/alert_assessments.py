@@ -54,11 +54,13 @@ def validate_generated_assessment(
     if not sources or len(sources) > _MAX_SOURCES:
         raise ValueError("Parecer sem fontes validas.")
 
-    expected = tuple(f"F{number}" for number in range(1, len(sources) + 1))
+    source_numbers = []
 
-    for citation_id, source in zip(expected, sources, strict=True):
-        if not source.title.startswith(f"[{citation_id}]"):
+    for source in sources:
+        match = re.match(r"^\[F([1-9][0-9]*)\](?:\s|$)", source.title)
+        if match is None:
             raise ValueError("Identificador da fonte inconsistente.")
+        source_numbers.append(int(match[1]))
 
         if not source.excerpt.strip():
             raise ValueError("Fonte juridica sem evidencia.")
@@ -66,6 +68,10 @@ def validate_generated_assessment(
         if "Fonte oficial: https://" not in source.excerpt:
             raise ValueError("Fonte oficial HTTPS ausente.")
 
+    if source_numbers != sorted(set(source_numbers)):
+        raise ValueError("Identificador da fonte duplicado ou fora de ordem.")
+
+    expected = tuple(f"F{number}" for number in source_numbers)
     found = tuple(dict.fromkeys(f"F{number}" for number in _CITATION.findall(content)))
 
     if not found:
@@ -73,6 +79,9 @@ def validate_generated_assessment(
 
     if not set(found).issubset(set(expected)):
         raise ValueError("Parecer referencia fontes inexistentes.")
+
+    if set(found) != set(expected):
+        raise ValueError("Parecer contém fontes não citadas.")
 
     return found
 

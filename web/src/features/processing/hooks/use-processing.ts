@@ -33,6 +33,7 @@ export function useProcessing() {
       },
       [dataset, revision],
     ),
+    { resetKey: dataset },
   );
   const reload = resource.reload;
   const running = resource.data?.jobs.find(jobIsOpen) ?? null;

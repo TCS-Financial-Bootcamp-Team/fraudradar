@@ -132,7 +132,12 @@ export function Markdown({ content, className }: MarkdownProps) {
   if (blocks.length === 0) return null;
 
   return (
-    <div className={cn("space-y-2 leading-relaxed break-words", className)}>
+    <div
+      className={cn(
+        "min-w-0 space-y-2 leading-relaxed break-words [overflow-wrap:anywhere]",
+        className,
+      )}
+    >
       {blocks.map((block, index) => renderBlock(block, index))}
     </div>
   );

@@ -20,7 +20,7 @@ A normalização/conversão dos valores é responsabilidade da API.
 | GET /alerts                         | Query: week obrigatória; status, country, search e origin (model \| exploration) opcionais; page (base 1), size=10, sort=score_desc. Resposta: queueSchema; a amostra de controle vem sempre no fim. |
 | GET /alerts/{id}                    | alertDetailSchema: resumo, contributions, rules, movements e assessment anulável.                            |
 | GET /alerts/{id}/graph              | graphSchema: nodes e edges, com IDs/labels de contas pseudonimizados. Até dois saltos.                       |
-| POST /alerts/{id}/assessment        | Pedido {}; resposta assessmentSchema com content e sources {title, excerpt}.                                 |
+| POST /alerts/{id}/assessment        | Pedido {}; resposta assessmentSchema com content, summary e sources {title, excerpt}.                        |
 | POST /alerts/{id}/decision          | decisionSchema: decision, justification e archive_reason (obrigatório só ao arquivar: false_positive \| insufficient_evidence; nas outras decisões, 422). Resposta alertSchema atualizado. |
 | GET /alerts/{id}/report             | reportSchema: alert_id, content, status, updated_at.                                                         |
 | POST /alerts/{id}/report/approve    | approvalSchema: {content}; resposta reportSchema atualizado. A edição é persistida junto da aprovação.       |
@@ -46,6 +46,22 @@ A API deve ordenar por score antes de paginar.
 
 O detalhe contém contas pseudonimizadas, dados financeiros, regras e
 contribuições já calculadas. O frontend não calcula features ou score.
+
+O parecer (`Assessment`, tanto na geração quanto no detalhe) retorna
+`{content, summary, sources}`. `content` é o relatório completo em Markdown; `summary`
+é a prévia curta para o card, calculada pela API a partir da seção `Resumo`, sem coluna
+adicional no banco. Pareceres antigos usam o primeiro parágrafo sem título, limitado
+perto de 300 caracteres, preferindo uma frase completa e acrescentando `…` quando cortado.
+O relatório completo pode ser aberto no modal e usado no download.
+
+Novos pareceres solicitam, nesta ordem, as seções `## Resumo` (2–3 frases, até
+60 palavras), `## Sinais de risco`, `## Contexto transacional`, `## Fundamentação jurídica`,
+`## Limitações` e `## Próximos passos sugeridos`. A linha de tipologia gerada pelo provedor
+é processada pela API e removida de `content`. A geração usa até 1.500 tokens de saída;
+o prompt contextual mantém o limite de 2.000 caracteres e a proteção de identificadores.
+As instruções de estrutura seguem na configuração do sistema, fora desse prompt contextual.
+As fontes retornadas contêm somente os IDs citados em `content`, sem renumeração,
+ordenados pelo número do ID. Pareceres antigos também aceitam citações no formato `[1]`.
 
 ## Contas suspeitas e processamento
 
@@ -196,6 +212,21 @@ tipo de trabalho e um só acompanhamento (`web/src/features/jobs`).
 Pedido: {message, context: {page, week, alert_id?}, history}.
 Histórico: até 20 entradas {role: user | assistant, content}.
 Resposta: {answer, sources: [{title, excerpt}]}.
+
+As rotas `/chat` e `/alerts/{id}/chat` reconhecem conversas curtas por regras
+determinísticas: saudações, agradecimentos, despedidas, confirmações e perguntas
+simples de identidade ou ajuda. Respondem em PT-BR com `sources: []`, sem configurar
+o Gemini, carregar embeddings, consultar o banco ou chamar o LLM. A comparação ignora
+caixa, acentos e pontuação; mensagens mistas, como "olá, o que diz o art. 11?", seguem
+para a consulta jurídica. A autenticação e a validação do pedido continuam obrigatórias.
+
+Respostas jurídicas pedem até 120 palavras em dois parágrafos curtos, salvo pedido
+explícito de detalhe. Somente as fontes efetivamente citadas na resposta são retornadas,
+ordenadas pelo ID original: `[F2]` continua `[F2]` mesmo sem `[F1]`. O título segue o
+formato `[F2] Lei 9.613/1998, Art. 11`; `excerpt` termina com
+`Fonte oficial: https://...`, usado para extrair o link oficial. No fallback
+`llm_unavailable`, o chat mantém todas as fontes recuperadas para consulta manual;
+a geração de parecer devolve 503 e não persiste esse fallback.
 
 O contexto contém somente rota, semana e ID do alerta. A UI não envia contas
 ou tabelas como contexto. Identificadores com dígitos em mensagens livres e no

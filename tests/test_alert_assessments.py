@@ -112,6 +112,22 @@ def test_invalid_source_number_is_rejected():
         validate_generated_assessment(assessment)
 
 
+@pytest.mark.parametrize("titles", [("[F1] Lei", "[F1] Lei"), ("[F2] Lei", "[F1] Lei")])
+def test_duplicate_or_unordered_source_ids_are_rejected(titles):
+    assessment = valid_assessment()
+    for source, title in zip(assessment.sources, titles, strict=True):
+        source.title = title
+    with pytest.raises(ValueError, match="Identificador da fonte"):
+        validate_generated_assessment(assessment)
+
+
+def test_uncited_assessment_sources_are_rejected():
+    assessment = valid_assessment()
+    assessment.content = "Somente a primeira fonte [F1]."
+    with pytest.raises(ValueError, match="fontes não citadas"):
+        validate_generated_assessment(assessment)
+
+
 def test_source_without_official_https_is_rejected():
     assessment = valid_assessment()
 

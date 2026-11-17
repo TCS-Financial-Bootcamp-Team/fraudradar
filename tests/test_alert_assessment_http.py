@@ -101,8 +101,10 @@ def setup_http(monkeypatch):
         engine.events.append("prepare")
         return state["prepared"]
 
-    def generate(prompt, *, retrieval_query=None):
+    def generate(prompt, *, retrieval_query=None, system_instruction, max_output_tokens):
         assert not engine.active
+        assert "## Resumo" in system_instruction
+        assert max_output_tokens == 1500
         state["queries"].append(retrieval_query)
         engine.events.append("generate")
         return state["generated"]
@@ -153,6 +155,7 @@ def test_http_generates_parses_persists_and_returns_draft(setup_http):
     assert response.status_code == 200, response.text
     assert response.json()["content"].endswith("A revisão humana é necessária.")
     assert "Tipologia sugerida" not in response.json()["content"]
+    assert response.json()["summary"] == response.json()["content"]
     assert state["saved"] == [
         {
             "alert_id": 882,
@@ -164,6 +167,17 @@ def test_http_generates_parses_persists_and_returns_draft(setup_http):
     ]
     assert "deveres das instituições financeiras" in state["queries"][0]
     assert engine.transactions == 2
+
+
+def test_http_response_extracts_structured_summary(setup_http):
+    client, _, state = setup_http
+    state["generated"] = generated_answer(
+        "## Resumo\nRisco alto: 91,5. Verifique as contrapartes.\n\n"
+        "## Fundamentação jurídica\n- Diligência adicional [F1].\nTipologia sugerida: fan_out"
+    )
+    response = client.post("/alerts/882/assessment")
+    assert response.status_code == 200
+    assert response.json()["summary"] == "Risco alto: 91,5. Verifique as contrapartes."
 
 
 def test_read_transaction_closes_before_generation(setup_http):

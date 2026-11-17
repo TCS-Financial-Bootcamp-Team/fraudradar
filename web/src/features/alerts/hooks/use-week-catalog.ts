@@ -18,5 +18,6 @@ export function useWeekCatalog(revision: number, dataset: string) {
       },
       [revision, dataset],
     ),
+    { resetKey: dataset },
   );
 }

@@ -43,8 +43,10 @@ editar o `.bpmn`, exporte os dois de novo.
 
 - As transações chegam sem gabarito e esperam o processamento. Ele roda no intervalo configurado
   (60 minutos por padrão) ou quando o analista pede "Processar agora".
-- O sistema atualiza a fila da semana aberta, e o analista abre um alerta pendente. O parecer da IA
-  está **planejado**: hoje a rota responde 503, à espera da frente 3.
+- O sistema atualiza a fila da semana aberta, e o analista abre um alerta pendente. Com a IA e a
+  base jurídica configuradas, `POST /alerts/{id}/assessment` gera um rascunho para revisão humana:
+  `summary` contém a prévia curta derivada de `content`, que guarda o relatório completo em
+  Markdown; `sources` contém somente as fontes citadas, sem renumerar seus IDs.
 - O analista registra a decisão com justificativa (pelo menos 10 caracteres), e o nome dele fica
   gravado. Arquivar exige o motivo: falso positivo confirmado ou sem evidência suficiente.
   Aprofundar volta para a análise.

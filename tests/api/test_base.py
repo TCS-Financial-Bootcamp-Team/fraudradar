@@ -344,7 +344,9 @@ def test_assessment_generates_persists_and_returns_in_detail(client, seed, monke
 
     calls = []
 
-    def simulated_generation(prompt, *, retrieval_query=None):
+    def simulated_generation(
+        prompt, *, retrieval_query=None, system_instruction, max_output_tokens
+    ):
         calls.append((prompt, retrieval_query))
         return ChatResponse(
             answer=simulated_assessment.content + "\nTipologia sugerida: fan_out",
@@ -430,9 +432,13 @@ def test_assessment_generates_persists_and_returns_in_detail(client, seed, monke
     assert detail.json()["assessment"] == simulated_assessment.model_dump()
 
 
-def test_chat_validates_request_and_returns_503(client):
+def test_chat_validates_request_and_only_legal_questions_need_llm(client):
     req = {"message": "Oi", "context": {"page": "/dashboard", "week": "2023-01-02"}}
-    assert client.post("/chat", json={**req, "history": []}).status_code == 503
+    greeting = client.post("/chat", json={**req, "history": []})
+    assert greeting.status_code == 200
+    assert greeting.json()["sources"] == []
+    legal = {**req, "message": "O que exige o Art. 11?", "history": []}
+    assert client.post("/chat", json=legal).status_code == 503
     empty = {**req, "message": "  ", "history": []}
     assert client.post("/chat", json=empty).status_code == 422
 

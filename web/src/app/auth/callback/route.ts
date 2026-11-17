@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
         new URL(
           request.nextUrl.searchParams.get("next") === "reset"
             ? "/reset-password?mode=update"
-            : "/accounts",
+            : "/dashboard",
           request.url,
         ),
       );

@@ -16,10 +16,16 @@ from api.dependencies import LOCAL_USER, get_current_user
 from api.legal_chat_service import answer_legal_chat
 from api.main import create_app
 from fraudradar.ai.legal_generation import (
+    ASSESSMENT_MAX_OUTPUT_TOKENS,
+    ASSESSMENT_SYSTEM_INSTRUCTION,
+    CHAT_MAX_OUTPUT_TOKENS,
+    SYSTEM_INSTRUCTION,
     LegalAnswerRejectedError,
     LegalLlmNotConfiguredError,
     gemini_settings,
     generate_legal_answer,
+    generate_legal_answer_from_settings,
+    split_grouped_citations,
 )
 from fraudradar.config import get_settings
 
@@ -99,6 +105,18 @@ def test_service_fails_before_touching_the_database(gemini):
 
     with pytest.raises(LegalLlmNotConfiguredError):
         answer_legal_chat(QUESTION, engine=engine, retriever=retriever)
+    assert engine.connections == 0
+
+
+def test_small_talk_service_does_not_call_injected_retriever_or_generator(monkeypatch):
+    engine = FakeEngine()
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Conversas curtas não devem consultar serviços externos.")
+
+    monkeypatch.setattr("api.legal_chat_service.gemini_settings", forbidden)
+    response = answer_legal_chat("OLÁ!!!", engine=engine, retriever=forbidden, generator=forbidden)
+    assert response.sources == []
     assert engine.connections == 0
 
 
@@ -207,3 +225,58 @@ def test_cited_answer_passes():
         question=QUESTION, context=CONTEXT, model="gemini-teste", client=_client("Ha multa [F1].")
     )
     assert answer.citations == ("F1",)
+
+
+def test_grouped_citations_are_split():
+    """O Gemini às vezes agrupa "[F1, F2]"; sem separar, F2 sumiria das fontes."""
+    assert split_grouped_citations("Deveres [F1, F2] e [F3; F4].") == (
+        "Deveres [F1] [F2] e [F3] [F4]."
+    )
+    assert split_grouped_citations("Texto [F1] e [nota, solta].") == "Texto [F1] e [nota, solta]."
+
+
+def test_grouped_citation_with_unknown_id_is_rejected():
+    """Controle: um id inexistente dentro do grupo continua barrado."""
+    with pytest.raises(LegalAnswerRejectedError):
+        generate_legal_answer(
+            question=QUESTION,
+            context=CONTEXT,
+            model="gemini-teste",
+            client=_client("Ha multa [F1, F9]."),
+        )
+
+
+@pytest.mark.parametrize(
+    ("instruction", "budget"),
+    [
+        (SYSTEM_INSTRUCTION, CHAT_MAX_OUTPUT_TOKENS),
+        (ASSESSMENT_SYSTEM_INSTRUCTION, ASSESSMENT_MAX_OUTPUT_TOKENS),
+    ],
+)
+def test_generation_settings_reach_client_with_shared_validation(gemini, instruction, budget):
+    configs = []
+
+    def generate(**kwargs):
+        configs.append(kwargs["config"])
+        return SimpleNamespace(text="Deveres legais [F1].")
+
+    client = SimpleNamespace(models=SimpleNamespace(generate_content=generate), close=lambda: None)
+    with patch("fraudradar.ai.legal_generation.genai.Client", return_value=client):
+        answer = generate_legal_answer_from_settings(
+            question=QUESTION,
+            context=CONTEXT,
+            system_instruction=instruction,
+            max_output_tokens=budget,
+        )
+    assert answer.citations == ("F1",)
+    assert configs[0].system_instruction == instruction
+    assert configs[0].max_output_tokens == budget
+    with pytest.raises(LegalAnswerRejectedError):
+        generate_legal_answer(
+            question=QUESTION,
+            context=CONTEXT,
+            model="teste",
+            client=_client("Sem citação."),
+            system_instruction=instruction,
+            max_output_tokens=budget,
+        )

@@ -1,7 +1,8 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { ResourceError } from "@/components/ui/states";
+import { cn } from "cn";
+import { RefreshBar, ResourceError } from "@/components/ui/states";
 import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
 import { getT } from "@/i18n/runtime";
 import { useServerMessage } from "@/i18n/server-messages";
@@ -77,8 +78,10 @@ export function FeedbackPanel() {
   return (
     <section
       aria-label={t("region")}
-      className="flex flex-col gap-5 rounded-[14px] border border-border bg-card p-[20px_22px]"
+      aria-busy={resource.refreshing || undefined}
+      className="relative flex flex-col gap-5 overflow-hidden rounded-[14px] border border-border bg-card p-[20px_22px]"
     >
+      <RefreshBar active={resource.refreshing} />
       <header className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-sm font-semibold text-foreground">
@@ -105,7 +108,14 @@ export function FeedbackPanel() {
           onRetry={resource.reload}
         />
       ) : (
-        <FeedbackContent summary={resource.data} />
+        <div
+          className={cn(
+            "flex flex-col gap-5 transition-opacity duration-150 motion-reduce:transition-none",
+            resource.refreshing && "opacity-60",
+          )}
+        >
+          <FeedbackContent summary={resource.data} />
+        </div>
       )}
     </section>
   );

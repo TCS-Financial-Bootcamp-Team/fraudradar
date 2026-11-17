@@ -4,9 +4,14 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
-import { Button } from "@/components/ui/button";
+import { AccountLabel } from "@/components/account-label";
 import { Input } from "@/components/ui/field";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  LoadingState,
+  RefreshBar,
+  ResourceError,
+} from "@/components/ui/states";
 import { useFormatters } from "@/i18n/use-formatters";
 import { formatScore } from "@/lib/risk";
 import { useSuspiciousAccounts } from "../hooks/use-accounts";
@@ -44,7 +49,11 @@ export function SuspiciousAccountsView() {
         <p className="text-[13px] text-muted-foreground">{t("subtitle")}</p>
         <h1 className="text-[30px] font-semibold leading-[1.15] tracking-[-0.025em]">{t("title")}</h1>
       </header>
-      <section className="rounded-[14px] border border-border bg-card p-[20px_22px]">
+      <section
+        aria-busy={resource.refreshing || undefined}
+        className="relative overflow-hidden rounded-[14px] border border-border bg-card p-[20px_22px]"
+      >
+        <RefreshBar active={resource.refreshing} />
         <div className="mb-5 grid gap-3 md:grid-cols-[minmax(220px,1fr)_180px_150px_150px]">
           <Input aria-label={t("search")} placeholder={t("search")} value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
           <select aria-label={t("filterStatus")} className="h-10 rounded-lg border border-border bg-card px-3 text-sm" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
@@ -65,7 +74,12 @@ export function SuspiciousAccountsView() {
           <p className="py-10 text-center text-sm text-muted-foreground">{t("none")}</p>
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div
+              className={cn(
+                "overflow-x-auto transition-opacity duration-150 motion-reduce:transition-none",
+                resource.refreshing && "pointer-events-none opacity-60",
+              )}
+            >
               <table className="w-full min-w-[920px] border-collapse text-left text-sm tabular-nums">
                 <thead className="text-xs text-muted-foreground">
                   <tr>
@@ -77,7 +91,17 @@ export function SuspiciousAccountsView() {
                 <tbody>
                   {resource.data.items.map((account) => (
                     <tr key={account.account} className="border-b border-soft hover:bg-soft/40">
-                      <td className="py-[13px] pr-3 font-mono text-[13px]"><Link className="font-medium underline decoration-border underline-offset-[3px] hover:decoration-foreground" href={`/alerts/${account.latest_alert_id}`}>{account.account}</Link></td>
+                      <td className="py-[13px] pr-3">
+                        <Link
+                          className="group inline-flex focus-visible:outline-none"
+                          href={`/alerts/${account.latest_alert_id}`}
+                        >
+                          <AccountLabel
+                            account={account.account}
+                            aliasClassName="underline decoration-border underline-offset-[3px] group-hover:decoration-foreground"
+                          />
+                        </Link>
+                      </td>
                       <ScoreCell score={account.max_score} locale={locale} />
                       <td className="px-3 py-[13px] font-medium">{formatScore(account.latest_score, locale)}</td>
                       <td className="px-3 py-[13px] font-mono text-xs">{account.alert_weeks}</td>
@@ -90,13 +114,13 @@ export function SuspiciousAccountsView() {
                 </tbody>
               </table>
             </div>
-            <footer className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
+            <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 text-xs text-muted-foreground">
               <span>{t("count", { count: resource.data.total })}</span>
-              <div className="flex items-center gap-2">
-                <Button variant="outline" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>{t("previous")}</Button>
-                <span>{t("page", { page, pages })}</span>
-                <Button variant="outline" disabled={page >= pages} onClick={() => setPage((value) => value + 1)}>{t("next")}</Button>
-              </div>
+              <Pagination
+                page={page}
+                totalPages={pages}
+                onPageChange={setPage}
+              />
             </footer>
           </>
         )}
