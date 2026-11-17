@@ -1,18 +1,30 @@
 {
   "title": "Assistant",
   "general": "General",
-  "alertContext": "Alert {id}",
+  "alertContext": "Context: Alert #{id}",
+  "alertContextTooltip": "AI receives this alert's data without account numbers.",
+  "disableAlertContext": "Do not use this page's context",
+  "enableAlertContext": "Use context",
   "weekContext": "Week of {week}",
   "close": "Close assistant",
   "suggestions": {
     "typology": "What is the fan-out typology?",
     "legal": "What does the law require when reporting to COAF?",
-    "checkAlert": "What should I check first on this alert?"
+    "decisionLaundering": "Does this look like real money laundering?",
+    "decisionAgainst": "What weighs against this alert?",
+    "decisionMissing": "What is still missing before deciding?"
   },
   "badge": {
     "legal": "Based on Law 9.613/1998",
     "domain": "General answer, no legal source",
-    "domainTooltip": "Concept explanation; for legal obligations, ask what the law requires."
+    "domainTooltip": "Concept explanation; for legal obligations, ask what the law requires.",
+    "decision": "Decision support — the decision is yours",
+    "decisionTooltip": "Suggestion based on alert data; does not record a decision."
+  },
+  "strength": {
+    "weak": "Evidence strength: weak",
+    "moderate": "Evidence strength: moderate",
+    "strong": "Evidence strength: strong"
   },
   "disclaimer": "AI supports the analysis; the decision is human.",
   "pseudonymized": "Pseudonymized accounts. AI supports the analysis; the decision is human.",

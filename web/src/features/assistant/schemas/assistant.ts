@@ -6,6 +6,7 @@ export const chatKindSchema = z.enum([
   "small_talk",
   "legal",
   "domain",
+  "decision",
   "out_of_scope",
 ]);
 

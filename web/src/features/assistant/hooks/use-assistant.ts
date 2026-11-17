@@ -1,15 +1,51 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useAppContext } from "@/components/app-context";
 import { getErrorMessage, pseudonymize } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import {
+  ALERT_CONTEXT_CHANGE_EVENT,
+  buildChatRequest,
+  readAlertContextEnabled,
+  writeAlertContextEnabled,
+} from "../lib/context";
 import { sendChatMessage } from "../services/assistant-service";
 import type { Message } from "../schemas/assistant";
 
-export function useAssistant(alertId?: string) {
+/**
+ * Mantém a preferência de envio do contexto do alerta na aba atual via sessionStorage.
+ */
+export function useAlertContextPreference() {
+  const [enabled, setEnabledState] = useState(true);
+
+  useEffect(() => {
+    const sync = () => setEnabledState(readAlertContextEnabled());
+    sync();
+    window.addEventListener(ALERT_CONTEXT_CHANGE_EVENT, sync);
+    return () => window.removeEventListener(ALERT_CONTEXT_CHANGE_EVENT, sync);
+  }, []);
+
+  const setEnabled = useCallback((next: boolean) => {
+    setEnabledState(next);
+    writeAlertContextEnabled(next);
+    try {
+      window.dispatchEvent(new Event(ALERT_CONTEXT_CHANGE_EVENT));
+    } catch {
+      // Ignora ambientes sem CustomEvent/window completo.
+    }
+  }, []);
+
+  const toggle = useCallback(() => {
+    setEnabled(!enabled);
+  }, [enabled, setEnabled]);
+
+  return { enabled, setEnabled, toggle };
+}
+
+export function useAssistant(alertId?: string, shareAlertContext = true) {
   const t = useTranslations("assistant");
   const [messages, setMessages] = useState<Message[]>([]);
   const [busy, setBusy] = useState(false);
@@ -32,14 +68,14 @@ export function useAssistant(alertId?: string) {
 
     try {
       const response = await sendChatMessage(
-        {
+        buildChatRequest({
           message,
-          context: { page: page || "/dashboard", week: week ?? "", alert_id: alertId },
-          history: messages.slice(-20).map((m) => ({
-            role: m.role,
-            content: m.content,
-          })),
-        },
+          page,
+          week,
+          alertId,
+          shareAlertContext,
+          history: messages,
+        }),
         controller.signal,
         accountsRef.current,
       );
