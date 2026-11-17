@@ -5,49 +5,10 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ArrowUp, Sparkles, X } from "lucide-react";
 import { useAppContext } from "@/components/app-context";
+import { Markdown } from "@/components/markdown";
 import { useFormatters } from "@/i18n/use-formatters";
 import { getAlertIdFromPathname } from "@/lib/sidebar";
 import { useAssistant } from "../hooks/use-assistant";
-
-function FormattedContent({ content }: { content: string }) {
-  return (
-    <div className="space-y-2 text-xs sm:text-sm leading-relaxed">
-      {content.split("\n").map((paragraph, i) => {
-        if (!paragraph.trim()) return <div key={i} className="h-1.5" />;
-        const isBullet =
-          paragraph.trim().startsWith("- ") ||
-          paragraph.trim().startsWith("• ");
-        const text = isBullet
-          ? paragraph.trim().replace(/^[-•]\s*/, "")
-          : paragraph;
-        const formatted = text
-          .split(/(\*\*.*?\*\*)/g)
-          .map((segment, j) =>
-            segment.startsWith("**") && segment.endsWith("**") ? (
-              <strong key={j} className="font-semibold">
-                {segment.slice(2, -2)}
-              </strong>
-            ) : (
-              segment
-            ),
-          );
-        if (isBullet) {
-          return (
-            <div key={i} className="flex items-start gap-2 pl-1.5">
-              <span className="text-muted-foreground select-none">•</span>
-              <span>{formatted}</span>
-            </div>
-          );
-        }
-        return (
-          <p key={i} className="m-0">
-            {formatted}
-          </p>
-        );
-      })}
-    </div>
-  );
-}
 
 const DEFAULT_SUGGESTIONS = ["summary", "typology", "rules"] as const;
 
@@ -115,7 +76,16 @@ export function Chat({ alertId }: { alertId?: string }) {
                 : "mr-3 rounded-xl border border-border bg-card p-3.5 text-xs text-foreground sm:text-sm"
             }
           >
-            <FormattedContent content={m.content} />
+            {m.role === "user" ? (
+              <p className="m-0 whitespace-pre-wrap leading-relaxed">
+                {m.content}
+              </p>
+            ) : (
+              <Markdown
+                content={m.content}
+                className="text-xs leading-relaxed sm:text-sm"
+              />
+            )}
             {m.sources && m.sources.length > 0 && (
               <div className="mt-2.5 flex flex-col gap-1 border-t border-soft pt-2">
                 {m.sources.map((src, idx) => (
@@ -314,7 +284,16 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
                     : "max-w-[92%] text-foreground"
                 }`}
               >
-                <FormattedContent content={m.content} />
+                {m.role === "user" ? (
+                  <p className="m-0 whitespace-pre-wrap leading-relaxed">
+                    {m.content}
+                  </p>
+                ) : (
+                  <Markdown
+                    content={m.content}
+                    className="text-xs leading-relaxed sm:text-sm"
+                  />
+                )}
               </div>
               {m.sources && m.sources.length > 0 && (
                 <div className="flex w-full max-w-[92%] flex-col gap-1">
