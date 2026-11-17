@@ -58,12 +58,14 @@ POST /ingestion/* ──────────────► transactions (st
                ├─ score LightGBM (src/fraudradar/model) ─► transaction_scores
                ├─ fila por conta ─────────────────────────► alerts
                ├─ SHAP, regras SQL, sinais, grafo ────────► evidence
-               ├─ parecer RAG + LLM (src/fraudradar/ai) ──► assessments
                └─ métricas contra ground_truth ───────────► weekly_batches
                                         │
      POST /replay/next-week ── libera a semana (weekly_batches.released_at)
                                         │
-             API (FastAPI, só lê e grava decisões) ◄──► web (Next.js) ◄── analista
+             API (FastAPI: lê, grava decisões e o parecer) ◄──► web (Next.js) ◄── analista
+                                        │
+       parecer sob demanda: resumo sem conta → RAG da Lei 9.613 + Gemini (src/fraudradar/ai)
+                                        └──► assessments e alerts.typology
                                         │
                       decisions ─► reports (rascunho → aprovada) ─► audit_log
 ```
@@ -71,7 +73,10 @@ POST /ingestion/* ──────────────► transactions (st
 Pontos que confundem quem chega:
 
 - A **API não roda o modelo**. A imagem dela nem tem lightgbm. Quem calcula é o
-  worker; a API só lê o que ele gravou e grava as decisões do analista.
+  worker; a API lê o que ele gravou e grava as decisões do analista.
+- O **parecer** não sai do lote: a API o gera quando o analista clica em "Gerar parecer"
+  (`POST /alerts/{id}/assessment`). A lógica do prompt mora em
+  `src/fraudradar/ai/alert_assessment.py`; a rota só chama.
 - A unidade da fila é a **conta na semana** (`alerts` tem `UNIQUE (account, week)`),
   não a transação. O score de transação existe (`transaction_scores`), mas o analista
   vê contas.
@@ -256,7 +261,8 @@ token do Supabase (`Authorization: Bearer ...`); em desenvolvimento,
 | `GET /feedback/summary` | retorno dos analistas: precisão confirmada, amostra de controle, retreino |
 | `GET /datasets/{slug}/models`, `POST .../train`, `POST .../models/{v}/promote` | versões, retreino (com o retorno se pedido) e promoção, com a trava |
 | `POST /chat` | chat jurídico: RAG da Lei 9.613 com citações (PR #19, frente 3) |
-| `POST /alerts/{id}/assessment`, `/alerts/{id}/chat` | parecer e chat do alerta (503) |
+| `POST /alerts/{id}/assessment` | parecer do alerta com o RAG da Lei 9.613 e o Gemini: grava em `assessments`, põe a tipologia sugerida no alerta e registra em `audit_log` |
+| `POST /alerts/{id}/chat` | pergunta do analista sobre o alerta, com o mesmo resumo sem número de conta; não grava nada |
 | `POST /ingestion/csv`, `/ingestion/transactions` | entrada de transações, tudo ou nada |
 | `/ingestion/connections` | fontes Postgres externas |
 
@@ -343,10 +349,27 @@ Variáveis (`.env.example`): `POSTGRES_*` e `DATABASE_URL` (banco); `LLM_PROVIDE
 Não implemente a parte de outra frente por iniciativa própria: pergunte a quem pediu a
 tarefa.
 
-## 14. Estado em 06/11/2026
+## 14. Estado em 17/11/2026
 
 Confira com `git log` antes de confiar; isto muda rápido.
 
+- **Parecer e chat do alerta (branch `feat/ai-alert-assessment`, registros 120 a 122 e 125)**:
+  - o código é o do Victor (`integration/oracle-vercel-final`), corrigido sobre a `main`;
+  - a API gera o parecer sob demanda: resumo da evidência sem número de conta, RAG da Lei
+    9.613, Gemini, citações conferidas;
+  - grava em `assessments`, põe a tipologia sugerida (um dos 17 códigos do SAML-D, com rótulo
+    em português) em `alerts.typology` e registra em `audit_log`;
+  - o chat do alerta usa o mesmo resumo e não grava nada;
+  - o rascunho ao COAF recebe o parecer em texto simples.
+- **Markdown da IA (branch `fix/web-ai-markdown`, registros 126 a 128)**: o card do parecer e o
+  assistente formatam o markdown do Gemini com um leitor próprio, sem HTML bruto.
+- **Infra (branch `fix/infra-compose-ci`, registros 118 a 124)**: um volume só para o cache de
+  embeddings (`hf_cache`), `restart` no banco, senha de produção no `worker-serve`, `pnpm test`
+  no CI.
+- **Produção**: a API roda numa VM da Oracle (Victor; `infra/docker-compose.prod.yml`,
+  `infra/terraform-oci`) e o front numa conta da Vercel. O proxy HTTPS da VM não está no
+  repositório.
+- **Documentos**: BPMN em `docs/bpmn/` e DER em `docs/erd/` (PR #21).
 - **Retorno dos analistas (branch `feat/analyst-feedback`, registros 107 e 108)**: motivo
   obrigatório ao arquivar, rótulos em `analyst_labels`, amostra de controle, retreino com o
   retorno e trava de promoção, analista simulado e `feedback-eval`, recall fora das telas.
@@ -356,8 +379,6 @@ Confira com `git log` antes de confiar; isto muda rápido.
 - **Pronto**: API (fila, detalhe, grafo, decisões, comunicação, monitoramento, replay,
   ingestão); front (todas as telas, também com dados simulados); esquema do banco;
   Compose, Terraform e CI; VibeLog.
-- **Responde de propósito que não existe**: parecer e chat do alerta (503, esperando a
-  frente 3).
 - **Chat jurídico (Victor, frente 3; na `main` desde o PR #19)**: `POST /chat` responde com o RAG
   da Lei 9.613 (`src/fraudradar/ai`, `api/legal_chat_service.py`, `rag/`), busca híbrida em
   `rag_documents` e resposta do Gemini com citações conferidas. A base é carregada por
@@ -368,7 +389,7 @@ Confira com `git log` antes de confiar; isto muda rápido.
   histórico das contas; `features/history.py`), LightGBM oficial com fila semanal por conta,
   explicação por contribuição e segmentos K-Means (`model/`), `python -m fraudradar.model
   train | check`. Números e limites em `docs/model.md`. Não prevê a tipologia: ela vem do
-  parecer da IA (frente 3).
+  parecer da IA.
 - **Worker (PR da branch `feat/worker-batch`, registros 062 e 063)**: `python -m worker
   load | batch | backfill | replay`. Carrega o SAML-D no Postgres (ids = linha do CSV + 1) e,
   por semana, grava `transaction_scores`, `alerts` (fila com o corte da ficha, até 300),
@@ -378,9 +399,13 @@ Confira com `git log` antes de confiar; isto muda rápido.
   inteiro, a fila das 14 semanas do teste repete a ficha (recall 95,1%, precisão 99,0%, 2,2
   inocentes por semana) e os 2,76 milhões de scores são os do modelo. Fluxo da demo: `load`,
   `backfill`, e liberar as semanas no app.
-- **Vazio**: regras em `db/rules/` (frente 1; o worker já roda o que entrar lá),
-  `src/fraudradar/ai` e `rag/` (frente 3; o worker ainda não grava `assessments` nem
-  tipologia), os notebooks oficiais.
+- **Vazio ou faltando**:
+  - regras em `db/rules/` (frente 1; o worker já roda o que entrar lá);
+  - a Circular BCB 3.978/2020 na base do RAG (frente 3; listada em `rag/sources.json`, sem
+    snapshot revisado);
+  - os notebooks oficiais (`notebooks/` só tem o README);
+  - os slides e o documento das etapas, fora do repositório;
+  - os registros de prompt do Victor e do Yuji.
 - **Em exploração**: LSTM e GRU em notebooks do `lab/` (branch `origin/victor` e
   `lab/FraudRadar_LSTM.ipynb`).
 
