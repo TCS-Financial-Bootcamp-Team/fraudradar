@@ -23,5 +23,6 @@
   "placeholder": "Pergunte sobre a análise…",
   "placeholderShort": "Pergunte sobre sua análise…",
   "send": "Enviar pergunta",
-  "failed": "Não foi possível responder. Tente enviar sua pergunta novamente."
+  "failed": "Não foi possível responder. Tente enviar sua pergunta novamente.",
+  "sourcesToggle": "Fontes ({count})"
 }

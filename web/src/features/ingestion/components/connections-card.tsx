@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { Plus, FlaskConical, Trash2 } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
+import { RefreshBar } from "@/components/ui/states";
 import { useFormatters } from "@/i18n/use-formatters";
 import { getCurrentDataset } from "@/lib/dataset";
 import {
@@ -74,7 +76,11 @@ export function ConnectionsCard() {
   }
 
   return (
-    <article className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-3">
+    <article
+      aria-busy={connections.refreshing || undefined}
+      className="relative overflow-hidden bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-3"
+    >
+      <RefreshBar active={connections.refreshing} />
       <div className="flex justify-between items-center">
         <h2 className="m-0 text-sm font-semibold text-foreground">
           {t("title")}
@@ -91,7 +97,12 @@ export function ConnectionsCard() {
       )}
 
       {items.length > 0 && (
-        <ul className="m-0 p-0 list-none divide-y divide-soft border border-border rounded-lg overflow-hidden">
+        <ul
+          className={cn(
+            "m-0 p-0 list-none divide-y divide-soft border border-border rounded-lg overflow-hidden transition-opacity duration-150 motion-reduce:transition-none",
+            connections.refreshing && "pointer-events-none opacity-60",
+          )}
+        >
           {items.map((connection) => {
             const tone = statusTone(connection.status);
             return (

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import { AccountLabel } from "@/components/account-label";
 import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
 import { useFormatters } from "@/i18n/use-formatters";
 import { getT } from "@/i18n/runtime";
@@ -178,8 +179,8 @@ export function AlertsTable({
                   {alert.origin === "exploration" && <ControlSampleBadge />}
                 </span>
               </td>
-              <td className={`${cell} font-mono text-[13px]`}>
-                {alert.account}
+              <td className={cell}>
+                <AccountLabel account={alert.account} />
               </td>
               <td className={cell}>
                 <RiskScore value={alert.score} />

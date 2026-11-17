@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { cn } from "cn";
 import { Button } from "@/components/ui/button";
-import { ResourceError } from "@/components/ui/states";
+import { RefreshBar, ResourceError } from "@/components/ui/states";
 import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
 import { getT } from "@/i18n/runtime";
 import {
@@ -298,7 +299,7 @@ export function ModelSection() {
       ? "—"
       : format.dateTime(date, { timeZone: undefined });
   };
-  const { data, error, loading, reload, job, busy, train, promote } =
+  const { data, error, loading, refreshing, reload, job, busy, train, promote } =
     useModels();
   const [candidate, setCandidate] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
@@ -440,8 +441,10 @@ export function ModelSection() {
   return (
     <section
       aria-label={t("region")}
-      className="bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-5"
+      aria-busy={refreshing || undefined}
+      className="relative overflow-hidden bg-card border border-border rounded-[14px] p-[20px_22px] flex flex-col gap-5"
     >
+      <RefreshBar active={refreshing} />
       <header className="flex flex-wrap items-baseline justify-between gap-3">
         <div className="flex flex-col gap-1">
           <h2 className="m-0 text-sm font-semibold text-foreground">
@@ -505,7 +508,12 @@ export function ModelSection() {
           {t("noVersions")}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div
+          className={cn(
+            "overflow-x-auto transition-opacity duration-150 motion-reduce:transition-none",
+            refreshing && "pointer-events-none opacity-60",
+          )}
+        >
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead>
               <tr className="text-xs text-muted-foreground">

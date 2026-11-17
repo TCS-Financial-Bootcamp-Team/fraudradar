@@ -4,7 +4,7 @@
     "description": "Anti-money-laundering monitoring on SAML-D"
   },
   "brand": {
-    "homeLabel": "FraudRadar — suspicious accounts",
+    "homeLabel": "FraudRadar — overview",
     "footer": "FraudRadar AML · {dataset}",
     "footerWeek": "FraudRadar AML · {dataset} · Week of {week}"
   },

@@ -23,5 +23,6 @@
   "placeholder": "Ask about the analysis…",
   "placeholderShort": "Ask about your analysis…",
   "send": "Send question",
-  "failed": "Could not answer. Try sending your question again."
+  "failed": "Could not answer. Try sending your question again.",
+  "sourcesToggle": "Sources ({count})"
 }

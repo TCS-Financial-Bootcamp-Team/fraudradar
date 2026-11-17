@@ -229,6 +229,19 @@ h3 {
   animation: toast-progress 5s linear forwards;
 }
 
+.refresh-bar-indicator {
+  animation: refresh-bar 1.1s ease-in-out infinite;
+}
+
+@keyframes refresh-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 .toast:hover .toast-progress-bar,
 .toast:focus-within .toast-progress-bar {
   animation-play-state: paused;
@@ -292,5 +305,28 @@ h3 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body:has([data-print-dialog="true"]) > *:not(:has([data-print-dialog="true"])) {
+    display: none !important;
+  }
+  [data-print-hidden="true"] {
+    display: none !important;
+  }
+  [data-print-dialog="true"] {
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    border: 0 !important;
+  }
+  [data-print-dialog-scroll="true"] {
+    overflow: visible !important;
+    max-height: none !important;
   }
 }

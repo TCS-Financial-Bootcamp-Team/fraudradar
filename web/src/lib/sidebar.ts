@@ -9,9 +9,9 @@ export const SIDEBAR_NAV_GROUPS = [
   {
     group: "analysis",
     items: [
-      { href: "/accounts", item: "accounts" },
       { href: "/dashboard", item: "dashboard" },
       { href: "/alerts", item: "alerts" },
+      { href: "/accounts", item: "accounts" },
     ],
   },
   {
@@ -70,11 +70,11 @@ export function getBreadcrumb(
   locale: AppLocale = DEFAULT_LOCALE,
 ): BreadcrumbInfo {
   const t = getT("shell.nav", locale);
-  if (!pathname || pathname === "/" || pathname === "/accounts") {
-    return { group: t("groups.analysis"), page: t("items.accounts") };
-  }
-  if (pathname === "/dashboard") {
+  if (!pathname || pathname === "/" || pathname === "/dashboard") {
     return { group: t("groups.analysis"), page: t("items.dashboard") };
+  }
+  if (pathname === "/accounts") {
+    return { group: t("groups.analysis"), page: t("items.accounts") };
   }
   if (pathname === "/alerts") {
     return { group: t("groups.analysis"), page: t("items.alerts") };

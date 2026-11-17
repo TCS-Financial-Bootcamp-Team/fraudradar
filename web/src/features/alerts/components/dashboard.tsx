@@ -3,10 +3,12 @@
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
+import { AccountLabel } from "@/components/account-label";
 import { useAppContext } from "@/components/app-context";
 import {
   EmptyState,
   LoadingState,
+  RefreshBar,
   ResourceError,
 } from "@/components/ui/states";
 import { WeekPicker } from "@/features/alerts/components/week-picker";
@@ -210,8 +212,13 @@ export function Dashboard() {
       {/* KPI Strip */}
       <section
         aria-label={t("indicators")}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden"
+        aria-busy={monitoring.refreshing || undefined}
+        className={cn(
+          "relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden transition-opacity duration-150 motion-reduce:transition-none",
+          monitoring.refreshing && "opacity-60",
+        )}
       >
+        <RefreshBar active={monitoring.refreshing} />
         {kpis.map((k) => (
           <div
             key={k.label}
@@ -232,7 +239,13 @@ export function Dashboard() {
       </section>
 
       {/* Charts Grid */}
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <section
+        aria-busy={monitoring.refreshing || undefined}
+        className={cn(
+          "grid grid-cols-1 lg:grid-cols-2 gap-5 transition-opacity duration-150 motion-reduce:transition-none",
+          monitoring.refreshing && "opacity-60",
+        )}
+      >
         {/* Card 1: Alertas por semana */}
         <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
           <header className="flex justify-between items-baseline gap-3">
@@ -247,7 +260,14 @@ export function Dashboard() {
         </article>
 
         {/* Card 2: Precisão confirmada pelos analistas */}
-        <article className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px]">
+        <article
+          aria-busy={feedback.refreshing || undefined}
+          className={cn(
+            "relative overflow-hidden rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-[18px] transition-opacity duration-150 motion-reduce:transition-none",
+            feedback.refreshing && "opacity-60",
+          )}
+        >
+          <RefreshBar active={feedback.refreshing} />
           <header className="flex justify-between items-baseline gap-3">
             <h2 className="m-0 text-sm font-semibold text-foreground">
               {t("cards.precision")}
@@ -334,7 +354,11 @@ export function Dashboard() {
       </section>
 
       {/* Comece por aqui: Top 5 da fila */}
-      <section className="rounded-[14px] border border-border bg-card p-[20px_22px_12px] flex flex-col gap-3">
+      <section
+        aria-busy={queue.refreshing || undefined}
+        className="relative overflow-hidden rounded-[14px] border border-border bg-card p-[20px_22px_12px] flex flex-col gap-3"
+      >
+        <RefreshBar active={queue.refreshing} />
         <header className="flex justify-between items-baseline">
           <h2 className="m-0 text-sm font-semibold text-foreground">
             {t("start.title")}
@@ -358,7 +382,12 @@ export function Dashboard() {
             {t("start.none")}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div
+            className={cn(
+              "overflow-x-auto transition-opacity duration-150 motion-reduce:transition-none",
+              queue.refreshing && "pointer-events-none opacity-60",
+            )}
+          >
             <table className="w-full min-w-[720px] border-collapse tabular-nums text-left text-sm">
               <thead>
                 <tr className="text-xs text-muted-foreground border-b border-border">
@@ -406,8 +435,8 @@ export function Dashboard() {
                           {alert.id}
                         </Link>
                       </td>
-                      <td className="py-3.5 px-3 font-mono text-[13px] text-foreground">
-                        {alert.account}
+                      <td className="py-3.5 px-3">
+                        <AccountLabel account={alert.account} />
                       </td>
                       <td className="py-3.5 px-3">
                         <div className="inline-flex items-center gap-2.5">

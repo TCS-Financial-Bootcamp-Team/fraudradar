@@ -164,7 +164,7 @@ export function Sidebar({
           )}
         >
           <Link
-            href="/accounts"
+            href="/dashboard"
             onClick={onMobileClose}
             aria-label={t("brand.homeLabel")}
             className="flex items-center gap-2.5 whitespace-nowrap rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"

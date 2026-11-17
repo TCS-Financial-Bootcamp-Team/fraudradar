@@ -29,5 +29,6 @@ export function useAccountAlerts(account: string) {
       },
       [account, revision],
     ),
+    { resetKey: account },
   );
 }
