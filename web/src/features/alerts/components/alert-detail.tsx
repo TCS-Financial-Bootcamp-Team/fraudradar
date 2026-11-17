@@ -5,6 +5,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ChevronLeft, CheckCheck, Sparkles } from "lucide-react";
+import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/field";
 import { LoadingState, ResourceError } from "@/components/ui/states";
@@ -273,9 +274,10 @@ export function AlertDetailView({ id }: { id: string }) {
             <CardTitle title={t("assessment")} hint={t("assessmentHint")} />
             {alert.assessment ? (
               <>
-                <p className="whitespace-pre-line text-[13px] leading-relaxed">
-                  {alert.assessment.content}
-                </p>
+                <Markdown
+                  content={alert.assessment.content}
+                  className="text-[13px] leading-relaxed"
+                />
                 <ul className="grid gap-1.5">
                   {alert.assessment.sources.map((s) => (
                     <li

@@ -76,8 +76,14 @@ export async function generateAssessment(id: string) {
     const mocks = await import("./mocks");
     mocks.alertDetailMock(id);
     const assessment = assessmentSchema.parse({
-      content:
-        "O padrão observado é compatível com dispersão de recursos (fan-out). A concentração temporal das saídas e o aumento de contrapartes justificam diligência adicional [1]. A análise constitui um indício e precisa de revisão humana [2].",
+      content: [
+        "O padrão observado é compatível com **dispersão de recursos (fan_out)** na janela analisada [1].",
+        "",
+        "- Concentração temporal das saídas para múltiplas contrapartes.",
+        "- Aumento relevante de destinatários em relação ao histórico.",
+        "",
+        "A análise constitui um **indício estatístico** e precisa de revisão humana [2].",
+      ].join("\n"),
       sources: [
         {
           title: "[1] Evidência transacional · R-014",
