@@ -3,15 +3,15 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import { StatusText } from "@/components/ui/status-text";
 
-async function RedirectToAccounts() {
+async function RedirectToDashboard() {
   await connection();
-  return redirect("/accounts");
+  return redirect("/dashboard");
 }
 
 export default function HomePage() {
   return (
     <Suspense fallback={<StatusText message="openingPanel" />}>
-      <RedirectToAccounts />
+      <RedirectToDashboard />
     </Suspense>
   );
 }

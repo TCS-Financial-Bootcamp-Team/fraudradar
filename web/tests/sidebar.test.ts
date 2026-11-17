@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { getT } from "../src/i18n/runtime";
 import {
   SIDEBAR_COOKIE,
+  SIDEBAR_NAV_GROUPS,
   getAlertIdFromPathname,
   getBreadcrumb,
   isNavItemActive,
@@ -43,6 +44,15 @@ test("sidebar: persistSidebarState lida de forma segura fora do navegador", () =
   });
 });
 
+test("sidebar: grupo analysis abre com Visão geral, Fila de alertas e Contas suspeitas", () => {
+  const analysis = SIDEBAR_NAV_GROUPS.find((g) => g.group === "analysis");
+  assert.ok(analysis);
+  assert.deepEqual(
+    analysis.items.map((i) => i.item),
+    ["dashboard", "alerts", "accounts"],
+  );
+});
+
 test("sidebar: getBreadcrumb mapeia rotas conhecidas e padrão", () => {
   assert.deepEqual(getBreadcrumb("/dashboard"), {
     group: "Análise",
@@ -50,11 +60,11 @@ test("sidebar: getBreadcrumb mapeia rotas conhecidas e padrão", () => {
   });
   assert.deepEqual(getBreadcrumb("/"), {
     group: "Análise",
-    page: "Contas suspeitas",
+    page: "Visão geral",
   });
   assert.deepEqual(getBreadcrumb(""), {
     group: "Análise",
-    page: "Contas suspeitas",
+    page: "Visão geral",
   });
   assert.deepEqual(getBreadcrumb("/accounts"), {
     group: "Análise",

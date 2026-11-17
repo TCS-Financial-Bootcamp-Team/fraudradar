@@ -2,9 +2,14 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
+import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
-import { Button } from "@/components/ui/button";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import { Pagination } from "@/components/ui/pagination";
+import {
+  LoadingState,
+  RefreshBar,
+  ResourceError,
+} from "@/components/ui/states";
 import { formatWeekLabel } from "@/lib/risk";
 import { useAlertQueue } from "../hooks/use-alerts";
 import { AlertsTable } from "./alerts-table";
@@ -21,44 +26,69 @@ const TABS = [
   { key: "archived", label: "archived" },
 ] as const;
 
-export function AlertQueue() {
-  const { week } = useAppContext();
-  // A key zera filtros e página quando a semana muda.
-  return <WeeklyAlertQueue key={week} />;
+type QueueFilters = {
+  week: string;
+  status: string;
+  country: string;
+  origin: string;
+  searchInput: string;
+  page: number;
+};
+
+function emptyFilters(week: string): QueueFilters {
+  return {
+    week,
+    status: "",
+    country: "",
+    origin: "",
+    searchInput: "",
+    page: 1,
+  };
 }
 
-function WeeklyAlertQueue() {
+export function AlertQueue() {
   const t = useTranslations("alerts.queue");
   const locale = useLocale();
   const { week } = useAppContext();
-  const [status, setStatus] = useState("");
-  const [country, setCountry] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [searchInput, setSearchInput] = useState("");
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [filters, setFilters] = useState<QueueFilters>(() => emptyFilters(week));
+  const [debouncedSearch, setDebouncedSearch] = useState({ week, value: "" });
+
+  // Zera filtros e página quando a semana muda sem desmontar a tabela (mantém dado anterior).
+  const active = filters.week === week ? filters : emptyFilters(week);
+  const search = debouncedSearch.week === week ? debouncedSearch.value : "";
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      setSearch(searchInput);
+      setDebouncedSearch({ week, value: active.searchInput });
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [week, active.searchInput]);
 
-  const queue = useAlertQueue(status, country, page, search, origin);
+  const queue = useAlertQueue(
+    active.status,
+    active.country,
+    active.page,
+    search,
+    active.origin,
+  );
+
+  function updateFilters(patch: Partial<QueueFilters>) {
+    setFilters((prev) => ({
+      ...(prev.week === week ? prev : emptyFilters(week)),
+      ...patch,
+      week,
+    }));
+  }
 
   function clearFilters() {
-    setStatus("");
-    setCountry("");
-    setOrigin("");
-    setSearchInput("");
-    setSearch("");
-    setPage(1);
+    setFilters(emptyFilters(week));
+    setDebouncedSearch({ week, value: "" });
   }
 
   const total = queue.data?.total ?? 0;
-  const first = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
-  const last = Math.min(page * PAGE_SIZE, total);
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const first = total === 0 ? 0 : (active.page - 1) * PAGE_SIZE + 1;
+  const last = Math.min(active.page * PAGE_SIZE, total);
 
   return (
     <div className="flex flex-col gap-6">
@@ -76,18 +106,15 @@ function WeeklyAlertQueue() {
           className="-mb-px flex flex-wrap gap-1"
         >
           {TABS.map((tab) => {
-            const active = status === tab.key;
+            const isTabActive = active.status === tab.key;
             return (
               <button
                 key={tab.key}
                 type="button"
-                aria-pressed={active}
-                onClick={() => {
-                  setStatus(tab.key);
-                  setPage(1);
-                }}
+                aria-pressed={isTabActive}
+                onClick={() => updateFilters({ status: tab.key, page: 1 })}
                 className={`inline-flex h-11 items-center border-b-2 bg-transparent px-3 text-sm transition-colors ${
-                  active
+                  isTabActive
                     ? "border-primary font-medium text-foreground"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
@@ -108,21 +135,19 @@ function WeeklyAlertQueue() {
             <input
               type="search"
               placeholder={t("searchLabel")}
-              value={searchInput}
-              onChange={(e) => {
-                setSearchInput(e.target.value);
-                setPage(1);
-              }}
+              value={active.searchInput}
+              onChange={(e) =>
+                updateFilters({ searchInput: e.target.value, page: 1 })
+              }
               className="h-[38px] w-60 rounded-lg border border-border bg-card pl-9 pr-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
             />
           </label>
           <select
             aria-label={t("country")}
-            value={country}
-            onChange={(e) => {
-              setCountry(e.target.value);
-              setPage(1);
-            }}
+            value={active.country}
+            onChange={(e) =>
+              updateFilters({ country: e.target.value, page: 1 })
+            }
             className="h-[38px] rounded-lg border border-border bg-card pl-3 pr-8 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">{t("allCountries")}</option>
@@ -135,11 +160,8 @@ function WeeklyAlertQueue() {
           <select
             aria-label={t("origin")}
             title={t("originHint")}
-            value={origin}
-            onChange={(e) => {
-              setOrigin(e.target.value);
-              setPage(1);
-            }}
+            value={active.origin}
+            onChange={(e) => updateFilters({ origin: e.target.value, page: 1 })}
             className="h-[38px] rounded-lg border border-border bg-card pl-3 pr-8 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring"
           >
             <option value="">{t("originAll")}</option>
@@ -158,11 +180,22 @@ function WeeklyAlertQueue() {
         />
       ) : (
         <>
-          <section className="panel overflow-hidden !p-0">
-            <AlertsTable
-              items={queue.data.items}
-              onClearFilters={clearFilters}
-            />
+          <section
+            aria-busy={queue.refreshing || undefined}
+            className="panel relative overflow-hidden !p-0"
+          >
+            <RefreshBar active={queue.refreshing} />
+            <div
+              className={cn(
+                "transition-opacity duration-150 motion-reduce:transition-none",
+                queue.refreshing && "pointer-events-none opacity-60",
+              )}
+            >
+              <AlertsTable
+                items={queue.data.items}
+                onClearFilters={clearFilters}
+              />
+            </div>
           </section>
           <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] text-muted-foreground">
             <span>
@@ -171,22 +204,11 @@ function WeeklyAlertQueue() {
                 : t("range", { first, last, total })}
               {week && t("weekSuffix", { week: formatWeekLabel(week, locale) })}
             </span>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                {t("previous")}
-              </Button>
-              <Button
-                variant="outline"
-                disabled={page * PAGE_SIZE >= total}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                {t("next")}
-              </Button>
-            </div>
+            <Pagination
+              page={active.page}
+              totalPages={totalPages}
+              onPageChange={(nextPage) => updateFilters({ page: nextPage })}
+            />
           </div>
         </>
       )}

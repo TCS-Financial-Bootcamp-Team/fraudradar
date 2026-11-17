@@ -12,7 +12,7 @@ import { ProcessingSettingsCard } from "@/features/processing/components/process
 import { ModelSection } from "@/features/models/components/model-section";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import { LoadingState, RefreshBar, ResourceError } from "@/components/ui/states";
 import { LocaleSwitcher } from "@/i18n/locale-switcher";
 
 function ProfileForm({
@@ -84,7 +84,11 @@ export function Settings() {
       </div>
 
       {/* Card 1: Perfil */}
-      <section className="bg-card border border-border rounded-[14px] p-[22px] flex flex-col gap-4">
+      <section
+        aria-busy={profile.refreshing || undefined}
+        className="relative overflow-hidden bg-card border border-border rounded-[14px] p-[22px] flex flex-col gap-4"
+      >
+        <RefreshBar active={profile.refreshing} />
         <h2 className="m-0 text-sm font-semibold text-foreground">
           {t("profile.title")}
         </h2>

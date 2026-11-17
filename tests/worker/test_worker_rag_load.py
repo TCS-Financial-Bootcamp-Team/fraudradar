@@ -181,7 +181,7 @@ def test_the_chat_answers_after_loading_the_real_snapshot(client, model, monkeyp
     Usa o snapshot de verdade (rag/snapshots/) e troca só o Gemini por uma resposta fixa.
     """
 
-    def fake_gemini(*, question, context, allow_pending_review=False):
+    def fake_gemini(*, question, context, allow_pending_review=False, **kwargs):
         evidence = _parse_context(context, allow_pending_review=allow_pending_review)
         return LegalAnswer(
             text="Resposta de teste [F1].",
@@ -216,7 +216,7 @@ def test_the_chat_answers_after_loading_the_real_snapshot(client, model, monkeyp
     assert response.status_code == 200
     payload = response.json()
     assert payload["answer"] == "Resposta de teste [F1]."
-    assert payload["sources"]
+    assert len(payload["sources"]) == 1
     for number, source in enumerate(payload["sources"], start=1):
-        assert source["title"].startswith(f"[F{number}] Art. ")
+        assert source["title"].startswith(f"[F{number}] Lei 9.613/1998, Art. ")
         assert "https://www2.camara.leg.br/" in source["excerpt"]

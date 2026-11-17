@@ -79,10 +79,17 @@ export function useAlertDetail(id: string) {
       },
       [id, revision],
     ),
+    { resetKey: id },
   );
-  const [busy, setBusy] = useState(false);
-  async function runAction(action: () => Promise<unknown>, message: string) {
-    setBusy(true);
+  const [busyAction, setBusyAction] = useState<
+    "assessment" | "decision" | "approve" | null
+  >(null);
+  async function runAction(
+    kind: "assessment" | "decision" | "approve",
+    action: () => Promise<unknown>,
+    message: string,
+  ) {
+    setBusyAction(kind);
     try {
       await action();
       notify.success(message);
@@ -91,24 +98,28 @@ export function useAlertDetail(id: string) {
     } catch (error) {
       notify.error(getErrorMessage(error));
     } finally {
-      setBusy(false);
+      setBusyAction(null);
     }
   }
   return {
     ...resource,
-    busy,
+    busy: busyAction !== null,
+    generatingAssessment: busyAction === "assessment",
     generateAssessment: () =>
       runAction(
+        "assessment",
         () => alertsService.generateAssessment(id),
         t("assessment"),
       ),
     submitDecision: (decision: DecisionRequest) =>
       runAction(
+        "decision",
         () => alertsService.submitDecision(id, decision),
         t("decision"),
       ),
     approveReport: (content: string) =>
       runAction(
+        "approve",
         () => alertsService.approveReport(id, content),
         t("approved"),
       ),

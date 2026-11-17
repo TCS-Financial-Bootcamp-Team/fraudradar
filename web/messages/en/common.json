@@ -37,5 +37,19 @@
     "escalated": "Under investigation",
     "archived": "Archived",
     "reported": "Ready to report"
+  },
+  "pagination": {
+    "navLabel": "Pagination",
+    "previous": "Previous",
+    "next": "Next",
+    "pageAria": "Page {page}",
+    "goTo": "Go to",
+    "goToAria": "Go to page (1 to {total})"
+  },
+  "legalSources": {
+    "openOfficial": "Open official source"
+  },
+  "accountAlias": {
+    "hint": "Fictitious alias generated from the account number, purely as a reading aid. Not a real name."
   }
 }

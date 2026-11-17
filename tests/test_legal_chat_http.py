@@ -6,11 +6,14 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
+from api import legal_chat_service
 from api.dependencies import LOCAL_USER, get_current_user
 from api.legal_chat_service import LegalEvidenceUnavailableError
 from api.main import create_app
+from api.routes import ai
 from api.schemas.alerts import Source
 from api.schemas.chat import ChatResponse
+from fraudradar.ai.legal_chat_intent import small_talk_reply
 
 
 @pytest.fixture
@@ -156,3 +159,27 @@ def test_chat_http_401_for_rejected_auth(http_client, chat_request):
         response = client.post("/chat", json=chat_request)
 
     assert response.status_code == 401
+
+
+@pytest.mark.parametrize("path", ["/chat", "/alerts/882/chat"])
+@pytest.mark.parametrize("message", ["OLÁ!!!", "Obrigada!", "Até mais.", "ok", "Quem é você?"])
+def test_small_talk_bypasses_all_external_work(
+    http_client, chat_request, monkeypatch, path, message
+):
+    _, client = http_client
+    for name in (
+        "gemini_settings",
+        "get_engine",
+        "_active_legal_source",
+        "prepare_legal_evidence",
+        "generate_from_prepared_evidence",
+    ):
+        monkeypatch.setattr(legal_chat_service, name, forbidden_service)
+    for name in ("gemini_settings", "get_engine", "prepare_alert_ai"):
+        monkeypatch.setattr(ai, name, forbidden_service)
+    context = {**chat_request["context"]}
+    if path != "/chat":
+        context["alert_id"] = "882"
+    response = client.post(path, json={**chat_request, "message": message, "context": context})
+    assert response.status_code == 200
+    assert response.json() == {"answer": small_talk_reply(message), "sources": []}

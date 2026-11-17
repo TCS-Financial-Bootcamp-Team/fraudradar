@@ -26,7 +26,7 @@ export function useAuth() {
     }
   }
   const navigateToDashboard = () => {
-    router.replace("/accounts");
+    router.replace("/dashboard");
     router.refresh();
   };
   return {

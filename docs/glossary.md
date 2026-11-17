@@ -213,7 +213,7 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 | `Contribution` | `{nome, valor}` | `name`, `value` |
 | `Rule` | `{codigo, descricao}` | `code`, `description` |
 | `Movement` | `Movimentacao {id, data, origem, destino, valor, moeda, meio, moeda_pagamento}` | `id`, `date`, `sender`, `receiver`, `amount`, `currency`, `payment_type`, `payment_currency` |
-| `Assessment` / `assessmentSchema` | `Parecer {texto, fontes}` | `content`, `sources` |
+| `Assessment` / `assessmentSchema` | `Parecer {texto, fontes}` | `content`, `summary` (prévia derivada de `content`, sem coluna no banco), `sources` (somente fontes citadas, com IDs originais) |
 | `Source` | `Fonte {titulo, trecho}` | `title`, `excerpt` |
 | `Graph` / `graphSchema` | `Grafo {nos, arestas}` | `nodes`, `edges` |
 | `Node` | `No {id, rotulo, central}` | `id`, `label`, `central` |
@@ -232,7 +232,7 @@ Tags do OpenAPI acompanham o recurso (`alerts`, `decisions`, `ai`,
 | `ChatRequest` / `chatRequestSchema` | `PedidoChat {mensagem, contexto, historico}` | `message`, `context`, `history` |
 | `ChatContext` | `ContextoChat {pagina, semana, alerta_id}` | `page`, `week`, `alert_id` |
 | `Message` / `messageSchema` | `Mensagem {papel, texto}` | `role` (`user`, `assistant`), `content` |
-| `ChatResponse` / `chatResponseSchema` | `RespostaChat {resposta, fontes}` | `answer`, `sources` |
+| `ChatResponse` / `chatResponseSchema` | `RespostaChat {resposta, fontes}` | `answer`, `sources` (vazio em conversa curta; só fontes citadas em respostas geradas; todas as recuperadas no fallback de indisponibilidade do LLM) |
 | `TransactionRequest` / `transactionSchema` | `PedidoTransacao` | colunas do SAML-D, sem mudança |
 | `Receipt` / `receiptSchema` | `Recibo {id, status, mensagem}` | `id`, `status` (`received`, `processing`, `completed`), `message` |
 | `DataSource` / `dataSourceSchema` | `FonteDados {id, nome, tipo, host_mascarado, banco_mascarado, status, ultima_sincronizacao}` | `id`, `name`, `type` (`postgres`), `masked_host`, `masked_database`, `status` (`connected`, `syncing`, `error`), `last_synced_at` |

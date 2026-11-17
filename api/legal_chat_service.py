@@ -9,7 +9,13 @@ from sqlalchemy import Engine
 
 from api.schemas.chat import ChatResponse
 from fraudradar.ai.legal_chat_adapter import legal_payload_to_chat_response
-from fraudradar.ai.legal_generation import LegalAnswer, gemini_settings
+from fraudradar.ai.legal_chat_intent import small_talk_reply
+from fraudradar.ai.legal_generation import (
+    CHAT_MAX_OUTPUT_TOKENS,
+    SYSTEM_INSTRUCTION,
+    LegalAnswer,
+    gemini_settings,
+)
 from fraudradar.ai.legal_pipeline import generate_from_prepared_evidence
 from fraudradar.ai.legal_presentation import present_legal_rag
 from fraudradar.ai.legal_retrieval import (
@@ -54,6 +60,8 @@ def answer_legal_chat(
     engine: Engine | None = None,
     generator: Callable[..., LegalAnswer] | None = None,
     retriever: Callable[..., PreparedLegalEvidence] | None = None,
+    system_instruction: str = SYSTEM_INSTRUCTION,
+    max_output_tokens: int = CHAT_MAX_OUTPUT_TOKENS,
 ) -> ChatResponse:
     """Prepara evidências revisadas, fecha o banco e gera a resposta.
 
@@ -65,6 +73,10 @@ def answer_legal_chat(
 
     if len(question) > 2000:
         raise ValueError("Pergunta juridica excede 2000 caracteres.")
+
+    reply = small_talk_reply(question)
+    if reply is not None:
+        return ChatResponse(answer=reply, sources=[])
 
     search_question = question if retrieval_query is None else retrieval_query
     if not isinstance(search_question, str) or not search_question.strip():
@@ -108,6 +120,8 @@ def answer_legal_chat(
         prepared=prepared,
         generator=generator,
         allow_pending_review=False,
+        system_instruction=system_instruction,
+        max_output_tokens=max_output_tokens,
     )
 
     payload: dict[str, Any] = present_legal_rag(result)

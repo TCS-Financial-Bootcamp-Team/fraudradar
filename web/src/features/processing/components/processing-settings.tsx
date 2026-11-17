@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/field";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import { LoadingState, RefreshBar, ResourceError } from "@/components/ui/states";
 import { useProcessing } from "../hooks/use-processing";
 import type {
   ProcessingSettings,
@@ -17,7 +17,11 @@ export function ProcessingSettingsCard() {
   const settings = processing.data?.settings;
 
   return (
-    <section className="flex flex-col gap-4 rounded-[14px] border border-border bg-card p-[22px]">
+    <section
+      aria-busy={processing.refreshing || undefined}
+      className="relative overflow-hidden flex flex-col gap-4 rounded-[14px] border border-border bg-card p-[22px]"
+    >
+      <RefreshBar active={processing.refreshing} />
       <div className="flex items-baseline justify-between gap-3">
         <h2 className="text-sm font-semibold">{t("title")}</h2>
         <span className="text-xs text-muted-foreground">

@@ -84,6 +84,54 @@ def test_real_adapter_produces_valid_assessment():
         assert "Fonte oficial: https://" in source.excerpt
 
 
+def test_only_cited_source_is_returned_with_original_id_and_can_be_saved():
+    payload = make_payload()
+    payload["answer"] = "Revise os deveres de comunicação [F2]."
+    payload["citations"] = ["F2"]
+    assessment = as_assessment(payload)
+    assert [source.title for source in assessment.sources] == ["[F2] Lei 9.613/1998, Art. 11"]
+    assert assessment.sources[0].excerpt.endswith(
+        "Fonte oficial: https://www.planalto.gov.br/teste"
+    )
+    assert validate_generated_assessment(assessment) == ("F2",)
+    conn = MagicMock()
+    conn.execute.return_value.scalar_one.return_value = 123
+    save_generated_assessment(
+        conn,
+        alert_id=882,
+        assessment=assessment,
+        model="teste",
+        suggested_typology=None,
+        user=LOCAL_USER,
+    )
+    assert '"F2"' in conn.execute.call_args_list[0].args[1]["validation"]
+
+
+def test_sources_are_sorted_by_id_regardless_of_citation_order():
+    payload = make_payload()
+    payload["answer"] = "Comunicação [F2] e registros [F1]; comunicação novamente [F2]."
+    payload["citations"] = ["F2", "F1"]
+    response = legal_payload_to_chat_response(payload)
+    assert [source.title for source in response.sources] == [
+        "[F1] Lei 9.613/1998, Art. 10",
+        "[F2] Lei 9.613/1998, Art. 11",
+    ]
+
+
+def test_citation_metadata_cannot_hide_unknown_citation_in_text():
+    payload = make_payload()
+    payload["answer"] = "Referência inexistente [F99]."
+    with pytest.raises(ValueError, match="citação desconhecida"):
+        legal_payload_to_chat_response(payload)
+
+
+def test_citation_metadata_must_match_text():
+    payload = make_payload()
+    payload["answer"] = "Somente a segunda fonte [F2]."
+    with pytest.raises(ValueError, match="Citações da resposta inconsistentes"):
+        legal_payload_to_chat_response(payload)
+
+
 def test_generated_answer_can_reach_persistence():
     assessment = as_assessment(make_payload())
 

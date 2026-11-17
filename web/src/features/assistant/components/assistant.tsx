@@ -3,14 +3,58 @@
 import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { ArrowUp, Sparkles, X } from "lucide-react";
+import { ArrowUp, ChevronRight, Sparkles, X } from "lucide-react";
+import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
+import { LegalSourceItem } from "@/components/legal-source-item";
 import { Markdown } from "@/components/markdown";
 import { useFormatters } from "@/i18n/use-formatters";
 import { getAlertIdFromPathname } from "@/lib/sidebar";
 import { useAssistant } from "../hooks/use-assistant";
+import type { Source } from "../schemas/assistant";
 
 const DEFAULT_SUGGESTIONS = ["summary", "typology", "rules"] as const;
+
+function AssistantSources({
+  sources,
+  className,
+}: {
+  sources?: Source[];
+  className?: string;
+}) {
+  const t = useTranslations("assistant");
+  const [open, setOpen] = useState(false);
+
+  if (!sources || sources.length === 0) return null;
+
+  return (
+    <div className={cn("min-w-0", className)}>
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((prev) => !prev)}
+        className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <ChevronRight
+          className={cn(
+            "size-3.5 shrink-0 transition-transform duration-150 motion-reduce:transition-none",
+            open && "rotate-90",
+          )}
+          strokeWidth={1.5}
+          aria-hidden="true"
+        />
+        <span>{t("sourcesToggle", { count: sources.length })}</span>
+      </button>
+      {open && (
+        <div className="mt-1.5 flex min-w-0 flex-col gap-1.5">
+          {sources.map((src, idx) => (
+            <LegalSourceItem key={`${src.title}-${idx}`} source={src} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
  * Componente Chat inline preservado para compatibilidade enquanto
@@ -72,8 +116,8 @@ export function Chat({ alertId }: { alertId?: string }) {
             key={i}
             className={
               m.role === "user"
-                ? "ml-8 rounded-xl bg-primary px-3.5 py-2.5 text-xs text-primary-foreground sm:text-sm"
-                : "mr-3 rounded-xl border border-border bg-card p-3.5 text-xs text-foreground sm:text-sm"
+                ? "ml-8 min-w-0 rounded-xl bg-primary px-3.5 py-2.5 text-xs text-primary-foreground break-words [overflow-wrap:anywhere] sm:text-sm"
+                : "mr-3 min-w-0 rounded-xl border border-border bg-card p-3.5 text-xs text-foreground break-words [overflow-wrap:anywhere] sm:text-sm"
             }
           >
             {m.role === "user" ? (
@@ -86,21 +130,10 @@ export function Chat({ alertId }: { alertId?: string }) {
                 className="text-xs leading-relaxed sm:text-sm"
               />
             )}
-            {m.sources && m.sources.length > 0 && (
-              <div className="mt-2.5 flex flex-col gap-1 border-t border-soft pt-2">
-                {m.sources.map((src, idx) => (
-                  <span
-                    key={idx}
-                    className="rounded-md bg-soft px-2 py-1 text-xs text-muted-foreground"
-                  >
-                    <strong className="font-medium text-foreground">
-                      {src.title}
-                    </strong>{" "}
-                    · {src.excerpt}
-                  </span>
-                ))}
-              </div>
-            )}
+            <AssistantSources
+              sources={m.sources}
+              className="mt-2 border-t border-soft pt-1.5"
+            />
           </div>
         ))}
         {busy && (
@@ -273,12 +306,12 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
           messages.map((m, idx) => (
             <div
               key={idx}
-              className={`flex flex-col gap-1.5 ${
+              className={`flex min-w-0 flex-col gap-1.5 ${
                 m.role === "user" ? "items-end" : "items-start"
               }`}
             >
               <div
-                className={`text-xs leading-relaxed sm:text-sm ${
+                className={`min-w-0 break-words [overflow-wrap:anywhere] text-xs leading-relaxed sm:text-sm ${
                   m.role === "user"
                     ? "max-w-[88%] rounded-xl bg-primary px-3.5 py-2.5 text-primary-foreground"
                     : "max-w-[92%] text-foreground"
@@ -295,21 +328,10 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
                   />
                 )}
               </div>
-              {m.sources && m.sources.length > 0 && (
-                <div className="flex w-full max-w-[92%] flex-col gap-1">
-                  {m.sources.map((src, sIdx) => (
-                    <span
-                      key={sIdx}
-                      className="rounded-md bg-soft px-2.5 py-1 text-xs text-muted-foreground leading-snug"
-                    >
-                      <strong className="font-medium text-foreground">
-                        {src.title}
-                      </strong>{" "}
-                      · {src.excerpt}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <AssistantSources
+                sources={m.sources}
+                className="w-full max-w-[92%]"
+              />
             </div>
           ))
         )}

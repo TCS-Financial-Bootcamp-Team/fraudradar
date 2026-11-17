@@ -37,5 +37,19 @@
     "escalated": "Em investigação",
     "archived": "Arquivado",
     "reported": "Para comunicação"
+  },
+  "pagination": {
+    "navLabel": "Paginação",
+    "previous": "Anterior",
+    "next": "Próxima",
+    "pageAria": "Página {page}",
+    "goTo": "Ir para",
+    "goToAria": "Ir para a página (1 a {total})"
+  },
+  "legalSources": {
+    "openOfficial": "Abrir fonte oficial"
+  },
+  "accountAlias": {
+    "hint": "Apelido fictício gerado a partir do número da conta, só para facilitar a leitura. Não é um nome real."
   }
 }

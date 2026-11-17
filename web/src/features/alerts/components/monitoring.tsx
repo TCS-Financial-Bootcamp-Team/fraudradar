@@ -2,10 +2,12 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
 import {
   EmptyState,
   LoadingState,
+  RefreshBar,
   ResourceError,
 } from "@/components/ui/states";
 import { useFormatters } from "@/i18n/use-formatters";
@@ -141,7 +143,7 @@ export function MonitoringView() {
   };
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-7" aria-busy={resource.refreshing || undefined}>
       <div className="flex flex-col gap-1.5">
         {week && (
           <p className="m-0 text-[13px] text-muted-foreground">
@@ -164,8 +166,12 @@ export function MonitoringView() {
 
       <section
         aria-label={t("indicators")}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden"
+        className={cn(
+          "relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-px bg-border border border-border rounded-[14px] overflow-hidden transition-opacity duration-150 motion-reduce:transition-none",
+          resource.refreshing && "opacity-60",
+        )}
       >
+        <RefreshBar active={resource.refreshing} />
         {[
           { label: t("kpi.alerts"), ...alertsCountDisplay },
           { label: t("kpi.rate"), ...alertRateDisplay },
@@ -193,7 +199,12 @@ export function MonitoringView() {
         ))}
       </section>
 
-      <section className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <section
+        className={cn(
+          "grid grid-cols-1 lg:grid-cols-2 gap-5 transition-opacity duration-150 motion-reduce:transition-none",
+          resource.refreshing && "opacity-60",
+        )}
+      >
         <RateCard
           title={t("countryRate")}
           subtitle={t("alertRateNote")}

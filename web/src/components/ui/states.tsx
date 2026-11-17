@@ -4,6 +4,18 @@ import { Radar, TriangleAlert } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "./button";
 
+export function RefreshBar({ active }: { active: boolean }) {
+  if (!active) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0.5 overflow-hidden bg-track"
+    >
+      <div className="refresh-bar-indicator h-full w-1/3 bg-primary" />
+    </div>
+  );
+}
+
 export function LoadingState() {
   const t = useTranslations("shell.states");
   return (

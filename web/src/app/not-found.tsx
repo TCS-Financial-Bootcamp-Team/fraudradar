@@ -11,7 +11,7 @@ export default async function NotFound() {
       <p className="text-muted-foreground">
         {t("notFoundBody")}
       </p>
-      <Link className="text-primary underline" href="/accounts">
+      <Link className="text-primary underline" href="/dashboard">
         {t("backHome")}
       </Link>
     </main>

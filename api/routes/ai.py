@@ -32,6 +32,7 @@ from fraudradar.ai.alert_assessment import (
     parse_suggested_typology,
 )
 from fraudradar.ai.legal_chat_adapter import LLM_UNAVAILABLE_ANSWER
+from fraudradar.ai.legal_chat_intent import small_talk_reply
 from fraudradar.ai.legal_generation import (
     LegalAnswerRejectedError,
     LegalLlmNotConfiguredError,
@@ -170,6 +171,8 @@ def generate_assessment(
         generated = answer_legal_chat(
             request.prompt,
             retrieval_query=request.retrieval_query,
+            system_instruction=request.system_instruction,
+            max_output_tokens=request.max_output_tokens,
         )
     except (
         LegalLlmNotConfiguredError,
@@ -225,6 +228,10 @@ def chat_about_alert(
             "ai.alert_context_mismatch",
             "O alerta informado não corresponde ao alerta selecionado.",
         )
+
+    reply = small_talk_reply(request.message)
+    if reply is not None:
+        return ChatResponse(answer=reply, sources=[])
 
     _configured_model()
     engine = get_engine()

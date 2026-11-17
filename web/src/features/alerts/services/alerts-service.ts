@@ -76,24 +76,40 @@ export async function generateAssessment(id: string) {
     const mocks = await import("./mocks");
     mocks.alertDetailMock(id);
     const assessment = assessmentSchema.parse({
+      summary:
+        "A conta apresenta dispersão acentuada de recursos para múltiplas contrapartes em janela curta, compatível com fan-out [F1]. Os indícios recomendam diligência adicional e revisão humana antes de qualquer encaminhamento [F2].",
       content: [
-        "O padrão observado é compatível com **dispersão de recursos (fan_out)** na janela analisada [1].",
+        "## Resumo",
+        "A conta apresenta dispersão acentuada de recursos para múltiplas contrapartes em janela curta, compatível com **fan-out** [F1]. Os indícios recomendam diligência adicional e revisão humana antes de qualquer encaminhamento [F2].",
         "",
-        "- Concentração temporal das saídas para múltiplas contrapartes.",
-        "- Aumento relevante de destinatários em relação ao histórico.",
+        "## Sinais de risco",
+        "- Concentração temporal das saídas para múltiplas contrapartes em janela de 24 horas (`R-014`).",
+        "- Saídas sequenciais logo após recebimento de alto valor (`R-027`).",
+        "- Desvio relevante do perfil histórico de destinatários da conta.",
         "",
-        "A análise constitui um **indício estatístico** e precisa de revisão humana [2].",
+        "## Contexto transacional",
+        "As movimentações da semana concentram transferências fracionadas para contas distintas no mesmo período, mantendo o padrão de dispersão observado no grafo de até dois saltos.",
+        "",
+        "## Fundamentação jurídica",
+        "O conjunto de sinais justifica exame detalhado de compatibilidade econômica e registro formal da análise conforme as obrigações de monitoramento e comunicação previstas na Lei nº 9.613/1998 [F1] e nas diretrizes de prevenção à lavagem de dinheiro [F2].",
+        "",
+        "## Limitações",
+        "A síntese baseia-se apenas nos dados pseudonimizados da janela semanal e nos pesos estatísticos do modelo. Não há confirmação automática de ilícito nem acesso a dados cadastrais externos.",
+        "",
+        "## Próximos passos sugeridos",
+        "1. Verificar a relação econômica entre a conta de origem e os destinatários recorrentes.",
+        "2. Conferir o histórico de alertas em semanas anteriores antes de decidir entre arquivamento, aprofundamento ou comunicação.",
       ].join("\n"),
       sources: [
         {
-          title: "[1] Evidência transacional · R-014",
+          title: "[F1] Art. 11 · Lei nº 9.613/1998",
           excerpt:
-            "Transferências sequenciais a múltiplas contrapartes na janela analisada.",
+            "As pessoas referidas no art. 9º devem dispensar especial atenção às operações que possam constituir-se em sérios indícios dos crimes previstos nesta Lei e comunicá-las ao COAF.\nFonte oficial: https://www.planalto.gov.br/ccivil_03/leis/l9613.htm",
         },
         {
-          title: "[2] Guia de análise PLD · base demonstrativa",
+          title: "[F2] Circular BCB nº 3.978/2020 · Art. 39",
           excerpt:
-            "Indícios estatísticos não constituem confirmação de ilícito.",
+            "As instituições devem adotar procedimentos de monitoramento, seleção e análise de operações e situações atípicas, mantendo documentação da decisão fundamentada.\nFonte oficial: https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?tipo=Circular&numero=3978",
         },
       ],
     });

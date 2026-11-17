@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronLeft, CheckCheck, Sparkles } from "lucide-react";
+import { ChevronLeft, CheckCheck, FileText, Loader2, Sparkles } from "lucide-react";
+import { AccountLabel } from "@/components/account-label";
 import { Markdown } from "@/components/markdown";
 import { Button } from "@/components/ui/button";
 import { Field, Textarea } from "@/components/ui/field";
-import { LoadingState, ResourceError } from "@/components/ui/states";
+import { LoadingState, RefreshBar, ResourceError } from "@/components/ui/states";
 import { useFormatters } from "@/i18n/use-formatters";
 import { useValidationText } from "@/i18n/use-validation-text";
 import {
@@ -27,8 +28,10 @@ import {
   type DecisionRequest,
   type Report,
 } from "../schemas/alerts";
+import { getAssessmentSummary } from "../lib/assessment";
 import { ControlSampleBadge, StatusDot } from "./alerts-table";
 import { AccountGraph } from "./account-graph";
+import { AssessmentModal } from "./assessment-modal";
 
 const DECISION_CHOICES: DecisionRequest["decision"][] = [
   "archive",
@@ -41,13 +44,17 @@ export const ARCHIVE_REASONS: ArchiveReason[] = [
   "insufficient_evidence",
 ];
 
-const cardClass = "panel grid gap-4 px-[22px] py-5";
+const cardClass = "panel relative grid min-w-0 gap-4 px-[22px] py-5";
 
 function CardTitle({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="flex items-baseline justify-between gap-4">
+    <div className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
       <h2 className="text-sm font-semibold">{title}</h2>
-      {hint && <span className="text-xs text-muted-foreground">{hint}</span>}
+      {hint && (
+        <span className="text-xs text-muted-foreground break-words">
+          {hint}
+        </span>
+      )}
     </div>
   );
 }
@@ -59,6 +66,7 @@ export function AlertDetailView({ id }: { id: string }) {
   const format = useFormatters();
   const text = useValidationText();
   const resource = useAlertDetail(id);
+  const [assessmentModalOpen, setAssessmentModalOpen] = useState(false);
   const form = useForm<DecisionRequest>({
     resolver: zodResolver(decisionSchema),
     defaultValues: { decision: "escalate", justification: "" },
@@ -102,11 +110,15 @@ export function AlertDetailView({ id }: { id: string }) {
             </span>
             {alert.origin === "exploration" && <ControlSampleBadge />}
           </div>
-          <h1 className="text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">
-            {t("title", { id: alert.id })}{" "}
-            <span className="font-mono text-lg font-normal tracking-normal text-muted-foreground">
-              {t("account", { account: alert.account })}
-            </span>
+          <h1 className="flex flex-wrap items-baseline gap-x-3 gap-y-1.5 text-[34px] font-semibold leading-[1.1] tracking-[-0.03em]">
+            <span>{t("title", { id: alert.id })}</span>
+            <AccountLabel
+              account={alert.account}
+              layout="inline"
+              className="tracking-normal"
+              aliasClassName="text-lg font-medium text-foreground"
+              numberClassName="text-sm text-muted-foreground"
+            />
           </h1>
         </div>
         <dl className="grid grid-cols-3 gap-x-10 gap-y-1 tabular-nums">
@@ -215,8 +227,14 @@ export function AlertDetailView({ id }: { id: string }) {
                       <td className="border-b border-soft py-[13px] pr-3">
                         {formatDayMonth(m.date, locale)}
                       </td>
-                      <td className="border-b border-soft px-3 py-[13px] font-mono text-[13px]">
-                        {m.sender} → {m.receiver}
+                      <td className="border-b border-soft px-3 py-[13px]">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <AccountLabel account={m.sender} />
+                          <span aria-hidden="true" className="text-xs text-muted-foreground">
+                            →
+                          </span>
+                          <AccountLabel account={m.receiver} />
+                        </div>
                       </td>
                       <td className="border-b border-soft px-3 py-[13px]">
                         {m.payment_type}
@@ -249,6 +267,7 @@ export function AlertDetailView({ id }: { id: string }) {
               title={t("otherWeeks")}
               hint={t("periods", { count: otherAlerts.length })}
             />
+            <AccountLabel account={alert.account} layout="inline" />
             {otherAlerts.length === 0 ? (
               <p className="text-[13px] text-muted-foreground">
                 {t("noOtherWeeks")}
@@ -270,45 +289,85 @@ export function AlertDetailView({ id }: { id: string }) {
             )}
           </section>
 
-          <section className={cardClass}>
+          <section
+            aria-busy={
+              resource.generatingAssessment || resource.refreshing || undefined
+            }
+            className={`${cardClass} overflow-hidden`}
+          >
+            <RefreshBar active={resource.refreshing} />
             <CardTitle title={t("assessment")} hint={t("assessmentHint")} />
             {alert.assessment ? (
               <>
                 <Markdown
-                  content={alert.assessment.content}
+                  content={getAssessmentSummary(alert.assessment)}
                   className="text-[13px] leading-relaxed"
                 />
-                <ul className="grid gap-1.5">
-                  {alert.assessment.sources.map((s) => (
-                    <li
-                      key={s.title}
-                      className="rounded-lg bg-soft px-2.5 py-2 text-xs"
-                    >
-                      <span className="font-medium">{s.title}</span>{" "}
-                      <span className="text-muted-foreground">
-                        · {s.excerpt}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                <p className="m-0 text-xs text-muted-foreground">
+                  {t("assessmentSourcesCount", {
+                    count: alert.assessment.sources.length,
+                  })}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    className="flex-1"
+                    onClick={() => setAssessmentModalOpen(true)}
+                  >
+                    <FileText className="size-4" strokeWidth={1.5} />
+                    {t("viewFullAssessment")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={resource.busy}
+                    onClick={() => void resource.generateAssessment()}
+                  >
+                    {resource.generatingAssessment ? (
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-none"
+                        strokeWidth={1.5}
+                      />
+                    ) : (
+                      <Sparkles className="size-4" strokeWidth={1.5} />
+                    )}
+                    {resource.generatingAssessment
+                      ? t("generating")
+                      : t("regenerate")}
+                  </Button>
+                </div>
+                <AssessmentModal
+                  open={assessmentModalOpen}
+                  onOpenChange={setAssessmentModalOpen}
+                  alert={alert}
+                  assessment={alert.assessment}
+                />
               </>
             ) : (
-              <p className="text-[13px] text-muted-foreground">
-                {t("assessmentEmpty")}
-              </p>
+              <>
+                <p className="text-[13px] text-muted-foreground">
+                  {t("assessmentEmpty")}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={resource.busy}
+                  onClick={() => void resource.generateAssessment()}
+                >
+                  {resource.generatingAssessment ? (
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-none"
+                      strokeWidth={1.5}
+                    />
+                  ) : (
+                    <Sparkles className="size-4" strokeWidth={1.5} />
+                  )}
+                  {resource.generatingAssessment
+                    ? t("generating")
+                    : t("generate")}
+                </Button>
+              </>
             )}
-            <Button
-              variant="outline"
-              disabled={resource.busy}
-              onClick={() => void resource.generateAssessment()}
-            >
-              <Sparkles strokeWidth={1.5} />
-              {resource.busy
-                ? t("wait")
-                : alert.assessment
-                  ? t("regenerate")
-                  : t("generate")}
-            </Button>
           </section>
 
           <section className={cardClass}>

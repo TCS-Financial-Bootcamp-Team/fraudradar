@@ -1,16 +1,29 @@
 """Adapta resultados jurídicos revisados ao contrato existente do chat."""
 
+import re
 from typing import Any
 
 from api.schemas.alerts import Source
 from api.schemas.chat import ChatResponse
 
 LLM_UNAVAILABLE_ANSWER = (
-    "A explicacao automatica esta temporariamente "
-    "indisponivel. Consulte as fontes juridicas "
-    "recuperadas abaixo. Nenhuma conclusao automatica "
+    "A explicação automática está temporariamente "
+    "indisponível. Consulte as fontes jurídicas "
+    "recuperadas abaixo. Nenhuma conclusão automática "
     "foi produzida."
 )
+
+
+def cited_sources(content: str, sources: list[Source]) -> list[Source]:
+    """Filtra fontes pelos IDs citados, preservando IDs antigos e ordenando pelo número."""
+    # Pareceres legados também podem usar [1], antes da adoção de [F1].
+    identifiers = set(re.findall(r"\[(F?[1-9][0-9]*)\]", content))
+    selected: list[tuple[int, Source]] = []
+    for source in sources:
+        match = re.match(r"^\[(F?[1-9][0-9]*)\](?:\s|$)", source.title)
+        if match is not None and match[1] in identifiers:
+            selected.append((int(match[1].removeprefix("F")), source))
+    return [source for _, source in sorted(selected, key=lambda item: item[0])]
 
 
 def legal_payload_to_chat_response(
@@ -61,7 +74,7 @@ def legal_payload_to_chat_response(
         citation_id = evidence["citation_id"]
 
         # O frontend exibe os títulos das fontes.
-        title = f"[{citation_id}] {article} - Fonte juridica"
+        title = f"[{citation_id}] Lei 9.613/1998, {article}"
 
         # O trecho é uma prévia, não a evidência jurídica completa.
         preview = content[:500]
@@ -96,6 +109,13 @@ def legal_payload_to_chat_response(
 
         if not all(citation in expected_ids for citation in citations):
             raise ValueError("Resposta com citacao desconhecida.")
+
+        actual_citations = set(re.findall(r"\[(F[0-9]+)\]", answer))
+        if not actual_citations.issubset(expected_ids):
+            raise ValueError("Resposta com citação desconhecida.")
+        if actual_citations != set(citations):
+            raise ValueError("Citações da resposta inconsistentes.")
+        sources = cited_sources(answer, sources)
 
     return ChatResponse(
         answer=answer,

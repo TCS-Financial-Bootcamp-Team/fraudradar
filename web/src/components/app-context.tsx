@@ -98,7 +98,7 @@ export function AppContextProvider({
         setWeek: setSelected,
         weeks: data?.items.map((item) => item.week) ?? [],
         nextRelease: data?.next_release ?? null,
-        weeksLoading: !data && !catalog.error,
+        weeksLoading: catalog.loading,
         weeksError: catalog.error,
         reloadWeeks: catalog.reload,
         revision,

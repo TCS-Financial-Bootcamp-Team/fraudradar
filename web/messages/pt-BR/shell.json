@@ -4,7 +4,7 @@
     "description": "Monitoramento antilavagem sobre o SAML-D"
   },
   "brand": {
-    "homeLabel": "FraudRadar — contas suspeitas",
+    "homeLabel": "FraudRadar — visão geral",
     "footer": "FraudRadar PLD · {dataset}",
     "footerWeek": "FraudRadar PLD · {dataset} · Semana de {week}"
   },

@@ -191,6 +191,22 @@ def test_latest_assessment_wins(client, seed):
     seed.assessment(a, "novo", created_at=datetime(2023, 1, 5, 12, 0))
     seed.assessment(a, "antigo", created_at=datetime(2023, 1, 4, 12, 0))
     assert _detail(client, a)["assessment"]["content"] == "novo"
+    assert _detail(client, a)["assessment"]["summary"] == "novo"
+
+
+def test_stored_assessment_derives_summary_and_filters_uncited_sources(client, seed):
+    a = seed.alert(ACCOUNT, WEEK)
+    seed.assessment(
+        a,
+        "## Resumo\nConfira as contrapartes.\n\n## Fundamentação jurídica\nDeveres [F2].",
+        sources=[
+            {"title": "[F1] Lei 9.613/1998, Art. 10", "excerpt": "Fonte não citada."},
+            {"title": "[F2] Lei 9.613/1998, Art. 11", "excerpt": "Fonte citada."},
+        ],
+    )
+    assessment = _detail(client, a)["assessment"]
+    assert assessment["summary"] == "Confira as contrapartes."
+    assert [source["title"] for source in assessment["sources"]] == ["[F2] Lei 9.613/1998, Art. 11"]
 
 
 def test_assessment_tied_on_time_breaks_tie_by_highest_id(client, seed):
@@ -217,9 +233,9 @@ def test_assessment_ignores_malformed_sources(client, seed):
     )
     assert _detail(client, a)["assessment"] == {
         "content": "texto [1]",
+        "summary": "texto [1]",
         "sources": [
             {"title": "[1] Lei", "excerpt": "art. 1"},
-            {"title": "[2] Circular", "excerpt": "art. 2"},
         ],
     }
 

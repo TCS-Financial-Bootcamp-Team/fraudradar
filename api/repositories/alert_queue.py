@@ -17,6 +17,7 @@ from api.schemas.alerts import (
     Rule,
     Source,
 )
+from fraudradar.ai.legal_chat_adapter import cited_sources
 from fraudradar.data.schema import AMOUNT_CURRENCY
 from fraudradar.features import feature_label
 
@@ -212,13 +213,16 @@ def latest_assessment(conn: Connection, alert_id: int) -> Assessment | None:
     sources = row["sources"] if isinstance(row["sources"], list) else []
     return Assessment(
         content=row["content"],
-        sources=[
-            Source(title=s["title"], excerpt=s["excerpt"])
-            for s in sources
-            if isinstance(s, dict)
-            and isinstance(s.get("title"), str)
-            and isinstance(s.get("excerpt"), str)
-        ],
+        sources=cited_sources(
+            row["content"],
+            [
+                Source(title=s["title"], excerpt=s["excerpt"])
+                for s in sources
+                if isinstance(s, dict)
+                and isinstance(s.get("title"), str)
+                and isinstance(s.get("excerpt"), str)
+            ],
+        ),
     )
 
 

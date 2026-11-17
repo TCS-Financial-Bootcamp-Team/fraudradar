@@ -22,6 +22,7 @@ export function useModels() {
       (signal: AbortSignal) => modelsService.fetchModels(dataset, signal),
       [dataset],
     ),
+    { resetKey: dataset },
   );
   const { reload } = resource;
   const [busy, setBusy] = useState(false);
