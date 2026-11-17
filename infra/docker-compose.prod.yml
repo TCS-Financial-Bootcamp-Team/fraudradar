@@ -42,6 +42,13 @@ services:
 
     restart: unless-stopped
 
+  worker-serve:
+    # Mesma DATABASE_URL do banco de producao para atender public.jobs e agendamentos.
+    environment:
+      DATABASE_URL: "postgresql+psycopg://fraudradar:${FRAUDRADAR_DB_PASSWORD:?FRAUDRADAR_DB_PASSWORD obrigatoria}@db:5432/fraudradar"
+
+    restart: unless-stopped
+
   web:
     # Frontend sera hospedado separadamente na Vercel.
     # Mantido apenas para execucao local explicita.
