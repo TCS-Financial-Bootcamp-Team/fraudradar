@@ -6,6 +6,7 @@ from dataclasses import replace
 import pytest
 
 from api.legal_chat_service import answer_legal_chat
+from fraudradar.ai import legal_retrieval
 from fraudradar.ai.documents import RetrievedDocument
 from fraudradar.ai.legal_chat_adapter import (
     legal_payload_to_chat_response,
@@ -14,12 +15,70 @@ from fraudradar.ai.legal_generation import (
     ASSESSMENT_MAX_OUTPUT_TOKENS,
     ASSESSMENT_SYSTEM_INSTRUCTION,
     LegalAnswer,
+    _parse_context,
 )
+from fraudradar.ai.legal_hybrid import HybridLegalHit
 from fraudradar.ai.legal_pipeline import (
     generate_from_prepared_evidence,
 )
 from fraudradar.ai.legal_presentation import present_legal_rag
-from fraudradar.ai.legal_retrieval import PreparedLegalEvidence
+from fraudradar.ai.legal_retrieval import PreparedLegalEvidence, prepare_legal_evidence
+
+
+def _legal_document(
+    document_id: int,
+    article: str,
+    content: str,
+    *,
+    source: str | None = None,
+    chunk_index: int = 0,
+) -> RetrievedDocument:
+    return RetrievedDocument(
+        id=document_id,
+        source=source or f"synthetic-test:{article}",
+        chunk_index=chunk_index,
+        content=content,
+        metadata={
+            "source_id": "synthetic-test",
+            "official_url": "https://example.org/legal-test",
+            "snapshot_sha256": "a" * 64,
+            "review_status": "reviewed",
+            "article": article,
+        },
+        similarity=0.95,
+    )
+
+
+def _hybrid_hit(document: RetrievedDocument) -> HybridLegalHit:
+    return HybridLegalHit(
+        document=document,
+        hybrid_score=0.95,
+        lexical_score=1.0,
+        semantic_similarity=0.95,
+        explicit_article_match=False,
+    )
+
+
+def _prepare_documents(
+    monkeypatch,
+    documents: tuple[RetrievedDocument, ...],
+    *,
+    max_total_chars: int,
+) -> PreparedLegalEvidence:
+    monkeypatch.setattr(
+        legal_retrieval,
+        "search_hybrid_legal_documents",
+        lambda *args, **kwargs: [_hybrid_hit(document) for document in documents],
+    )
+
+    return prepare_legal_evidence(
+        object(),
+        question="Quais diligencias devem ser realizadas?",
+        source_id="synthetic-test",
+        snapshot_sha256="a" * 64,
+        max_documents=len(documents),
+        max_total_chars=max_total_chars,
+    )
 
 
 @pytest.fixture
@@ -64,6 +123,82 @@ def valid_generator(**kwargs):
         model="mock-offline",
         evidence_count=2,
     )
+
+
+def test_preparation_retries_when_combined_entries_exceed_context_limit(monkeypatch):
+    documents = (
+        _legal_document(1, "Art. 12", "á" * 100),
+        _legal_document(2, "Art. 11", "é" * 100),
+    )
+
+    prepared = _prepare_documents(
+        monkeypatch,
+        documents,
+        max_total_chars=1500,
+    )
+    evidence = _parse_context(prepared.context, allow_pending_review=False)
+
+    assert prepared.documents == documents[:1]
+    assert len(evidence) == len(prepared.documents) == 1
+    assert prepared.citation_ids == tuple(item["citation_id"] for item in evidence)
+
+
+def test_size_limited_preparation_passes_through_generation(monkeypatch):
+    documents = (
+        _legal_document(1, "Art. 12", "á" * 100),
+        _legal_document(2, "Art. 11", "é" * 100),
+    )
+    prepared = _prepare_documents(
+        monkeypatch,
+        documents,
+        max_total_chars=1500,
+    )
+
+    def generator(**kwargs):
+        evidence = _parse_context(
+            kwargs["context"],
+            allow_pending_review=kwargs["allow_pending_review"],
+        )
+        return LegalAnswer(
+            text="A diligencia deve seguir a evidencia recuperada [F1].",
+            citations=("F1",),
+            model="mock-offline",
+            evidence_count=len(evidence),
+        )
+
+    result = generate_from_prepared_evidence(
+        question="Quais diligencias devem ser realizadas?",
+        prepared=prepared,
+        generator=generator,
+    )
+
+    assert result.status == "generated"
+    assert result.answer is not None
+    assert result.answer.evidence_count == len(result.documents) == 1
+
+
+def test_preparation_retries_when_hits_repeat_source_and_chunk(monkeypatch):
+    documents = (
+        _legal_document(1, "Art. 12", "Primeira evidencia juridica."),
+        _legal_document(2, "Art. 11", "Segunda evidencia juridica."),
+        _legal_document(
+            3,
+            "Art. 4-A",
+            "Hit repetido que o formatador ignora.",
+            source="synthetic-test:Art. 12",
+        ),
+    )
+
+    prepared = _prepare_documents(
+        monkeypatch,
+        documents,
+        max_total_chars=5000,
+    )
+    evidence = _parse_context(prepared.context, allow_pending_review=False)
+
+    assert prepared.documents == documents[:2]
+    assert len(evidence) == len(prepared.documents) == 2
+    assert prepared.citation_ids == tuple(item["citation_id"] for item in evidence)
 
 
 def test_generated_answer_has_valid_citations(prepared_evidence):
