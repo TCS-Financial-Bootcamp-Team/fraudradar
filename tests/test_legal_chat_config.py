@@ -117,12 +117,34 @@ def test_configured_service_reaches_the_retrieval(gemini):
     assert engine.connections == 1
 
 
+def test_optional_retrieval_query_does_not_replace_generation_question(gemini):
+    received = []
+
+    class ReachedError(Exception):
+        pass
+
+    def retriever(*args, **kwargs):
+        received.append(kwargs["question"])
+        raise ReachedError
+
+    with pytest.raises(ReachedError):
+        answer_legal_chat(
+            QUESTION,
+            retrieval_query="consulta jurídica curta",
+            engine=FakeEngine(),
+            retriever=retriever,
+        )
+    assert received == ["consulta jurídica curta"]
+
+
 def test_http_without_llm_settings_is_503(http_client):
     """O caminho real, sem dublê: o conftest deixa LLM_PROVIDER=openai e as chaves vazias."""
     response = http_client.post("/chat", json=CHAT)
     assert response.status_code == 503
     assert response.json()["code"] == "ai.not_configured"
-    assert "LLM_MODEL" in response.json()["detail"]
+    assert response.json()["detail"] == (
+        "A IA não está configurada na API (defina LLM_MODEL e a chave do Gemini)."
+    )
 
 
 @pytest.mark.parametrize(

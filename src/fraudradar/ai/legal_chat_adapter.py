@@ -1,17 +1,24 @@
-"""Adapt reviewed legal RAG results to the existing chat contract."""
+"""Adapta resultados jurídicos revisados ao contrato existente do chat."""
 
 from typing import Any
 
 from api.schemas.alerts import Source
 from api.schemas.chat import ChatResponse
 
+LLM_UNAVAILABLE_ANSWER = (
+    "A explicacao automatica esta temporariamente "
+    "indisponivel. Consulte as fontes juridicas "
+    "recuperadas abaixo. Nenhuma conclusao automatica "
+    "foi produzida."
+)
+
 
 def legal_payload_to_chat_response(
     payload: dict[str, Any],
 ) -> ChatResponse:
-    """Map reviewed legal evidence to the existing frontend contract.
+    """Converte evidências revisadas para o contrato existente do frontend.
 
-    Unreviewed evidence is never exposed by this adapter.
+    Este adaptador nunca expõe evidências que ainda não foram revisadas.
     """
     status = payload.get("status")
 
@@ -53,10 +60,10 @@ def legal_payload_to_chat_response(
 
         citation_id = evidence["citation_id"]
 
-        # The frontend currently displays source titles.
+        # O frontend exibe os títulos das fontes.
         title = f"[{citation_id}] {article} - Fonte juridica"
 
-        # This is a preview, not the complete legal evidence.
+        # O trecho é uma prévia, não a evidência jurídica completa.
         preview = content[:500]
 
         if len(content) > 500:
@@ -75,12 +82,7 @@ def legal_payload_to_chat_response(
         if payload.get("answer") is not None:
             raise ValueError("Fallback contem resposta gerada.")
 
-        answer = (
-            "A explicacao automatica esta temporariamente "
-            "indisponivel. Consulte as fontes juridicas "
-            "recuperadas abaixo. Nenhuma conclusao automatica "
-            "foi produzida."
-        )
+        answer = LLM_UNAVAILABLE_ANSWER
 
     else:
         answer = payload.get("answer")

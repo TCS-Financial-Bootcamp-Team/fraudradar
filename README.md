@@ -10,9 +10,11 @@ Plano: https://claude.ai/artifact/WBpQHzLCN1yH53pmPGrddG#ac555d39-8243.mqrep4fzz
 1. Um **worker em lote semanal** dá score às transações com **LightGBM** e monta
    a **fila de alertas por conta**, com as evidências (contribuição das
    features, regras de cenário, sinais semanais, grafo de 2 saltos).
-2. Um **LLM com RAG** (pgvector, sobre a Lei 9.613/1998, a Circular BCB
-   3.978/2020, as tipologias do SAML-D e o manual interno) redige o
-   **parecer** do alerta.
+2. Quando o analista pede, um **LLM com RAG** (Gemini, com busca em pgvector na
+   Lei 9.613/1998) redige o **parecer** do alerta, com as fontes citadas, e sugere
+   a tipologia. O LLM recebe um resumo da evidência, nunca números de conta. A
+   Circular BCB 3.978/2020 está listada em `rag/sources.json`, ainda sem texto
+   carregado.
 3. O **analista** lê o parecer e decide: arquivar, aprofundar ou comunicar ao
    **COAF** (com justificativa obrigatória e o próprio nome registrado).
 
@@ -160,7 +162,8 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `GET /monitoring?week=` | indicadores e séries da semana (score_histogram e status_counts); sem recall: as telas de operação não usam o gabarito |
 | `GET /feedback/summary` | retorno dos analistas: rótulos, precisão confirmada, amostra de controle e se dá para retreinar com ele |
 | `POST /chat` | pergunta jurídica geral, respondida com o RAG da Lei 9.613 e citações (frente 3); precisa de `LLM_MODEL` e da chave do Gemini (sem eles, 503 `ai.not_configured`) e da base em `rag_documents`, que o `python -m worker rag-load` carrega (sem ela, 503 `ai.no_legal_sources`) |
-| `POST /alerts/{id}/assessment`, `/alerts/{id}/chat` | ainda respondem 503: o parecer e o chat do alerta não existem |
+| `POST /alerts/{id}/assessment` | gera o parecer do alerta: resume a evidência sem número de conta, busca na base jurídica revisada, pede ao Gemini um rascunho com citações e uma tipologia sugerida, confere as citações e grava em `assessments`, com a tipologia no alerta e o registro em `audit_log`. Erros com código: 503 `ai.not_configured`, `ai.no_legal_sources` ou `ai.provider_unavailable`; 502 `ai.provider_failed` ou `ai.invalid_assessment`; 429 `ai.provider_rate_limited`; 500 `ai.context_blocked` |
+| `POST /alerts/{id}/chat` | pergunta do analista sobre o alerta, com o mesmo resumo protegido e as fontes jurídicas; não grava nada. 422 `ai.question_too_long` ou `ai.alert_context_mismatch`, e os mesmos erros do Gemini |
 | `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
 | `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
 | `/ingestion/connections` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |
@@ -290,7 +293,7 @@ treino, o worker e a suíte de testes ao mesmo tempo.
 |---|---|
 | `model_versions` | a versão da ficha (`lightgbm_vN`), a única ativa; `threshold` é o corte da fila (`queue_cut`) e `metrics` traz as métricas da ficha com `transaction_threshold` |
 | `transaction_scores` | um score por transação da semana |
-| `alerts` | a fila (`origin = model`): contas (nunca o CAIXA) com score de pelo menos o corte, até `queue_size` (300), da maior para a menor (empate: a conta menor primeiro). O score da conta é o maior das transações que ela enviou ou recebeu; `countries` vem pelo valor movimentado; `total_amount` e `transaction_count` resumem as transações da conta na semana; `typology` fica vazia (virá do parecer, frente 3). Depois dela, a amostra de controle (`origin = exploration`) |
+| `alerts` | a fila (`origin = model`): contas (nunca o CAIXA) com score de pelo menos o corte, até `queue_size` (300), da maior para a menor (empate: a conta menor primeiro). O score da conta é o maior das transações que ela enviou ou recebeu; `countries` vem pelo valor movimentado; `total_amount` e `transaction_count` resumem as transações da conta na semana; `typology` fica vazia: quem a preenche é o parecer (`POST /alerts/{id}/assessment`), quando o Gemini sugere uma das 17 tipologias do SAML-D. Depois dela, a amostra de controle (`origin = exploration`) |
 | `evidence` | `contributions` (todas as variáveis, em log-odds, na transação de maior score da conta), `rules` (as de `db/rules/`, ver o README de lá), `weekly_signals` e `graph` vazio (a API monta o grafo) |
 | `accounts` | primeira e última transação das contas da semana (conta nova da ingestão entra aqui) e o segmento do K-Means das contas ativas, pelo perfil das 12 semanas anteriores |
 | `weekly_batches` | a semana, as contas ativas e as métricas contra o gabarito; `released_at` é legado e não controla visibilidade |

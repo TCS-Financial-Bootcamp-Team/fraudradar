@@ -45,12 +45,12 @@ def chat_request():
 
 
 @pytest.mark.parametrize(
-    ("error_class", "provider_code", "expected_http"),
+    ("error_class", "provider_code", "expected_http", "expected_code"),
     [
-        (errors.ClientError, 429, 429),
-        (errors.ServerError, 503, 503),
-        (errors.ServerError, 500, 502),
-        (errors.ClientError, 400, 502),
+        (errors.ClientError, 429, 429, "ai.provider_rate_limited"),
+        (errors.ServerError, 503, 503, "ai.provider_unavailable"),
+        (errors.ServerError, 500, 502, "ai.provider_failed"),
+        (errors.ClientError, 400, 502, "ai.provider_failed"),
     ],
 )
 def test_provider_errors_have_safe_http_responses(
@@ -59,6 +59,7 @@ def test_provider_errors_have_safe_http_responses(
     error_class,
     provider_code,
     expected_http,
+    expected_code,
 ):
     provider_error = error_class(
         provider_code,
@@ -81,15 +82,9 @@ def test_provider_errors_have_safe_http_responses(
     assert isinstance(detail, str)
     assert detail.strip()
     assert "Sensitive provider detail" not in detail
+    assert response.json()["code"] == expected_code
 
     service.assert_called_once_with(chat_request["message"])
-
-    if provider_code == 429:
-        assert "Limite temporario" in detail
-    elif provider_code == 503:
-        assert "temporariamente indisponivel" in detail
-    else:
-        assert "Nao foi possivel" in detail
 
 
 def test_only_current_question_reaches_legal_service(

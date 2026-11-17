@@ -1,6 +1,5 @@
 """Decisões e comunicações na transação da requisição."""
 
-import json
 from datetime import timedelta
 
 from fastapi import status
@@ -9,7 +8,9 @@ from sqlalchemy import Connection, RowMapping, text
 from api.dependencies import User
 from api.domain import DECISION_STATUS, alert_from_row, get_alert_row, week_start
 from api.errors import AppError
+from api.repositories.audit import write_audit_log
 from api.schemas.alerts import Alert, ApprovalRequest, DecisionRequest, Report
+from fraudradar.ai.alert_assessment import assessment_plain_text
 from fraudradar.model.feedback import decision_label, store_label
 
 
@@ -35,7 +36,8 @@ def build_report_draft(alert: RowMapping, justification: str, assessment: str | 
     limit = 20000 - len(footer)
     body = body[:limit]
     if assessment:
-        body += f"\nParecer mais recente:\n{assessment}"[: limit - len(body)]
+        plain_assessment = assessment_plain_text(assessment)
+        body += f"\nParecer mais recente:\n{plain_assessment}"[: limit - len(body)]
     return body + footer
 
 
@@ -81,17 +83,13 @@ def _report_from_row(row: RowMapping) -> Report:
 
 
 def _audit(conn: Connection, alert_id: int, user: User, action: str, details: dict) -> None:
-    conn.execute(
-        text(
-            "INSERT INTO audit_log (actor, action, entity, entity_id, details)"
-            " VALUES (:actor, :action, 'alert', :id, CAST(:details AS jsonb))"
-        ),
-        {
-            "actor": user.name,
-            "action": action,
-            "id": str(alert_id),
-            "details": json.dumps({**details, "user_id": user.id}),
-        },
+    """Mantém o ponto de extensão dos testes sobre o escritor compartilhado."""
+    write_audit_log(
+        conn,
+        alert_id=alert_id,
+        user=user,
+        action=action,
+        details=details,
     )
 
 
