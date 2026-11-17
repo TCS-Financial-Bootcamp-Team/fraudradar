@@ -122,6 +122,10 @@ docker compose up -d --build api web worker-serve   # o código novo usa as colu
 # 007: troca de idioma do front — mensagens dos trabalhos com código e parâmetros
 docker compose exec -T db psql -U fraudradar -d fraudradar -v ON_ERROR_STOP=1 \
   < db/upgrades/007_i18n.sql
+
+# 008: aceita a origem antiga `manual` em ingestions (precisa de public.datasets; roda depois de 006/007)
+docker compose exec -T db psql -U fraudradar -d fraudradar -v ON_ERROR_STOP=1 \
+  < db/upgrades/008_legacy_ingestion_sources.sql
 ```
 
 O `006` cria `analyst_labels`, `alerts.origin`, `decisions.archive_reason` e
@@ -132,6 +136,10 @@ já processadas só ganham a amostra de controle se forem reprocessadas.
 O `007` só acrescenta `jobs.message_code` e `jobs.message_params` (a mensagem em português segue
 em `jobs.message`; o front traduz pelo código quando o conhece). Trabalhos antigos ficam com as
 colunas nulas e mostram o texto em português.
+
+O `008` refaz a restrição de origens de `ingestions` para aceitar a origem antiga `manual` além
+das atuais (`csv`, `api`, `simulation`, `connection`), em `public` e no schema de cada conjunto. Ele
+precisa de `public.datasets`, então roda depois do `006` e do `007`.
 
 Os testes da API e do worker criam e apagam o banco `fraudradar_test` no Postgres do
 Compose (`docker compose up -d db`); sem ele, são pulados. Outro servidor:
@@ -163,7 +171,7 @@ e auditoria. Em desenvolvimento, `AUTH_DISABLED=true` dispensa o login.
 | `POST /alerts/{id}/assessment`, `/alerts/{id}/chat` | ainda respondem 503: o parecer e o chat do alerta não existem |
 | `POST /ingestion/csv` | CSV do SAML-D sem as colunas de avaliação; tudo ou nada (abaixo) |
 | `POST /ingestion/transactions` | uma transação no mesmo formato, em JSON |
-| `/ingestion/connections` | fontes Postgres externas: lista vazia; cadastro e sincronização respondem 501 |
+| `GET`, `POST /ingestion/connections`, `DELETE /ingestion/connections/{id}`, `POST /ingestion/connections/{id}/test`, `POST /ingestion/connections/{id}/import` | fontes Postgres externas: lista, cadastra (senha cifrada, com host em `EXTERNAL_DB_ALLOWED_HOSTS`), remove, testa compatibilidade e enfileira a importação |
 | `GET /datasets`, `POST /datasets` | lista os conjuntos ou cria um conjunto vazio e isolado |
 | `POST /datasets/{slug}/process` | enfileira o processamento do conjunto |
 | `POST /datasets/{slug}/simulate` | enfileira 50–5.000 transações sintéticas e depois o processamento |
