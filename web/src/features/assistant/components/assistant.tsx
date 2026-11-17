@@ -8,12 +8,69 @@ import { cn } from "cn";
 import { useAppContext } from "@/components/app-context";
 import { LegalSourceItem } from "@/components/legal-source-item";
 import { Markdown } from "@/components/markdown";
+import { Badge } from "@/components/ui/badge";
 import { useFormatters } from "@/i18n/use-formatters";
 import { getAlertIdFromPathname } from "@/lib/sidebar";
 import { useAssistant } from "../hooks/use-assistant";
-import type { Source } from "../schemas/assistant";
+import { getAnswerBadge } from "../lib/answer-badge";
+import type { ChatKind, Source } from "../schemas/assistant";
 
-const DEFAULT_SUGGESTIONS = ["summary", "typology", "rules"] as const;
+function getSuggestionKeys(alertId?: string) {
+  return alertId
+    ? (["typology", "legal", "checkAlert"] as const)
+    : (["typology", "legal"] as const);
+}
+
+function AssistantKindBadge({
+  kind,
+  sources,
+}: {
+  kind?: ChatKind;
+  sources?: Source[];
+}) {
+  const t = useTranslations("assistant");
+  const badge = getAnswerBadge(kind, sources);
+  if (!badge) return null;
+
+  return (
+    <Badge
+      variant="outline"
+      title={badge.tooltipKey ? t(badge.tooltipKey) : undefined}
+      className="h-auto max-w-full whitespace-normal border-border bg-soft/60 px-2 py-0.5 text-[11px] font-normal text-muted-foreground"
+    >
+      {t(badge.labelKey)}
+    </Badge>
+  );
+}
+
+function AssistantAnswerMeta({
+  kind,
+  sources,
+  className,
+  withDivider = false,
+}: {
+  kind?: ChatKind;
+  sources?: Source[];
+  className?: string;
+  withDivider?: boolean;
+}) {
+  const badge = getAnswerBadge(kind, sources);
+  const hasSources = Boolean(sources && sources.length > 0);
+  if (!badge && !hasSources) return null;
+
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 flex-col items-start gap-1.5",
+        withDivider && "mt-2 border-t border-soft pt-2",
+        className,
+      )}
+    >
+      <AssistantKindBadge kind={kind} sources={sources} />
+      <AssistantSources sources={sources} className="w-full" />
+    </div>
+  );
+}
 
 function AssistantSources({
   sources,
@@ -98,7 +155,7 @@ export function Chat({ alertId }: { alertId?: string }) {
               {t("emptyShort")}
             </p>
             <div className="mt-4 flex flex-col gap-2">
-              {DEFAULT_SUGGESTIONS.slice(0, 2).map((key) => (
+              {getSuggestionKeys(alertId).map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -130,10 +187,13 @@ export function Chat({ alertId }: { alertId?: string }) {
                 className="text-xs leading-relaxed sm:text-sm"
               />
             )}
-            <AssistantSources
-              sources={m.sources}
-              className="mt-2 border-t border-soft pt-1.5"
-            />
+            {m.role === "assistant" && (
+              <AssistantAnswerMeta
+                kind={m.kind}
+                sources={m.sources}
+                withDivider
+              />
+            )}
           </div>
         ))}
         {busy && (
@@ -222,13 +282,9 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
     : week
       ? t("weekContext", { week: format.shortDate(week) })
       : t("general");
-  const suggestions = [
-    t(`suggestions.${DEFAULT_SUGGESTIONS[0]}`),
-    t(`suggestions.${DEFAULT_SUGGESTIONS[1]}`),
-    alertId
-      ? t("suggestions.whyAlert", { id: alertId })
-      : t(`suggestions.${DEFAULT_SUGGESTIONS[2]}`),
-  ];
+  const suggestions = getSuggestionKeys(alertId).map((key) =>
+    t(`suggestions.${key}`),
+  );
 
   const handleSend = async (text: string) => {
     const trimmed = text.trim();
@@ -328,10 +384,13 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
                   />
                 )}
               </div>
-              <AssistantSources
-                sources={m.sources}
-                className="w-full max-w-[92%]"
-              />
+              {m.role === "assistant" && (
+                <AssistantAnswerMeta
+                  kind={m.kind}
+                  sources={m.sources}
+                  className="w-full max-w-[92%]"
+                />
+              )}
             </div>
           ))
         )}

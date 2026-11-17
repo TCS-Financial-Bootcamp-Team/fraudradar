@@ -5,10 +5,14 @@
   "weekContext": "Week of {week}",
   "close": "Close assistant",
   "suggestions": {
-    "summary": "Summarize this week's alerts",
-    "typology": "Explain the fan-out typology",
-    "rules": "Which rules have the highest alert rate?",
-    "whyAlert": "Why did alert {id} enter the queue?"
+    "typology": "What is the fan-out typology?",
+    "legal": "What does the law require when reporting to COAF?",
+    "checkAlert": "What should I check first on this alert?"
+  },
+  "badge": {
+    "legal": "Based on Law 9.613/1998",
+    "domain": "General answer, no legal source",
+    "domainTooltip": "Concept explanation; for legal obligations, ask what the law requires."
   },
   "disclaimer": "AI supports the analysis; the decision is human.",
   "pseudonymized": "Pseudonymized accounts. AI supports the analysis; the decision is human.",

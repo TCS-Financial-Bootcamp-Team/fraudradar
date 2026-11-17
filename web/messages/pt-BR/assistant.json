@@ -5,10 +5,14 @@
   "weekContext": "Semana de {week}",
   "close": "Fechar assistente",
   "suggestions": {
-    "summary": "Resuma os alertas da semana",
-    "typology": "Explique a tipologia fan-out",
-    "rules": "Quais regras têm maior taxa de alerta?",
-    "whyAlert": "Por que o alerta {id} entrou na fila?"
+    "typology": "O que é a tipologia fan-out?",
+    "legal": "O que a lei exige ao comunicar ao COAF?",
+    "checkAlert": "O que verificar primeiro neste alerta?"
+  },
+  "badge": {
+    "legal": "Com base na Lei 9.613/1998",
+    "domain": "Resposta geral, sem fonte jurídica",
+    "domainTooltip": "Explicação de conceito; para obrigações legais, pergunte o que a lei exige."
   },
   "disclaimer": "A IA auxilia a análise; a decisão é humana.",
   "pseudonymized": "Contas pseudonimizadas. A IA auxilia a análise; a decisão é humana.",
