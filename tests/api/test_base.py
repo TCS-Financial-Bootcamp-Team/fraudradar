@@ -318,10 +318,96 @@ def test_week_start(day):
 # --- stubs de IA e ingestão --------------------------------------------------------------------
 
 
-def test_assessment_checks_alert_before_returning_503(client, seed):
+def test_assessment_generates_persists_and_returns_in_detail(
+    client, seed, monkeypatch, db
+):
+    """Test the real HTTP and PostgreSQL persistence contract."""
+    from types import SimpleNamespace
+
+    from sqlalchemy import text
+
+    from api.routes import ai
+    from api.schemas.alerts import Assessment, Source
+
     alert_id = seed.alert(55, date(2023, 1, 2))
-    assert client.post("/alerts/999/assessment").status_code == 404
-    assert client.post(f"/alerts/{alert_id}/assessment").status_code == 503
+
+    # The missing alert must fail before invoking any LLM.
+    missing = client.post("/alerts/999/assessment")
+    assert missing.status_code == 404, missing.text
+
+    simulated_assessment = Assessment(
+        content=(
+            "Os sinais financeiros justificam "
+            "diligencia adicional [F1]. "
+            "A decisao permanece com o analista."
+        ),
+        sources=[
+            Source(
+                title="[F1] Art. 10 - Fonte juridica",
+                excerpt=(
+                    "Fonte revisada de teste. "
+                    "Fonte oficial: https://www.planalto.gov.br/"
+                ),
+            )
+        ],
+    )
+
+    calls = []
+
+    def simulated_generation(prepared):
+        calls.append(prepared)
+        return simulated_assessment
+
+    monkeypatch.setattr(
+        ai,
+        "generate_alert_assessment",
+        simulated_generation,
+    )
+
+    monkeypatch.setattr(
+        ai,
+        "get_settings",
+        lambda: SimpleNamespace(
+            llm_model="gemini-3.5-flash-lite"
+        ),
+    )
+
+    response = client.post(
+        f"/alerts/{alert_id}/assessment"
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json() == simulated_assessment.model_dump()
+    assert len(calls) == 1
+
+    with db.connect() as conn:
+        row = conn.execute(
+            text(
+                """
+                SELECT
+                    content,
+                    sources,
+                    validation,
+                    is_valid,
+                    llm_model
+                FROM assessments
+                WHERE alert_id = :alert_id
+                """
+            ),
+            {"alert_id": alert_id},
+        ).mappings().one()
+
+    assert row["content"] == simulated_assessment.content
+    assert row["is_valid"] is True
+    assert row["llm_model"] == "gemini-3.5-flash-lite"
+    assert row["validation"]["requires_human_review"] is True
+    assert row["validation"]["legal_conclusion_verified"] is False
+    assert len(row["sources"]) == 1
+
+    detail = client.get(f"/alerts/{alert_id}")
+
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["assessment"] == simulated_assessment.model_dump()
 
 
 def test_chat_validates_request_and_returns_503(client):
