@@ -63,15 +63,19 @@ def test_chat_http_200_with_sources(http_client, chat_request):
             ],
         )
 
-    with patch(
-        "api.routes.ai.answer_legal_chat",
-        side_effect=simulated_service,
+    with (
+        patch(
+            "api.routes.ai.answer_legal_chat",
+            side_effect=simulated_service,
+        ),
+        patch("api.routes.ai._persist_chat_turn", return_value=1),
     ):
         response = client.post("/chat", json=chat_request)
 
     assert response.status_code == 200
     payload = response.json()
     assert payload["kind"] == "legal"
+    assert payload["conversation_id"] == 1
     assert "[F1]" in payload["answer"]
     assert len(payload["sources"]) == 1
     assert "[F1]" in payload["sources"][0]["title"]
@@ -184,6 +188,7 @@ def test_small_talk_bypasses_all_external_work(
         monkeypatch.setattr(ai, name, forbidden_service)
     monkeypatch.setattr(chat_router, "_classify_from_settings", forbidden_service)
     monkeypatch.setattr(chat_service, "generate_domain_answer_from_settings", forbidden_service)
+    monkeypatch.setattr(ai, "_persist_chat_turn", lambda **kwargs: 1)
     context = {**chat_request["context"]}
     if path != "/chat":
         context["alert_id"] = "882"
@@ -193,6 +198,9 @@ def test_small_talk_bypasses_all_external_work(
         "kind": "small_talk",
         "answer": small_talk_reply(message),
         "sources": [],
+        "links": [],
+        "model": None,
+        "conversation_id": 1,
     }
 
 
@@ -226,6 +234,7 @@ def test_global_chat_without_retrieval_or_database(http_client, chat_request, mo
         "generate_domain_answer_from_settings",
         generate if route == "domain" else forbidden_service,
     )
+    monkeypatch.setattr(ai, "_persist_chat_turn", lambda **kwargs: 1)
     message = "Explique a tipologia fan-out" if route == "domain" else "quando o titanic afundou"
     response = client.post("/chat", json={**chat_request, "message": message})
     assert response.status_code == 200, response.text
@@ -237,6 +246,9 @@ def test_global_chat_without_retrieval_or_database(http_client, chat_request, mo
             else OUT_OF_SCOPE_REPLY
         ),
         "sources": [],
+        "links": [],
+        "model": None,
+        "conversation_id": 1,
     }
     assert classifier == [{"message": message, "has_alert_context": False}]
     assert generated == ([message] if route == "domain" else [])
@@ -263,10 +275,13 @@ def test_global_router_failure_keeps_cited_legal_path(http_client, chat_request,
         raise TimeoutError("Tempo esgotado.")
 
     monkeypatch.setattr(chat_router, "_classify_from_settings", timeout)
-    with patch(
-        "api.routes.ai.answer_legal_chat",
-        return_value=ChatResponse(kind="legal", answer="Resposta jurídica [F1].", sources=[]),
-    ) as legal:
+    with (
+        patch(
+            "api.routes.ai.answer_legal_chat",
+            return_value=ChatResponse(kind="legal", answer="Resposta jurídica [F1].", sources=[]),
+        ) as legal,
+        patch("api.routes.ai._persist_chat_turn", return_value=1),
+    ):
         response = client.post("/chat", json={**chat_request, "message": "Explique fan-out"})
     assert response.status_code == 200
     assert response.json()["kind"] == "legal"

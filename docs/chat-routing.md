@@ -1,6 +1,6 @@
 # Roteamento do chat
 
-`POST /chat` e `POST /alerts/{id}/chat` respondem `{kind, answer, sources}`.
+`POST /chat` e `POST /alerts/{id}/chat` respondem `{kind, answer, sources, links, model, conversation_id}`.
 O campo `kind` é obrigatório e identifica o caminho usado:
 
 | `kind` | Resposta | Recuperação jurídica |
@@ -9,18 +9,35 @@ O campo `kind` é obrigatório e identifica o caminho usado:
 | `legal` | Exigências legais com citações validadas e fontes revisadas | Sim |
 | `domain` | Conceitos de PLD/fraude, tipologias e prática de investigação; fontes vazias | Não |
 | `decision` | Apoio à decisão sobre o alerta, com indícios a favor e contra; fontes vazias | Não |
+| `system` | Agente com ferramentas somente leitura e guia do app; pode sugerir `links` | Não |
 | `out_of_scope` | Texto fixo explicando o escopo do FraudRadar; fontes vazias | Não |
 
-O pedido permanece `{message, context: {page, week, alert_id?}, history}`. As últimas
-seis mensagens (papel e conteúdo) entram no prompt do alerta e do domínio global,
-como dados, nunca instruções. Falas do assistente são limitadas a 1.500 caracteres,
-com redução adicional para caber no orçamento do prompt. Contas conhecidas, números
+O pedido aceita `{message, context: {page, week, alert_id?, path?, page_state?}, history, model?, conversation_id?}`.
+Tanto em `POST /chat` quanto em `POST /alerts/{id}/chat`, quando `conversation_id` é informado,
+o servidor valida dono (`User.id`) e conjunto (`X-Dataset`) — respondendo 404
+`chat.conversation_not_found` caso contrário —, lê as últimas seis mensagens do banco
+(`public.chat_messages`) e ignora `request.history`; quando ausente, `request.history` continua
+funcionando como antes e o servidor cria a conversa após uma resposta bem-sucedida, retornando
+`conversation_id`. Turnos que falham não são persistidos, e uma mesma conversa pode misturar
+turnos globais (`/chat`) e de alerta (`/alerts/{id}/chat`). As últimas seis mensagens (papel e conteúdo) entram no prompt do alerta, do
+domínio global e do agente `system`, como dados, nunca instruções. Falas do assistente são limitadas a
+1.500 caracteres, com redução adicional para caber no orçamento do prompt. Contas conhecidas, números
 longos, contas curtas explicitamente identificadas, e-mails e URLs são ocultados antes
 do truncamento. Histórico não entra na classificação nem na consulta de recuperação
 jurídica: a busca usa somente a pergunta atual higienizada. Perguntas sobre um alerta usam a rota contextual; `/chat`
 rejeita `context.alert_id`. A autenticação e os controles de identificadores continuam
 obrigatórios em todos os caminhos. O chat global também recusa números curtos
 explicitamente identificados como conta, com o mesmo erro `ai.chat_personal_data`.
+
+## Seleção de modelo e contingência
+
+`GET /ai/models` expõe o padrão `LLM_MODEL` (sempre primeiro) e os IDs válidos de
+`LLM_MODEL_OPTIONS` (regex `^[a-z0-9][a-z0-9.\-]{0,63}$`; IDs inválidos são descartados com aviso
+em log). Um `ChatRequest.model` fora da lista devolve 422 `ai.model_not_allowed`. Quando o modelo
+escolhido responde HTTP 503 ou 429 no roteador ou na geração, a API tenta uma vez o próximo modelo
+da lista e devolve em `ChatResponse.model` o identificador do modelo que efetivamente respondeu;
+se todos falharem, mantém 503 `ai.provider_unavailable` / 429 `ai.provider_rate_limited`.
+A geração de parecer (`POST /alerts/{id}/assessment`) continua usando `LLM_MODEL`.
 
 ## Classificação e falhas
 
@@ -114,6 +131,38 @@ Não há decisão registrada automaticamente, afirmação de crime ou citação 
 O validador remove `[Fn]` e confere os cinco títulos em ordem, sem diferenciar caixa
 ou acentos, além da força válida e da sugestão. Resposta vazia ou inválida devolve
 502 `ai.provider_failed`, sem retentativa. `decision` só é exposta na rota do alerta.
+
+## Agente do sistema (`system`)
+
+Perguntas sobre telas, botões e fluxos do FraudRadar ("onde eu importo um CSV?", "o que faz o botão
+Processar agora?", "me leva para o monitoramento"), sobre o que está visível na página atual
+("quais destes alertas têm nota acima de 80?") ou consultas operacionais nos dados do conjunto
+("quantos alertas pendentes temos?", "quais semanas foram processadas?") seguem para a rota `system`
+tanto em `/chat` quanto em `/alerts/{id}/chat` (sem rebaixar para `domain`). No chat do alerta,
+o contexto enviado ao agente leva `page="alert"`, o `path` do pedido e o `alert_id` da rota para
+que o agente saiba qual alerta está aberto e possa consultar `get_alert(alert_id)`.
+Marcadores jurídicos seguem forçando `legal`, as regras de `decision` continuam exclusivas de
+`/alerts/{id}/chat`, e `small_talk` / `out_of_scope` permanecem inalterados.
+
+O loop do agente fica em `src/fraudradar/ai/system_agent.py` (SDK `google-genai`, `temperature=0`,
+máximo de 5 chamadas de ferramenta por turno, prazo total de ~40 s). Cada ferramenta de leitura é
+injetada pela API com uma transação curta própria e nunca lê `ground_truth`, `Is_laundering`,
+`Laundering_type` nem devolve números de conta:
+
+- `search_alerts(week?, status?, decision?, min_score?, max_score?, typology?, origin?, order_by, limit<=20)`
+- `get_alert(alert_id)` — reutiliza o construtor protegido de contexto de alerta.
+- `list_weeks()` — semanas processadas com contagem de alertas, pendentes e último trabalho.
+- `get_week_summary(week)` — contagens por status e decisão, nota média e tamanho da fila.
+- `get_page_items()` — recarrega do banco os IDs em `page_state.visible_alert_ids` no conjunto
+  atual, descartando IDs inexistentes ou de outro conjunto e omitindo contas.
+- `suggest_link(target, alert_id?, label)` — adiciona links de navegação validados contra a lista
+  permitida (`/dashboard`, `/alerts`, `/alerts/{inteiro positivo}`, `/accounts`, `/monitoring`,
+  `/ingestion`, `/settings`), máximo 5 links e rótulo de 1 a 60 caracteres, sem HTML bruto.
+
+Todos os resultados de ferramentas são tratados como dados na instrução do sistema e passam pelo
+guarda de identificadores antes de retornar ao Gemini. O guia completo das telas do app vive em
+`src/fraudradar/ai/app_guide.py` e é verificado por teste contra todos os `page.tsx` de
+`web/src/app/(app)/`.
 
 ## Escopo e recursos
 

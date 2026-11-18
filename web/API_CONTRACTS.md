@@ -209,17 +209,52 @@ tipo de trabalho e um só acompanhamento (`web/src/features/jobs`).
 
 ## Chat e privacidade
 
-Pedido: {message, context: {page, week, alert_id?}, history}.
-Histórico: até 20 entradas {role: user | assistant, content}.
-Resposta: {kind, answer, sources: [{title, excerpt}]}.
-`kind` é obrigatório: `small_talk | legal | domain | decision | out_of_scope`.
-`decision` só é retornado por `/alerts/{id}/chat`; no chat global vira `domain`.
-O pedido mantém o mesmo formato: pergunta com até 2.000 caracteres e até 20 mensagens
-de histórico, com até 8.000 caracteres por mensagem. O servidor usa somente as últimas
-seis, higieniza contas conhecidas e identificadores em texto livre antes de truncar,
-e limita falas anteriores do assistente a 1.500 caracteres (ou menos para caber no prompt).
-O histórico entra como dados na geração do alerta e de `domain` global; não entra na
-classificação nem na consulta de recuperação jurídica, que usa apenas a pergunta atual.
+Modelos e histórico no servidor:
+
+| Requisição | Pedido / resposta |
+| --- | --- |
+| `GET /ai/models` | Autenticado; responde `aiModelsResponseSchema`: `{default, models: [{id, label}]}` a partir de `LLM_MODEL` (sempre primeiro) e `LLM_MODEL_OPTIONS`. Sem `LLM_MODEL`, responde 503 `ai.not_configured`. |
+| `POST /chat` | `chatRequestSchema`; resposta `chatResponseSchema` com `conversation_id` preenchido. Rejeita `context.alert_id` com 400 `ai.chat_alert_route`. |
+| `POST /alerts/{id}/chat` | `chatRequestSchema`; resposta `chatResponseSchema` com `conversation_id` preenchido. Suporta as mesmas rotas e persistência; quando `route === "system"`, passa `page="alert"`, `path` do pedido e `alert_id` ao agente. |
+| `GET /chat/conversations?limit=30` | Query `limit` (`1..100`); exige autenticação e `X-Dataset`. Resposta `conversationListSchema`: `[{id, title, updated_at, message_count}]`, da mais recente à mais antiga. |
+| `GET /chat/conversations/{id}` | Exige autenticação e `X-Dataset`. Resposta `conversationDetailSchema`: `{id, title, updated_at, messages: [{role, content, kind?, sources, links, model?, created_at}]}`. 404 `chat.conversation_not_found` quando inexistente, de outro usuário ou de outro conjunto. |
+| `DELETE /chat/conversations/{id}` | Exige autenticação e `X-Dataset`. Responde 204 sem corpo; 404 `chat.conversation_not_found` quando inexistente, de outro usuário ou de outro conjunto. |
+
+Campos de pedido e resposta (`ChatRequest`, `ChatContext`, `ChatResponse`):
+
+- `ChatRequest`: `{message, context, history, model?, conversation_id?}`.
+  - `model` (`string | null`): identificador opcional entre os retornados por `GET /ai/models`. Valor desconhecido ou fora da lista permitida responde 422 `ai.model_not_allowed` (com `params: {model}`). Quando o modelo escolhido responde HTTP 503 ou 429, a API tenta **uma vez** o próximo modelo da lista (no roteador e na geração) e devolve em `ChatResponse.model` o modelo que efetivamente respondeu.
+  - `conversation_id` (`number | null`, inteiro positivo): quando ausente em `POST /chat` ou `POST /alerts/{id}/chat`, cria uma nova conversa em `public.chat_conversations` (título = primeira pergunta com espaços colapsados até 80 caracteres). Quando informado, o servidor valida dono (`User.id`) e conjunto (`X-Dataset`) — respondendo 404 `chat.conversation_not_found` caso contrário —, usa as últimas 6 mensagens gravadas no banco e **ignora** `request.history`. A mesma conversa pode misturar turnos globais (`/chat`) e de alerta (`/alerts/{id}/chat`).
+- `ChatResponse`: `{kind, answer, sources, links, model, conversation_id}`.
+  - `kind`: `small_talk | legal | domain | decision | system | out_of_scope`.
+  - `links`: até 5 itens `{href, label}` (`label` 1–60 caracteres), produzidos exclusivamente pela ferramenta `suggest_link` da rota `system`.
+  - `model` (`string | null`): identificador do modelo que produziu a resposta (ou `null` em respostas fixas sem LLM).
+  - `conversation_id` (`number | null`): ID da conversa persistida (sempre preenchido em respostas bem-sucedidas de `POST /chat` e `POST /alerts/{id}/chat`).
+- Turnos que falham não são persistidos; turnos concluídos gravam pergunta e resposta em uma única transação curta e atualizam `updated_at`.
+
+Contexto da página (`ChatContext`):
+
+- `{page, week, alert_id?, path?, page_state?}`.
+- `ChatContext.path`: caminho do navegador começando por `/`, até 200 caracteres.
+- `ChatContext.page_state`: `{filters, visible_alert_ids, page?, total?}` (até 20 chaves de até 40 caracteres, valores textuais de até 100 caracteres, até 100 IDs inteiros positivos em `visible_alert_ids`).
+- A API **nunca confia** em números vindos do cliente: recarrega os alertas visíveis do banco por ID no conjunto atual, descarta IDs inexistentes ou de outro conjunto e envia ao LLM apenas campos pseudonimizados (sem números de conta). Em `/accounts`, o front envia só os filtros, nunca contas. Filtros passam pelo guarda de identificadores.
+
+Roteamento e links:
+
+- Histórico enviado sem `conversation_id`: até 20 entradas `{role: user | assistant, content}`.
+- `ChatResponse.kind` é obrigatório: `small_talk | legal | domain | decision | system | out_of_scope`.
+  `decision` só é retornado por `/alerts/{id}/chat`; no chat global vira `domain`. A rota `system` funciona tanto em `/chat` quanto em `/alerts/{id}/chat` (sem rebaixar para `domain`), executando o mesmo agente com ferramentas somente leitura no conjunto atual (`search_alerts`, `get_alert`, `list_weeks`, `get_week_summary`, `get_page_items`, `suggest_link`); em `/alerts/{id}/chat`, o contexto da página leva `page="alert"`, `path` do pedido e `alert_id`.
+- `links`: até 5 itens `{href, label}` (`label` 1–60 caracteres), produzidos exclusivamente
+  pela ferramenta `suggest_link` da rota `system`. Destinos permitidos (validados no servidor
+  e no front): `/dashboard`, `/alerts`, `/alerts/{inteiro positivo}`, `/accounts`,
+  `/monitoring`, `/ingestion`, `/settings`. Qualquer outro destino ou URL externa é descartado;
+  o texto de `answer` continua sendo Markdown puro, sem HTML bruto.
+- O pedido mantém o mesmo formato: pergunta com até 2.000 caracteres e até 20 mensagens
+  de histórico, com até 8.000 caracteres por mensagem. O servidor usa somente as últimas
+  seis, higieniza contas conhecidas e identificadores em texto livre antes de truncar,
+  e limita falas anteriores do assistente a 1.500 caracteres (ou menos para caber no prompt).
+  O histórico entra como dados na geração do alerta, de `domain` global e de `system`; não entra na
+  classificação nem na consulta de recuperação jurídica, que usa apenas a pergunta atual.
 
 As rotas `/chat` e `/alerts/{id}/chat` reconhecem conversas curtas por regras
 determinísticas: saudações, agradecimentos, despedidas, confirmações e perguntas
@@ -268,7 +303,8 @@ sem diferenciar caixa ou acentos.
 `out_of_scope` devolve, sem geração de resposta: "Só consigo ajudar com temas do FraudRadar:
 prevenção à lavagem de dinheiro, fraude financeira, os alertas e a comunicação ao COAF.
 Quer perguntar algo sobre isso?". Retorna `sources: []`. Não há recuperação, carregamento de
-embeddings ou acesso ao banco nos caminhos `small_talk`, `out_of_scope` e `domain` global;
+embeddings ou consulta a dados de alertas/domínio nos caminhos `small_talk`, `out_of_scope`
+e `domain` global (apenas leitura/gravação da conversa em `public.chat_*` quando aplicável);
 o `domain` contextual lê somente os dados do alerta em uma transação curta.
 
 Respostas `legal` mantêm o RAG e a validação de citações. Pedem até 120 palavras em dois
@@ -280,11 +316,11 @@ formato `[F2] Lei 9.613/1998, Art. 11`; `excerpt` termina com
 `llm_unavailable`, o chat mantém todas as fontes recuperadas para consulta manual;
 a geração de parecer devolve 503 e não persiste esse fallback.
 
-O contexto contém somente rota, semana e ID do alerta. A UI não envia contas
-ou tabelas como contexto. Identificadores com dígitos em mensagens livres e no
-histórico são ocultados antes do pedido. A API deve aplicar a pseudonimização
-autoritativa também a qualquer dado buscado no servidor antes de chamar o LLM.
-Chaves do LLM não fazem parte do ambiente do Next.
+O contexto contém rota, semana, ID do alerta (quando aplicável), `path` e `page_state`
+(filtros e IDs visíveis na tela). A UI não envia contas ou tabelas como contexto.
+Identificadores com dígitos em mensagens livres e no histórico são ocultados antes do pedido.
+A API deve aplicar a pseudonimização autoritativa também a qualquer dado buscado no servidor
+antes de chamar o LLM. Chaves do LLM não fazem parte do ambiente do Next.
 
 ## Demonstração e validação restante
 

@@ -116,6 +116,7 @@ def setup_http(monkeypatch):
 
     monkeypatch.setattr(ai, "prepare_alert_ai", prepare)
     monkeypatch.setattr(ai, "answer_legal_chat", answer)
+    monkeypatch.setattr(ai, "_persist_chat_turn", lambda **kwargs: 1)
 
     try:
         with TestClient(app) as client:
@@ -280,6 +281,9 @@ def test_domain_uses_sanitized_alert_context_without_legal_retrieval(setup_http,
         "kind": "domain",
         "answer": "Verifique as contrapartes e compare com o histórico.",
         "sources": [],
+        "links": [],
+        "model": None,
+        "conversation_id": 1,
     }
     assert engine.transactions == 1
     assert state["calls"] == []
@@ -318,6 +322,9 @@ def test_alert_out_of_scope_is_fixed_without_database_or_generation(setup_http, 
         "kind": "out_of_scope",
         "answer": OUT_OF_SCOPE_REPLY,
         "sources": [],
+        "links": [],
+        "model": None,
+        "conversation_id": 1,
     }
     assert engine.transactions == 0
     assert state["calls"] == []

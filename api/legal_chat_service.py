@@ -62,6 +62,7 @@ def answer_legal_chat(
     retriever: Callable[..., PreparedLegalEvidence] | None = None,
     system_instruction: str = SYSTEM_INSTRUCTION,
     max_output_tokens: int = CHAT_MAX_OUTPUT_TOKENS,
+    model: str | None = None,
 ) -> ChatResponse:
     """Prepara evidências revisadas, fecha o banco e gera a resposta.
 
@@ -115,6 +116,7 @@ def answer_legal_chat(
             ) from error
 
     # A conexão já foi fechada quando a fase do LLM começa.
+    extra_kwargs = {"model": model} if model is not None else {}
     result = generate_from_prepared_evidence(
         question=question,
         prepared=prepared,
@@ -122,6 +124,7 @@ def answer_legal_chat(
         allow_pending_review=False,
         system_instruction=system_instruction,
         max_output_tokens=max_output_tokens,
+        **extra_kwargs,
     )
 
     payload: dict[str, Any] = present_legal_rag(result)
