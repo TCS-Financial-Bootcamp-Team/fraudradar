@@ -1,16 +1,29 @@
 # Roteamento do chat
 
-`POST /chat` e `POST /alerts/{id}/chat` respondem `{kind, answer, sources, links, model, conversation_id}`.
+`POST /chat` e `POST /alerts/{id}/chat` respondem `{kind, answer, sources, links, model, conversation_id, grounded}`.
 O campo `kind` é obrigatório e identifica o caminho usado:
 
 | `kind` | Resposta | Recuperação jurídica |
 | --- | --- | --- |
 | `small_talk` | Texto fixo de saudação, ajuda ou cortesia; fontes vazias | Não |
-| `legal` | Exigências legais com citações validadas e fontes revisadas | Sim |
+| `legal` | Exigências legais com fontes revisadas (`grounded: true`) ou conhecimento geral (`grounded: false`) quando a base não cobre a pergunta | Sim |
 | `domain` | Conceitos de PLD/fraude, tipologias e prática de investigação; fontes vazias | Não |
 | `decision` | Apoio à decisão sobre o alerta, com indícios a favor e contra; fontes vazias | Não |
 | `system` | Agente com ferramentas somente leitura e guia do app; pode sugerir `links` | Não |
 | `out_of_scope` | Texto fixo explicando o escopo do FraudRadar; fontes vazias | Não |
+
+O campo `grounded` (`boolean | null`) vale `true` em respostas `legal` sustentadas por citações
+validadas (ou no fallback `llm_unavailable` com fontes recuperadas), `false` quando a base jurídica
+não cobre a pergunta pertinente e o modelo responde pelo conhecimento geral sem citações nem lista
+de fontes (`sources: []`), e `null` nas demais rotas.
+
+Na rota `legal` do chat, a instrução orienta o modelo a responder diretamente sem mencionar a base,
+os trechos ou as fontes na prosa e sem incluir a frase padrão de parecer definitivo; o servidor usa
+os marcadores `[Fn]` para validar e filtrar `sources`, removendo-os do texto final do chat. Quando a
+base recuperada não cobre uma pergunta pertinente de PLD/crimes financeiros, o modelo inicia a saída
+com `[SEM_BASE]`, o servidor remove o marcador, descarta todas as citações e retorna `grounded: false`
+com `sources: []`. O relatório de parecer do alerta (`POST /alerts/{id}/assessment`) continua exigindo
+evidência fundamentada na base e mantém os marcadores `[Fn]` no texto.
 
 O pedido aceita `{message, context: {page, week, alert_id?, path?, page_state?}, history, model?, conversation_id?}`.
 Tanto em `POST /chat` quanto em `POST /alerts/{id}/chat`, quando `conversation_id` é informado,

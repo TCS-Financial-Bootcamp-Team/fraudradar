@@ -84,6 +84,7 @@ class ChatResponse(BaseModel):
     links: list[ChatLink] = Field(default_factory=list, max_length=5)
     model: str | None = None
     conversation_id: int | None = None
+    grounded: bool | None = None
 
 
 class ConversationSummary(BaseModel):
@@ -101,6 +102,7 @@ class ConversationMessage(BaseModel):
     links: list[ChatLink] = []
     model: str | None = None
     created_at: datetime
+    grounded: bool | None = None
 
 
 class ConversationDetail(BaseModel):

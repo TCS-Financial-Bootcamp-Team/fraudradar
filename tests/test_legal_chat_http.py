@@ -201,6 +201,7 @@ def test_small_talk_bypasses_all_external_work(
         "links": [],
         "model": None,
         "conversation_id": 1,
+        "grounded": None,
     }
 
 
@@ -249,6 +250,7 @@ def test_global_chat_without_retrieval_or_database(http_client, chat_request, mo
         "links": [],
         "model": None,
         "conversation_id": 1,
+        "grounded": None,
     }
     assert classifier == [{"message": message, "has_alert_context": False}]
     assert generated == ([message] if route == "domain" else [])

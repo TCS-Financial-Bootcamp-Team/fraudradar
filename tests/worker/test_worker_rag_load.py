@@ -215,7 +215,8 @@ def test_the_chat_answers_after_loading_the_real_snapshot(client, model, monkeyp
     response = client.post("/chat", json=request)
     assert response.status_code == 200
     payload = response.json()
-    assert payload["answer"] == "Resposta de teste [F1]."
+    assert payload["answer"] == "Resposta de teste."
+    assert payload["grounded"] is True
     assert len(payload["sources"]) == 1
     for number, source in enumerate(payload["sources"], start=1):
         assert source["title"].startswith(f"[F{number}] Lei 9.613/1998, Art. ")
