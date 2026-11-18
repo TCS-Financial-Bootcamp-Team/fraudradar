@@ -70,11 +70,21 @@ def generate_from_prepared_evidence(
     if not isinstance(answer, LegalAnswer):
         raise ValueError("Gerador retornou resultado inesperado.")
 
-    if not answer.text.strip() or not answer.citations:
+    if not answer.text.strip():
         raise ValueError("Resposta gerada sem texto ou citacoes.")
 
-    if not set(answer.citations).issubset(expected_ids):
-        raise ValueError("Resposta possui citacoes desconhecidas.")
+    if answer.grounded:
+        if not answer.citations:
+            raise ValueError("Resposta gerada sem texto ou citacoes.")
+
+        if not set(answer.citations).issubset(expected_ids):
+            raise ValueError("Resposta possui citacoes desconhecidas.")
+    else:
+        if system_instruction != SYSTEM_INSTRUCTION:
+            raise ValueError("Parecer exige resposta fundamentada na base.")
+
+        if answer.citations:
+            raise ValueError("Resposta sem base nao pode conter citacoes.")
 
     if answer.evidence_count != len(prepared.documents):
         raise ValueError("Quantidade de evidencias inconsistente.")

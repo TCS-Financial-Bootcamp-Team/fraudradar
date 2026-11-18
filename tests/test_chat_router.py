@@ -181,3 +181,16 @@ def test_predicted_decision_without_context_is_domain():
         )
         == "domain"
     )
+
+
+def test_tipologia_fan_out_question_routes_to_domain_not_legal():
+    """Pergunta conceitual de tipologia não aciona atalho jurídico e segue para domain."""
+    message = "O que é a tipologia fan-out?"
+    assert chat_router.classify_legal_chat_intent(message) is None
+    assert chat_router._has_legal_markers(message) is False
+    assert "fan-out" in chat_router.ROUTER_SYSTEM_INSTRUCTION
+
+    classifier = Mock(return_value='{"route":"domain"}')
+    route = route_chat_message(message, has_alert_context=False, classifier=classifier)
+    assert route == "domain"
+    classifier.assert_called_once_with(message=message, has_alert_context=False)

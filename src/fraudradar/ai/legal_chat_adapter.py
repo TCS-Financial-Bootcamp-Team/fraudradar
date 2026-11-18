@@ -5,6 +5,7 @@ from typing import Any
 
 from api.schemas.alerts import Source
 from api.schemas.chat import ChatResponse
+from fraudradar.ai.legal_generation import strip_chat_boilerplate, strip_citation_markers
 
 LLM_UNAVAILABLE_ANSWER = (
     "A explicação automática está temporariamente "
@@ -28,6 +29,8 @@ def cited_sources(content: str, sources: list[Source]) -> list[Source]:
 
 def legal_payload_to_chat_response(
     payload: dict[str, Any],
+    *,
+    strip_citations: bool = False,
 ) -> ChatResponse:
     """Converte evidências revisadas para o contrato existente do frontend.
 
@@ -37,6 +40,10 @@ def legal_payload_to_chat_response(
 
     if status not in {"generated", "llm_unavailable"}:
         raise ValueError("Status juridico invalido.")
+
+    grounded = payload.get("grounded", True)
+    if not isinstance(grounded, bool):
+        raise ValueError("Sinalizacao de fundamentacao invalida.")
 
     evidences = payload.get("evidences")
 
@@ -96,6 +103,26 @@ def legal_payload_to_chat_response(
             raise ValueError("Fallback contem resposta gerada.")
 
         answer = LLM_UNAVAILABLE_ANSWER
+        response_grounded = True
+
+    elif not grounded:
+        answer = payload.get("answer")
+        citations = payload.get("citations")
+
+        if not isinstance(answer, str) or not answer.strip():
+            raise ValueError("Resposta gerada ausente.")
+
+        if citations:
+            raise ValueError("Resposta sem base nao pode conter citacoes.")
+
+        answer = strip_citation_markers(answer)
+        if strip_citations:
+            answer = strip_chat_boilerplate(answer)
+        if not answer:
+            raise ValueError("Resposta gerada ausente.")
+
+        sources = []
+        response_grounded = False
 
     else:
         answer = payload.get("answer")
@@ -116,9 +143,16 @@ def legal_payload_to_chat_response(
         if actual_citations != set(citations):
             raise ValueError("Citações da resposta inconsistentes.")
         sources = cited_sources(answer, sources)
+        if strip_citations:
+            answer = strip_citation_markers(answer)
+            answer = strip_chat_boilerplate(answer)
+            if not answer:
+                raise ValueError("Resposta gerada ausente.")
+        response_grounded = True
 
     return ChatResponse(
         kind="legal",
+        grounded=response_grounded,
         answer=answer,
         sources=sources,
         model=payload.get("model") if isinstance(payload.get("model"), str) else None,
