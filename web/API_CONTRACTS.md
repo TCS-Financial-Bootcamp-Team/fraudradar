@@ -217,7 +217,7 @@ Modelos e histórico no servidor:
 | `POST /chat` | `chatRequestSchema`; resposta `chatResponseSchema` com `conversation_id` preenchido. Rejeita `context.alert_id` com 400 `ai.chat_alert_route`. |
 | `POST /alerts/{id}/chat` | `chatRequestSchema`; resposta `chatResponseSchema` com `conversation_id` preenchido. Suporta as mesmas rotas e persistência; quando `route === "system"`, passa `page="alert"`, `path` do pedido e `alert_id` ao agente. |
 | `GET /chat/conversations?limit=30` | Query `limit` (`1..100`); exige autenticação e `X-Dataset`. Resposta `conversationListSchema`: `[{id, title, updated_at, message_count}]`, da mais recente à mais antiga. |
-| `GET /chat/conversations/{id}` | Exige autenticação e `X-Dataset`. Resposta `conversationDetailSchema`: `{id, title, updated_at, messages: [{role, content, kind?, sources, links, model?, created_at}]}`. 404 `chat.conversation_not_found` quando inexistente, de outro usuário ou de outro conjunto. |
+| `GET /chat/conversations/{id}` | Exige autenticação e `X-Dataset`. Resposta `conversationDetailSchema`: `{id, title, updated_at, messages: [{role, content, kind?, sources, links, model?, grounded?, created_at}]}`. 404 `chat.conversation_not_found` quando inexistente, de outro usuário ou de outro conjunto. |
 | `DELETE /chat/conversations/{id}` | Exige autenticação e `X-Dataset`. Responde 204 sem corpo; 404 `chat.conversation_not_found` quando inexistente, de outro usuário ou de outro conjunto. |
 
 Campos de pedido e resposta (`ChatRequest`, `ChatContext`, `ChatResponse`):
@@ -225,8 +225,9 @@ Campos de pedido e resposta (`ChatRequest`, `ChatContext`, `ChatResponse`):
 - `ChatRequest`: `{message, context, history, model?, conversation_id?}`.
   - `model` (`string | null`): identificador opcional entre os retornados por `GET /ai/models`. Valor desconhecido ou fora da lista permitida responde 422 `ai.model_not_allowed` (com `params: {model}`). Quando o modelo escolhido responde HTTP 503 ou 429, a API tenta **uma vez** o próximo modelo da lista (no roteador e na geração) e devolve em `ChatResponse.model` o modelo que efetivamente respondeu.
   - `conversation_id` (`number | null`, inteiro positivo): quando ausente em `POST /chat` ou `POST /alerts/{id}/chat`, cria uma nova conversa em `public.chat_conversations` (título = primeira pergunta com espaços colapsados até 80 caracteres). Quando informado, o servidor valida dono (`User.id`) e conjunto (`X-Dataset`) — respondendo 404 `chat.conversation_not_found` caso contrário —, usa as últimas 6 mensagens gravadas no banco e **ignora** `request.history`. A mesma conversa pode misturar turnos globais (`/chat`) e de alerta (`/alerts/{id}/chat`).
-- `ChatResponse`: `{kind, answer, sources, links, model, conversation_id}`.
+- `ChatResponse`: `{kind, answer, sources, links, model, conversation_id, grounded}`.
   - `kind`: `small_talk | legal | domain | decision | system | out_of_scope`.
+  - `grounded` (`boolean | null`): `true` quando `kind="legal"` traz fontes jurídicas validadas (ou fallback `llm_unavailable`); `false` quando a base não cobre uma pergunta pertinente e o assistente responde por conhecimento geral sem citações nem `sources`; `null` nas demais rotas.
   - `links`: até 5 itens `{href, label}` (`label` 1–60 caracteres), produzidos exclusivamente pela ferramenta `suggest_link` da rota `system`.
   - `model` (`string | null`): identificador do modelo que produziu a resposta (ou `null` em respostas fixas sem LLM).
   - `conversation_id` (`number | null`): ID da conversa persistida (sempre preenchido em respostas bem-sucedidas de `POST /chat` e `POST /alerts/{id}/chat`).
@@ -308,13 +309,16 @@ e `domain` global (apenas leitura/gravação da conversa em `public.chat_*` quan
 o `domain` contextual lê somente os dados do alerta em uma transação curta.
 
 Respostas `legal` mantêm o RAG e a validação de citações. Pedem até 120 palavras em dois
-parágrafos curtos, salvo pedido
-explícito de detalhe. Somente as fontes efetivamente citadas na resposta são retornadas,
-ordenadas pelo ID original: `[F2]` continua `[F2]` mesmo sem `[F1]`. O título segue o
-formato `[F2] Lei 9.613/1998, Art. 11`; `excerpt` termina com
-`Fonte oficial: https://...`, usado para extrair o link oficial. No fallback
-`llm_unavailable`, o chat mantém todas as fontes recuperadas para consulta manual;
-a geração de parecer devolve 503 e não persiste esse fallback.
+parágrafos curtos, salvo pedido explícito de detalhe. No chat, o modelo responde diretamente sem
+mencionar a base, os trechos ou as fontes no texto, os marcadores `[Fn]` são validados no servidor
+e removidos do texto exibido ao cliente (mantendo `sources` no fim) e a frase padrão de parecer
+definitivo não é incluída. Quando a base não cobre uma pergunta pertinente, o modelo sinaliza
+`[SEM_BASE]`, o servidor remove o marcador, descarta citações e responde com `grounded: false` e
+`sources: []`. Nas respostas fundamentadas, somente as fontes efetivamente citadas são retornadas,
+ordenadas pelo ID original, com `title` `[F2] Lei 9.613/1998, Art. 11` e `excerpt` terminando em
+`Fonte oficial: https://...`. No fallback `llm_unavailable`, o chat mantém todas as fontes
+recuperadas para consulta manual; a geração de parecer devolve 503, preserva `[Fn]` no texto e não
+persiste esse fallback.
 
 O contexto contém rota, semana, ID do alerta (quando aplicável), `path` e `page_state`
 (filtros e IDs visíveis na tela). A UI não envia contas ou tabelas como contexto.

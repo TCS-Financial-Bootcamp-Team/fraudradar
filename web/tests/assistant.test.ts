@@ -24,6 +24,21 @@ import {
   isAllowedAssistantHref,
 } from "../src/features/assistant/lib/links";
 import {
+  createModelsLoader,
+  getModelChipState,
+} from "../src/features/assistant/lib/models-loader";
+import {
+  ASSISTANT_PANEL_DEFAULT_WIDTH,
+  ASSISTANT_PANEL_MAX_WIDTH,
+  ASSISTANT_PANEL_MIN_WIDTH,
+  ASSISTANT_PANEL_WIDTH_STORAGE_KEY,
+  clampPanelWidth,
+  getMaxPanelWidth,
+  isSmallViewport,
+  readStoredPanelWidth,
+  writeStoredPanelWidth,
+} from "../src/features/assistant/lib/panel-width";
+import {
   aiModelsResponseSchema,
   chatKindSchema,
   chatRequestSchema,
@@ -266,9 +281,20 @@ test("allowlist de links aceita rotas internas permitidas e descarta todo o rest
 test("getAnswerBadge retorna a chave esperada para cada kind (inclusive system) e para respostas legadas", () => {
   const t = getT("assistant");
 
-  const legal = getAnswerBadge("legal", [sampleSource]);
+  const legal = getAnswerBadge("legal", [sampleSource], true);
   assert.deepEqual(legal, { kind: "legal", labelKey: "badge.legal" });
   assert.equal(t(legal.labelKey), "Com base na Lei 9.613/1998");
+
+  const ungrounded = getAnswerBadge("legal", [], false);
+  assert.deepEqual(ungrounded, {
+    kind: "legal",
+    labelKey: "badge.generalKnowledge",
+    tooltipKey: "badge.generalKnowledgeTooltip",
+  });
+  assert.equal(t(ungrounded.labelKey), "Conhecimento geral");
+  assert.ok(t(ungrounded.tooltipKey!).length > 0);
+  assert.deepEqual(getAnswerBadge("legal", [sampleSource], false), ungrounded);
+  assert.deepEqual(getAnswerBadge("legal", []), ungrounded);
 
   const domain = getAnswerBadge("domain", []);
   assert.deepEqual(domain, {
@@ -650,4 +676,130 @@ test("helpers de chip de contexto, IDs inteiros e data relativa", () => {
     formatRelativeDate("2026-11-17T12:00:00Z", "en", now),
     "yesterday",
   );
+});
+
+test("createModelsLoader chama fetchAiModels uma única vez quando falha e só refaz no retry explícito", async () => {
+  process.env.NEXT_PUBLIC_USE_MOCKS = "false";
+  const originalFetch = globalThis.fetch;
+  let fetchCalls = 0;
+  let shouldFail = true;
+
+  globalThis.fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/ai/models")) {
+      fetchCalls += 1;
+      if (shouldFail) {
+        return Response.json({ detail: "Not found" }, { status: 404 });
+      }
+      return Response.json({
+        default: "gemini-2.5-flash",
+        models: [
+          { id: "gemini-2.5-flash", label: "Gemini 2.5 Flash" },
+          { id: "gemini-2.5-pro", label: "Gemini 2.5 Pro" },
+        ],
+      });
+    }
+    throw new Error(`Unexpected URL: ${url}`);
+  };
+
+  try {
+    const svc = await import("../src/features/assistant/services/assistant-service");
+    const t = getT("assistant");
+    const loader = createModelsLoader({
+      fetcher: (signal) => svc.fetchAiModels(signal),
+      readStored: () => "gemini-2.5-pro",
+      writeStored: () => {},
+      formatError: (err) => (err instanceof Error ? err.message : String(err)),
+    });
+
+    await loader.autoLoad();
+    assert.equal(fetchCalls, 1);
+    assert.equal(loader.getState().catalog, null);
+    assert.equal(loader.getState().loading, false);
+    assert.equal(loader.getState().attempted, true);
+    assert.ok(loader.getState().error);
+    assert.equal(loader.getRequestModel(), null);
+
+    const chipAfterError = getModelChipState(
+      loader.getState(),
+      t("modelPicker.label"),
+    );
+    assert.deepEqual(chipAfterError, {
+      mode: "default_model",
+      labelKey: "modelPicker.defaultModel",
+    });
+    assert.equal(t("modelPicker.defaultModel"), "Modelo padrão");
+
+    // Reaberturas do painel ou novas execuções do efeito não disparam novo fetch.
+    await loader.autoLoad();
+    await loader.autoLoad();
+    assert.equal(fetchCalls, 1);
+
+    // Sem catálogo, buildChatRequest omite o campo model.
+    const req = buildChatRequest({
+      message: "O que é fan-out?",
+      page: "/dashboard",
+      week: "2026-10-19",
+      model: loader.getRequestModel(),
+    });
+    assert.equal("model" in req, false);
+
+    // Somente a ação explícita de retry refaz a busca.
+    shouldFail = false;
+    await loader.retry();
+    assert.equal(fetchCalls, 2);
+    assert.equal(loader.getState().error, null);
+    assert.equal(loader.getState().catalog?.default, "gemini-2.5-flash");
+    assert.equal(loader.getRequestModel(), "gemini-2.5-pro");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("largura do painel respeita limites, viewport 70vw e persistência segura em localStorage", () => {
+  assert.equal(ASSISTANT_PANEL_DEFAULT_WIDTH, 400);
+  assert.equal(ASSISTANT_PANEL_MIN_WIDTH, 360);
+  assert.equal(ASSISTANT_PANEL_MAX_WIDTH, 900);
+
+  assert.equal(getMaxPanelWidth(1600), 900);
+  assert.equal(getMaxPanelWidth(1000), 700);
+  assert.equal(getMaxPanelWidth(640), 448);
+
+  assert.equal(clampPanelWidth(200, 1440), 360);
+  assert.equal(clampPanelWidth(1200, 1440), 900);
+  assert.equal(clampPanelWidth(800, 1000), 700);
+  assert.equal(clampPanelWidth(520.6, 1440), 521);
+  assert.equal(clampPanelWidth(Number.NaN, 1440), 400);
+
+  assert.equal(isSmallViewport(375), true);
+  assert.equal(isSmallViewport(639), true);
+  assert.equal(isSmallViewport(640), false);
+
+  const store = new Map<string, string>();
+  const fakeStorage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+  };
+
+  assert.equal(readStoredPanelWidth(fakeStorage, 1440), 400);
+  writeStoredPanelWidth(620, fakeStorage, 1440);
+  assert.equal(store.get(ASSISTANT_PANEL_WIDTH_STORAGE_KEY), "620");
+  assert.equal(readStoredPanelWidth(fakeStorage, 1440), 620);
+  assert.equal(readStoredPanelWidth(fakeStorage, 800), 560);
+
+  store.set(ASSISTANT_PANEL_WIDTH_STORAGE_KEY, "invalido");
+  assert.equal(readStoredPanelWidth(fakeStorage, 1440), 400);
+
+  const throwingStorage = {
+    getItem: () => {
+      throw new Error("blocked");
+    },
+    setItem: () => {
+      throw new Error("blocked");
+    },
+  };
+  assert.equal(readStoredPanelWidth(throwingStorage, 1440), 400);
+  assert.doesNotThrow(() => writeStoredPanelWidth(500, throwingStorage, 1440));
 });

@@ -284,6 +284,7 @@ def test_domain_uses_sanitized_alert_context_without_legal_retrieval(setup_http,
         "links": [],
         "model": None,
         "conversation_id": 1,
+        "grounded": None,
     }
     assert engine.transactions == 1
     assert state["calls"] == []
@@ -325,6 +326,7 @@ def test_alert_out_of_scope_is_fixed_without_database_or_generation(setup_http, 
         "links": [],
         "model": None,
         "conversation_id": 1,
+        "grounded": None,
     }
     assert engine.transactions == 0
     assert state["calls"] == []

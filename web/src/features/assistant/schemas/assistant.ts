@@ -70,6 +70,7 @@ export const messageSchema = z.object({
   kind: chatKindSchema.optional(),
   links: z.array(chatLinkSchema).optional(),
   model: z.string().nullable().optional(),
+  grounded: z.boolean().nullable().optional(),
 });
 
 const historyMessageSchema = z.object({
@@ -107,6 +108,7 @@ export const chatResponseSchema = z.object({
   links: z.array(chatLinkSchema).max(MAX_CHAT_LINKS).default([]),
   model: z.string().nullable().optional(),
   conversation_id: z.number().int().positive().nullable().optional(),
+  grounded: z.boolean().nullable().optional(),
 });
 
 export const conversationSummarySchema = z.object({
@@ -126,6 +128,7 @@ export const conversationMessageSchema = z.object({
   links: z.array(chatLinkSchema).default([]),
   model: z.string().nullable().optional(),
   created_at: z.string().optional(),
+  grounded: z.boolean().nullable().optional(),
 });
 
 export const conversationDetailSchema = z.object({

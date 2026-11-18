@@ -11,6 +11,7 @@ from api.schemas.chat import ChatResponse
 from fraudradar.ai.legal_chat_adapter import legal_payload_to_chat_response
 from fraudradar.ai.legal_chat_intent import small_talk_reply
 from fraudradar.ai.legal_generation import (
+    ASSESSMENT_SYSTEM_INSTRUCTION,
     CHAT_MAX_OUTPUT_TOKENS,
     SYSTEM_INSTRUCTION,
     LegalAnswer,
@@ -128,4 +129,7 @@ def answer_legal_chat(
     )
 
     payload: dict[str, Any] = present_legal_rag(result)
-    return legal_payload_to_chat_response(payload)
+    return legal_payload_to_chat_response(
+        payload,
+        strip_citations=system_instruction != ASSESSMENT_SYSTEM_INSTRUCTION,
+    )

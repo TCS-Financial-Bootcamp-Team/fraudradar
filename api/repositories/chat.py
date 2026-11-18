@@ -234,6 +234,7 @@ def get_conversation_detail(
         ]
         raw_links = row["links"] if isinstance(row["links"], list) else []
         links = [ChatLink(**item) for item in validate_links(raw_links)]
+        grounded = (len(sources) > 0) if row["kind"] == "legal" else None
         messages.append(
             ConversationMessage(
                 role=row["role"],
@@ -243,6 +244,7 @@ def get_conversation_detail(
                 links=links,
                 model=row["model"],
                 created_at=row["created_at"],
+                grounded=grounded,
             )
         )
 

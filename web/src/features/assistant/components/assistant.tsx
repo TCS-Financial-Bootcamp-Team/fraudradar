@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -41,6 +41,17 @@ import {
   type EvidenceStrength,
 } from "../lib/decision-strength";
 import { filterAllowedLinks } from "../lib/links";
+import { getModelChipState } from "../lib/models-loader";
+import {
+  ASSISTANT_PANEL_DEFAULT_WIDTH,
+  ASSISTANT_PANEL_MIN_WIDTH,
+  ASSISTANT_PANEL_STEP_PX,
+  clampPanelWidth,
+  getMaxPanelWidth,
+  isSmallViewport,
+  readStoredPanelWidth,
+  writeStoredPanelWidth,
+} from "../lib/panel-width";
 import type {
   AiModelOption,
   ChatKind,
@@ -90,12 +101,14 @@ function EvidenceStrengthPill({ strength }: { strength: EvidenceStrength }) {
 function AssistantKindBadge({
   kind,
   sources,
+  grounded,
 }: {
   kind?: ChatKind;
   sources?: Source[];
+  grounded?: boolean | null;
 }) {
   const t = useTranslations("assistant");
-  const badge = getAnswerBadge(kind, sources);
+  const badge = getAnswerBadge(kind, sources, grounded);
   if (!badge) return null;
 
   return (
@@ -178,6 +191,7 @@ function AssistantAnswerMeta({
   kind,
   content,
   sources,
+  grounded,
   links,
   model,
   modelLabel,
@@ -187,18 +201,20 @@ function AssistantAnswerMeta({
   kind?: ChatKind;
   content?: string;
   sources?: Source[];
+  grounded?: boolean | null;
   links?: ChatLink[];
   model?: string | null;
   modelLabel?: string | null;
   className?: string;
   withDivider?: boolean;
 }) {
-  const badge = getAnswerBadge(kind, sources);
+  const visibleSources = grounded === false ? undefined : sources;
+  const badge = getAnswerBadge(kind, visibleSources, grounded);
   const strength =
     (!kind || kind === "decision") && content
       ? parseEvidenceStrength(content)
       : null;
-  const hasSources = Boolean(sources && sources.length > 0);
+  const hasSources = Boolean(visibleSources && visibleSources.length > 0);
   const safeLinks = filterAllowedLinks(links);
   const displayModel = modelLabel || model || null;
   if (!badge && !strength && !hasSources && safeLinks.length === 0 && !displayModel) {
@@ -215,12 +231,16 @@ function AssistantAnswerMeta({
     >
       {(badge || strength) && (
         <div className="flex flex-wrap items-center gap-1.5">
-          <AssistantKindBadge kind={kind} sources={sources} />
+          <AssistantKindBadge
+            kind={kind}
+            sources={visibleSources}
+            grounded={grounded}
+          />
           {strength && <EvidenceStrengthPill strength={strength} />}
         </div>
       )}
       <AssistantLinks links={safeLinks} />
-      <AssistantSources sources={sources} className="w-full" />
+      <AssistantSources sources={visibleSources} className="w-full" />
       {displayModel && (
         <span className="text-[11px] leading-tight text-muted-foreground">
           {displayModel}
@@ -344,6 +364,7 @@ export function Chat({ alertId }: { alertId?: string }) {
                 kind={m.kind}
                 content={m.content}
                 sources={m.sources}
+                grounded={m.grounded}
                 links={m.links}
                 model={m.model}
                 withDivider
@@ -396,7 +417,7 @@ export interface AssistantDrawerProps {
 }
 
 /**
- * Painel lateral direito do Assistente IA (400px, altura total, sobreposto).
+ * Painel lateral direito do Assistente IA (largura ajustável a partir de 400px, altura total, sobreposto).
  * Concentra seleção de modelo, contexto da página, histórico e novo chat no compositor.
  */
 export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
@@ -420,6 +441,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
     selectedModel,
     modelsLoading,
     modelsError,
+    modelsAttempted,
     loadModels,
     selectModel,
     conversations,
@@ -437,19 +459,81 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  const [panelWidth, setPanelWidth] = useState<number>(
+    ASSISTANT_PANEL_DEFAULT_WIDTH,
+  );
+  const [viewportWidth, setViewportWidth] = useState<number | undefined>(
+    undefined,
+  );
+  const [isResizing, setIsResizing] = useState(false);
 
   const endRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modelMenuContainerRef = useRef<HTMLDivElement>(null);
   const modelTriggerRef = useRef<HTMLButtonElement>(null);
   const historyButtonRef = useRef<HTMLButtonElement>(null);
+  const panelWidthRef = useRef<number>(ASSISTANT_PANEL_DEFAULT_WIDTH);
+  const hasLoadedPanelWidthRef = useRef(false);
+  const dragStateRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
 
-  // Carrega catálogo de modelos ao abrir o drawer.
+  // Carrega a largura salva e acompanha o redimensionamento da janela.
   useEffect(() => {
-    if (isOpen && !modelsCatalog && !modelsLoading) {
+    const syncViewport = () => {
+      const vw = window.innerWidth;
+      setViewportWidth(vw);
+      setPanelWidth((prev) => {
+        const next = hasLoadedPanelWidthRef.current
+          ? clampPanelWidth(prev, vw)
+          : readStoredPanelWidth(undefined, vw);
+        hasLoadedPanelWidthRef.current = true;
+        panelWidthRef.current = next;
+        return next;
+      });
+    };
+    syncViewport();
+    window.addEventListener("resize", syncViewport);
+    return () => window.removeEventListener("resize", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    panelWidthRef.current = panelWidth;
+    if (typeof document !== "undefined") {
+      document.documentElement.style.setProperty(
+        "--assistant-panel-width",
+        `${panelWidth}px`,
+      );
+    }
+  }, [panelWidth]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      dragStateRef.current = null;
+    }
+  }, [isOpen]);
+
+  // Carrega catálogo de modelos uma vez por montagem, sem repetir após falha.
+  useEffect(() => {
+    if (
+      isOpen &&
+      !modelsAttempted &&
+      !modelsCatalog &&
+      !modelsLoading &&
+      !modelsError
+    ) {
       void loadModels();
     }
-  }, [isOpen, modelsCatalog, modelsLoading, loadModels]);
+  }, [
+    isOpen,
+    modelsAttempted,
+    modelsCatalog,
+    modelsLoading,
+    modelsError,
+    loadModels,
+  ]);
 
   // Ajusta altura automática da textarea ao digitar ou limpar.
   useEffect(() => {
@@ -514,8 +598,8 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
   };
 
   const handleOpenModelMenu = () => {
-    if (!modelsCatalog && !modelsLoading) {
-      void loadModels(true);
+    if (!modelsAttempted && !modelsCatalog && !modelsLoading && !modelsError) {
+      void loadModels();
     }
     setIsModelMenuOpen(true);
     modelTriggerRef.current?.focus();
@@ -523,13 +607,91 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
 
   if (!isOpen) return null;
 
+  const smallScreen = isSmallViewport(viewportWidth);
+  const maxPanelWidth = getMaxPanelWidth(viewportWidth);
+  const effectiveIsResizing = isOpen && isResizing;
+
+  const handleResizePointerDown = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    if (smallScreen) return;
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    event.preventDefault();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Ignora ambientes sem suporte a pointer capture.
+    }
+    dragStateRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startWidth: panelWidthRef.current,
+    };
+    setIsResizing(true);
+  };
+
+  const handleResizePointerMove = (
+    event: React.PointerEvent<HTMLDivElement>,
+  ) => {
+    const drag = dragStateRef.current;
+    if (!drag || drag.pointerId !== event.pointerId || smallScreen) return;
+    const vw = typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    const next = clampPanelWidth(drag.startWidth + (drag.startX - event.clientX), vw);
+    panelWidthRef.current = next;
+    setPanelWidth(next);
+  };
+
+  const finishResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragStateRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    try {
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+    } catch {
+      // Ignora ambientes sem suporte a pointer capture.
+    }
+    dragStateRef.current = null;
+    setIsResizing(false);
+    const vw = typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    writeStoredPanelWidth(panelWidthRef.current, undefined, vw);
+  };
+
+  const handleResizeKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (smallScreen) return;
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const delta =
+      event.key === "ArrowLeft"
+        ? ASSISTANT_PANEL_STEP_PX
+        : -ASSISTANT_PANEL_STEP_PX;
+    const vw = typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    const next = clampPanelWidth(panelWidthRef.current + delta, vw);
+    panelWidthRef.current = next;
+    setPanelWidth(next);
+    writeStoredPanelWidth(next, undefined, vw);
+  };
+
+  const handleResizeDoubleClick = () => {
+    if (smallScreen) return;
+    const vw = typeof window !== "undefined" ? window.innerWidth : viewportWidth;
+    const next = clampPanelWidth(ASSISTANT_PANEL_DEFAULT_WIDTH, vw);
+    panelWidthRef.current = next;
+    setPanelWidth(next);
+    writeStoredPanelWidth(next, undefined, vw);
+  };
+
   const models: AiModelOption[] = modelsCatalog?.models ?? [];
-  const activeModelOption = models.find((item) => item.id === selectedModel);
-  const modelButtonLabel = modelsLoading
-    ? t("modelPicker.loading")
-    : activeModelOption?.label ??
-      selectedModel ??
-      (modelsError ? t("modelPicker.unavailable") : t("modelPicker.label"));
+  const chipState = getModelChipState(
+    {
+      loading: modelsLoading,
+      catalog: modelsCatalog,
+      selectedModel,
+    },
+    t("modelPicker.label"),
+  );
+  const modelButtonLabel =
+    chipState.mode === "selected" ? chipState.label : t(chipState.labelKey);
 
   const resolveModelLabel = (modelId?: string | null) => {
     if (!modelId) return null;
@@ -569,8 +731,44 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
         aria-label={t("title")}
         aria-modal={false}
         data-assistant-drawer="open"
-        className="fixed inset-y-0 right-0 z-40 flex h-screen w-[400px] max-w-full flex-col border-l border-border bg-card text-foreground shadow-xl [animation:assistant-drawer-in_0.2s_ease-out]"
+        style={
+          smallScreen
+            ? undefined
+            : ({ "--assistant-panel-width": `${panelWidth}px` } as CSSProperties)
+        }
+        className={cn(
+          "fixed inset-y-0 right-0 z-40 flex h-screen w-full max-w-full flex-col border-l border-border bg-card text-foreground shadow-xl [animation:assistant-drawer-in_0.2s_ease-out] sm:w-[var(--assistant-panel-width,400px)]",
+          effectiveIsResizing && "select-none",
+        )}
       >
+        {!smallScreen && (
+          <div
+            role="separator"
+            tabIndex={0}
+            aria-orientation="vertical"
+            aria-label={t("resizeHandle")}
+            aria-valuenow={panelWidth}
+            aria-valuemin={ASSISTANT_PANEL_MIN_WIDTH}
+            aria-valuemax={maxPanelWidth}
+            onPointerDown={handleResizePointerDown}
+            onPointerMove={handleResizePointerMove}
+            onPointerUp={finishResize}
+            onPointerCancel={finishResize}
+            onKeyDown={handleResizeKeyDown}
+            onDoubleClick={handleResizeDoubleClick}
+            className="group absolute inset-y-0 -left-1.5 z-20 hidden w-3 cursor-col-resize touch-none select-none items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:flex"
+          >
+            <span
+              aria-hidden="true"
+              className={cn(
+                "h-10 w-1 rounded-full transition-colors",
+                effectiveIsResizing
+                  ? "bg-foreground/60"
+                  : "bg-border group-hover:bg-muted-foreground/60",
+              )}
+            />
+          </div>
+        )}
         {/* Topo enxuto do drawer: apenas título e fechar */}
         <div className="flex h-[60px] shrink-0 items-center justify-between border-b border-border px-4 sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
@@ -827,6 +1025,7 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
                       kind={m.kind}
                       content={m.content}
                       sources={m.sources}
+                      grounded={m.grounded}
                       links={m.links}
                       model={m.model}
                       modelLabel={resolveModelLabel(m.model)}
@@ -879,8 +1078,13 @@ export function AssistantDrawer({ isOpen, onClose }: AssistantDrawerProps) {
                       aria-expanded={isModelMenuOpen}
                       aria-label={t("modelPicker.label")}
                       onClick={() => {
-                        if (!modelsCatalog && !modelsLoading) {
-                          void loadModels(true);
+                        if (
+                          !modelsAttempted &&
+                          !modelsCatalog &&
+                          !modelsLoading &&
+                          !modelsError
+                        ) {
+                          void loadModels();
                         }
                         setIsModelMenuOpen((prev) => !prev);
                       }}

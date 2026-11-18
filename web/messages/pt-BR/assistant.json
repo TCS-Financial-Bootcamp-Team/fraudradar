@@ -21,6 +21,7 @@
   },
   "weekContext": "Semana de {week}",
   "close": "Fechar assistente",
+  "resizeHandle": "Redimensionar painel do assistente",
   "suggestions": {
     "typology": "O que é a tipologia fan-out?",
     "legal": "O que a lei exige ao comunicar ao COAF?",
@@ -33,6 +34,8 @@
   },
   "badge": {
     "legal": "Com base na Lei 9.613/1998",
+    "generalKnowledge": "Conhecimento geral",
+    "generalKnowledgeTooltip": "Resposta sem fonte jurídica na base; para obrigações específicas, confirme na legislação.",
     "domain": "Resposta geral, sem fonte jurídica",
     "domainTooltip": "Explicação de conceito; para obrigações legais, pergunte o que a lei exige.",
     "decision": "Apoio à decisão — a decisão é sua",
@@ -63,6 +66,7 @@
   "modelPicker": {
     "label": "Selecionar modelo",
     "loading": "Carregando modelos…",
+    "defaultModel": "Modelo padrão",
     "defaultTag": "Padrão",
     "switchModel": "Trocar modelo",
     "unavailable": "Modelos indisponíveis"

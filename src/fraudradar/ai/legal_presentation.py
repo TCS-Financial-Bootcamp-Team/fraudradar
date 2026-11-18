@@ -70,6 +70,7 @@ def present_legal_rag(result: LegalRagResult) -> dict[str, Any]:
             ),
             "answer": None,
             "model": None,
+            "grounded": True,
             "citations": [],
             "evidences": evidences,
             "requires_legal_review": any(item["review_status"] != "reviewed" for item in evidences),
@@ -85,17 +86,21 @@ def present_legal_rag(result: LegalRagResult) -> dict[str, Any]:
 
     valid_ids = set(result.citation_ids)
 
-    if not answer.citations:
-        raise ValueError("Resposta sem citacoes.")
+    if answer.grounded:
+        if not answer.citations:
+            raise ValueError("Resposta sem citacoes.")
 
-    if not set(answer.citations).issubset(valid_ids):
-        raise ValueError("Resposta com referencias inexistentes.")
+        if not set(answer.citations).issubset(valid_ids):
+            raise ValueError("Resposta com referencias inexistentes.")
+    elif answer.citations:
+        raise ValueError("Resposta sem base nao pode conter citacoes.")
 
     return {
         "status": "generated",
         "message": "Explicacao automatica gerada.",
         "answer": answer.text,
         "model": answer.model,
+        "grounded": answer.grounded,
         "citations": list(answer.citations),
         "evidences": evidences,
         "requires_legal_review": any(item["review_status"] != "reviewed" for item in evidences),

@@ -26,6 +26,8 @@ from fraudradar.ai.legal_generation import (
     generate_legal_answer,
     generate_legal_answer_from_settings,
     split_grouped_citations,
+    strip_chat_boilerplate,
+    strip_citation_markers,
 )
 from fraudradar.config import get_settings
 
@@ -280,3 +282,75 @@ def test_generation_settings_reach_client_with_shared_validation(gemini, instruc
             system_instruction=instruction,
             max_output_tokens=budget,
         )
+
+
+def test_ungrounded_sentinel_returns_general_knowledge_without_citations():
+    """Quando a base não cobre a pergunta, [SEM_BASE] vira resposta geral sem citações."""
+    answer = generate_legal_answer(
+        question="Como funciona o KYC em correspondentes bancários?",
+        context=CONTEXT,
+        model="gemini-teste",
+        client=_client(
+            "[SEM_BASE] Instituições devem aplicar diligência contínua de KYC [F1]. "
+            "Esta resposta não constitui um parecer jurídico definitivo e a decisão "
+            "exige revisão humana."
+        ),
+    )
+    assert answer.grounded is False
+    assert answer.citations == ()
+    assert "[SEM_BASE]" not in answer.text
+    assert "[F1]" not in answer.text
+    assert "parecer jurídico definitivo" not in answer.text
+    assert answer.text == "Instituições devem aplicar diligência contínua de KYC."
+
+
+@pytest.mark.parametrize(
+    "bad_text",
+    [
+        "[SEM_BASE]",
+        "[SEM_BASE]   ",
+        "[SEM_BASE] [F1]",
+        "Texto antes do marcador [SEM_BASE] no meio.",
+        "[F1]",
+    ],
+)
+def test_ungrounded_sentinel_edge_cases_are_rejected(bad_text):
+    with pytest.raises(LegalAnswerRejectedError):
+        generate_legal_answer(
+            question=QUESTION,
+            context=CONTEXT,
+            model="gemini-teste",
+            client=_client(bad_text),
+        )
+
+
+def test_assessment_rejects_ungrounded_sentinel():
+    """O parecer do alerta exige evidência da base; [SEM_BASE] nunca é aceito."""
+    with pytest.raises(LegalAnswerRejectedError):
+        generate_legal_answer(
+            question=QUESTION,
+            context=CONTEXT,
+            model="gemini-teste",
+            client=_client("[SEM_BASE] Resposta sem base."),
+            system_instruction=ASSESSMENT_SYSTEM_INSTRUCTION,
+            max_output_tokens=ASSESSMENT_MAX_OUTPUT_TOKENS,
+        )
+
+
+def test_strip_citation_markers_and_boilerplate_clean_punctuation():
+    assert strip_citation_markers("Prazo de 24 horas [F1].") == "Prazo de 24 horas."
+    assert (
+        strip_citation_markers("Deveres [F1, F2] e registro [F3]; revise (art. 11 [F1]).")
+        == "Deveres e registro; revise (art. 11)."
+    )
+    assert (
+        strip_chat_boilerplate(
+            "Comunique ao COAF em 24 horas. "
+            "Esta resposta não constitui um parecer jurídico definitivo "
+            "e a decisão exige revisão humana."
+        )
+        == "Comunique ao COAF em 24 horas."
+    )
+    assert "parecer jurídico definitivo" in SYSTEM_INSTRUCTION
+    assert "a base de dados recuperada" in SYSTEM_INSTRUCTION
+    assert "[Fn]" in ASSESSMENT_SYSTEM_INSTRUCTION

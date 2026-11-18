@@ -356,3 +356,96 @@ def test_pending_documents_are_blocked(prepared_evidence):
 
     with pytest.raises(ValueError, match="revisao juridica"):
         legal_payload_to_chat_response(payload)
+
+
+def test_chat_service_strips_citations_and_handles_ungrounded_with_fake_client(monkeypatch):
+    from types import SimpleNamespace
+
+    from fraudradar.ai import legal_generation
+    from fraudradar.ai.legal_context import format_legal_context
+    from fraudradar.config import get_settings
+
+    monkeypatch.setenv("LLM_PROVIDER", "gemini")
+    monkeypatch.setenv("LLM_MODEL", "gemini-teste")
+    monkeypatch.setenv("GEMINI_API_KEY", "chave")
+    get_settings.cache_clear()
+
+    documents = (
+        _legal_document(1, "Art. 10", "Identificacao e manutencao de registros."),
+        _legal_document(2, "Art. 11", "Comunicacao ao COAF em 24 horas."),
+    )
+    real_prepared = PreparedLegalEvidence(
+        documents=documents,
+        context=format_legal_context(documents, max_documents=2, max_total_chars=5000),
+        citation_ids=("F1", "F2"),
+    )
+
+    class Engine:
+        @contextmanager
+        def connect(self):
+            yield object()
+
+    outputs = iter(
+        [
+            "A comunicação ao COAF deve ocorrer em 24 horas [F1] [F2]. "
+            "Esta resposta não constitui um parecer jurídico definitivo e a decisão "
+            "exige revisão humana.",
+            "[SEM_BASE] Em PLD, a diligência contínua avalia o perfil do cliente "
+            "e a origem dos recursos.",
+        ]
+    )
+    fake_client = SimpleNamespace(
+        models=SimpleNamespace(
+            generate_content=lambda **kwargs: SimpleNamespace(text=next(outputs))
+        ),
+        close=lambda: None,
+    )
+    monkeypatch.setattr(legal_generation.genai, "Client", lambda **kwargs: fake_client)
+
+    grounded_resp = answer_legal_chat(
+        "Qual o prazo de comunicação?",
+        engine=Engine(),
+        retriever=lambda *args, **kwargs: real_prepared,
+    )
+    assert grounded_resp.kind == "legal"
+    assert grounded_resp.grounded is True
+    assert grounded_resp.answer == "A comunicação ao COAF deve ocorrer em 24 horas."
+    assert "[F1]" not in grounded_resp.answer
+    assert "parecer jurídico definitivo" not in grounded_resp.answer
+    assert len(grounded_resp.sources) == 2
+
+    ungrounded_resp = answer_legal_chat(
+        "O que é KYC contínuo?",
+        engine=Engine(),
+        retriever=lambda *args, **kwargs: real_prepared,
+    )
+    assert ungrounded_resp.kind == "legal"
+    assert ungrounded_resp.grounded is False
+    assert ungrounded_resp.sources == []
+    assert "[SEM_BASE]" not in ungrounded_resp.answer
+    assert "diligência contínua" in ungrounded_resp.answer
+
+
+def test_adapter_rejects_ungrounded_payload_with_citations(prepared_evidence):
+    result = generate_from_prepared_evidence(
+        question="Pergunta fora da base?",
+        prepared=prepared_evidence,
+        generator=lambda **kwargs: LegalAnswer(
+            text="Explicação geral.",
+            citations=(),
+            model="mock-offline",
+            evidence_count=2,
+            grounded=False,
+        ),
+    )
+    payload = present_legal_rag(result)
+    assert payload["grounded"] is False
+    assert payload["citations"] == []
+
+    response = legal_payload_to_chat_response(payload, strip_citations=True)
+    assert response.grounded is False
+    assert response.sources == []
+
+    tampered = {**payload, "citations": ["F1"]}
+    with pytest.raises(ValueError, match="sem base"):
+        legal_payload_to_chat_response(tampered, strip_citations=True)
