@@ -34,3 +34,31 @@ export function CollapsedTooltip({
     </Tooltip.Root>
   );
 }
+
+export function ActionTooltip({
+  label,
+  side = "top",
+  children,
+}: {
+  label: string;
+  side?: "top" | "bottom" | "left" | "right";
+  children: React.ReactElement;
+}) {
+  return (
+    <Tooltip.Root>
+      <Tooltip.Trigger render={children} />
+      <Tooltip.Portal>
+        <Tooltip.Positioner
+          side={side}
+          align="center"
+          sideOffset={6}
+          className="z-[90]"
+        >
+          <Tooltip.Popup className="select-none rounded-[6px] bg-foreground px-2 py-1 text-xs font-medium text-background">
+            {label}
+          </Tooltip.Popup>
+        </Tooltip.Positioner>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
+}

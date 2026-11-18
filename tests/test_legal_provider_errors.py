@@ -98,10 +98,13 @@ def test_only_current_question_reaches_legal_service(
             sources=[],
         )
 
-    with patch(
-        "api.routes.ai.answer_legal_chat",
-        side_effect=simulated_service,
-    ) as service:
+    with (
+        patch(
+            "api.routes.ai.answer_legal_chat",
+            side_effect=simulated_service,
+        ) as service,
+        patch("api.routes.ai._persist_chat_turn", return_value=1),
+    ):
         response = http_client.post(
             "/chat",
             json=chat_request,

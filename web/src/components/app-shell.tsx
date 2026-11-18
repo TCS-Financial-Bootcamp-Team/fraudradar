@@ -7,6 +7,7 @@ import { AppContextProvider, useAppContext } from "@/components/app-context";
 import { SidePanel } from "@/components/ui/side-panel";
 import { LoadingState, ResourceError } from "@/components/ui/states";
 import { AssistantDrawer } from "@/features/assistant/components/assistant";
+import { PageContextProvider } from "@/features/assistant/lib/page-context";
 import { useAlertQueue } from "@/features/alerts/hooks/use-alerts";
 import { USE_MOCKS } from "@/lib/api";
 import { useFormatters } from "@/i18n/use-formatters";
@@ -232,9 +233,11 @@ export function AppShell({
 }: AppShellProps) {
   return (
     <AppContextProvider>
-      <ShellContent initialSidebarOpen={initialSidebarOpen}>
-        {children}
-      </ShellContent>
+      <PageContextProvider>
+        <ShellContent initialSidebarOpen={initialSidebarOpen}>
+          {children}
+        </ShellContent>
+      </PageContextProvider>
     </AppContextProvider>
   );
 }

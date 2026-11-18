@@ -427,6 +427,18 @@ def sanitize_analyst_question(question: str, prepared: PreparedAlertAI) -> str:
     )
 
 
+def redact_free_text(value: str, forbidden_values: Iterable[str] = ()) -> str:
+    """Higieniza texto livre (filtros de página, histórico ou retorno de ferramentas)."""
+    return _redact_text(
+        value,
+        forbidden_values,
+        identifier_marker="[IDENTIFICADOR_OCULTO]",
+        number_marker="[NUMERO_OCULTO]",
+        email_marker="[EMAIL_OCULTO]",
+        url_marker="[URL_OCULTA]",
+    )
+
+
 def _financial_summary(prepared: PreparedAlertAI, *, rich: bool = False) -> str:
     """Produz um resumo limitado e reaplica o guarda de identificadores."""
     data = prepared.context

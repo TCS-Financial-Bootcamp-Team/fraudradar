@@ -20,6 +20,7 @@ def generate_from_prepared_evidence(
     allow_pending_review: bool = False,
     system_instruction: str = SYSTEM_INSTRUCTION,
     max_output_tokens: int = CHAT_MAX_OUTPUT_TOKENS,
+    model: str | None = None,
 ) -> LegalRagResult:
     """Generate outside the database connection, with safe 503 fallback.
 
@@ -46,12 +47,14 @@ def generate_from_prepared_evidence(
         generator = generate_legal_answer_from_settings
 
     try:
+        extra_kwargs = {"model": model} if model is not None else {}
         answer = generator(
             question=question,
             context=prepared.context,
             allow_pending_review=allow_pending_review,
             system_instruction=system_instruction,
             max_output_tokens=max_output_tokens,
+            **extra_kwargs,
         )
     except Exception as error:
         if not _is_http_503(error):

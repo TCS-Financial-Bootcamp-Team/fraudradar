@@ -121,4 +121,5 @@ def legal_payload_to_chat_response(
         kind="legal",
         answer=answer,
         sources=sources,
+        model=payload.get("model") if isinstance(payload.get("model"), str) else None,
     )

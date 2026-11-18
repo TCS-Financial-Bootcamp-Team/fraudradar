@@ -5,11 +5,28 @@
   "alertContextTooltip": "AI receives this alert's data without account numbers.",
   "disableAlertContext": "Do not use this page's context",
   "enableAlertContext": "Use context",
+  "contextChip": {
+    "alert": "Context: Alert #{id}",
+    "alerts": "Context: Alerts",
+    "alertsCount": "Context: Alerts ({count, plural, =1 {# visible} other {# visible}})",
+    "dashboard": "Context: Dashboard",
+    "monitoring": "Context: Monitoring",
+    "accounts": "Context: Accounts",
+    "ingestion": "Context: Data sources",
+    "settings": "Context: Settings",
+    "general": "Context: General",
+    "off": "Context off",
+    "enabledTooltip": "Sharing page context (without account numbers). Click to disable.",
+    "disabledTooltip": "Page context disabled. Click to share."
+  },
   "weekContext": "Week of {week}",
   "close": "Close assistant",
   "suggestions": {
     "typology": "What is the fan-out typology?",
     "legal": "What does the law require when reporting to COAF?",
+    "whereImport": "Where do I import transactions?",
+    "queueHighestScore": "Which of these alerts have the highest score?",
+    "queueSummarizePage": "Summarize the alerts on this page",
     "decisionLaundering": "Does this look like real money laundering?",
     "decisionAgainst": "What weighs against this alert?",
     "decisionMissing": "What is still missing before deciding?"
@@ -19,7 +36,9 @@
     "domain": "General answer, no legal source",
     "domainTooltip": "Concept explanation; for legal obligations, ask what the law requires.",
     "decision": "Decision support — the decision is yours",
-    "decisionTooltip": "Suggestion based on alert data; does not record a decision."
+    "decisionTooltip": "Suggestion based on alert data; does not record a decision.",
+    "system": "System",
+    "systemTooltip": "Answer based on FraudRadar screens and data."
   },
   "strength": {
     "weak": "Evidence strength: weak",
@@ -40,5 +59,28 @@
   "placeholderShort": "Ask about your analysis…",
   "send": "Send question",
   "failed": "Could not answer. Try sending your question again.",
-  "sourcesToggle": "Sources ({count})"
+  "sourcesToggle": "Sources ({count})",
+  "modelPicker": {
+    "label": "Select model",
+    "loading": "Loading models…",
+    "defaultTag": "Default",
+    "switchModel": "Switch model",
+    "unavailable": "Models unavailable"
+  },
+  "history": {
+    "open": "Conversation history",
+    "close": "Back to conversation",
+    "title": "Conversations",
+    "newChat": "New chat",
+    "loading": "Loading conversations…",
+    "openingConversation": "Opening conversation…",
+    "empty": "No saved conversations yet.",
+    "loadError": "Could not load conversation history.",
+    "retry": "Try again",
+    "delete": "Delete conversation",
+    "confirmDelete": "Delete",
+    "cancelDelete": "Cancel",
+    "conversationNotFound": "The previous conversation was not found. A new chat was started.",
+    "now": "just now"
+  }
 }

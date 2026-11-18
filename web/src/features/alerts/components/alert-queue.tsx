@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Search } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
@@ -10,6 +10,16 @@ import {
   RefreshBar,
   ResourceError,
 } from "@/components/ui/states";
+import {
+  PAGE_STATE_MAX_ALERT_IDS,
+  PAGE_STATE_MAX_FILTER_STR_LENGTH,
+} from "@/features/assistant/schemas/assistant";
+import { parsePositiveIntId } from "@/features/assistant/lib/context";
+import {
+  usePublishPageContext,
+  type PublishedPageContext,
+} from "@/features/assistant/lib/page-context";
+import { pseudonymize } from "@/lib/format";
 import { formatWeekLabel } from "@/lib/risk";
 import { useAlertQueue } from "../hooks/use-alerts";
 import { AlertsTable } from "./alerts-table";
@@ -71,6 +81,59 @@ export function AlertQueue() {
     search,
     active.origin,
   );
+
+  const pageContextValue = useMemo<PublishedPageContext>(() => {
+    const publishedFilters: Record<string, string> = {};
+    if (week) publishedFilters.week = week.slice(0, PAGE_STATE_MAX_FILTER_STR_LENGTH);
+    if (active.status) {
+      publishedFilters.status = active.status.slice(
+        0,
+        PAGE_STATE_MAX_FILTER_STR_LENGTH,
+      );
+    }
+    if (active.country) {
+      publishedFilters.country = active.country.slice(
+        0,
+        PAGE_STATE_MAX_FILTER_STR_LENGTH,
+      );
+    }
+    if (active.origin) {
+      publishedFilters.origin = active.origin.slice(
+        0,
+        PAGE_STATE_MAX_FILTER_STR_LENGTH,
+      );
+    }
+    if (search.trim()) {
+      publishedFilters.search = pseudonymize(search.trim()).slice(
+        0,
+        PAGE_STATE_MAX_FILTER_STR_LENGTH,
+      );
+    }
+
+    const visibleIds = (queue.data?.items ?? [])
+      .map((item) => parsePositiveIntId(item.id))
+      .filter((id): id is number => id !== null)
+      .slice(0, PAGE_STATE_MAX_ALERT_IDS);
+
+    return {
+      pageState: {
+        filters: publishedFilters,
+        visible_alert_ids: visibleIds,
+        page: active.page,
+        total: queue.data ? queue.data.total : null,
+      },
+      visibleCount: queue.data?.items.length ?? 0,
+    };
+  }, [
+    week,
+    active.status,
+    active.country,
+    active.origin,
+    search,
+    active.page,
+    queue.data,
+  ]);
+  usePublishPageContext(pageContextValue);
 
   function updateFilters(patch: Partial<QueueFilters>) {
     setFilters((prev) => ({

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
@@ -12,6 +13,10 @@ import {
   ResourceError,
 } from "@/components/ui/states";
 import { WeekPicker } from "@/features/alerts/components/week-picker";
+import {
+  usePublishPageContext,
+  type PublishedPageContext,
+} from "@/features/assistant/lib/page-context";
 import { useFeedbackSummary } from "@/features/feedback/hooks/use-feedback";
 import type { FeedbackSummary } from "@/features/feedback/schemas/feedback";
 import { DEFAULT_LOCALE, type AppLocale } from "@/i18n/config";
@@ -99,6 +104,20 @@ export function Dashboard() {
   const monitoring = useMonitoring();
   const queue = useAlertQueue();
   const feedback = useFeedbackSummary();
+
+  const pageContextValue = useMemo<PublishedPageContext>(() => {
+    const filters: Record<string, string> = {};
+    if (week) filters.week = week;
+    return {
+      pageState: {
+        filters,
+        visible_alert_ids: [],
+        page: null,
+        total: null,
+      },
+    };
+  }, [week]);
+  usePublishPageContext(pageContextValue);
 
   const weekRangeText = week ? formatWeekPeriod(week, locale) : "";
 

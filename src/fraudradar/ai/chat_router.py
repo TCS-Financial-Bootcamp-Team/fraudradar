@@ -4,7 +4,7 @@ import json
 import logging
 import re
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from typing import Literal, cast, get_args
 
 from google import genai
@@ -12,10 +12,15 @@ from google.genai import types
 
 from fraudradar.ai.legal_chat_intent import classify_legal_chat_intent
 from fraudradar.ai.legal_generation import gemini_settings
+from fraudradar.ai.model_selection import (
+    build_allowlist,
+    call_with_model_fallback,
+    is_retryable_provider_error,
+)
 
 logger = logging.getLogger(__name__)
 
-ChatRoute = Literal["small_talk", "legal", "domain", "decision", "out_of_scope"]
+ChatRoute = Literal["small_talk", "legal", "domain", "decision", "system", "out_of_scope"]
 CHAT_ROUTES = get_args(ChatRoute)
 # A API do Gemini recusa prazo menor que 10 s (400 INVALID_ARGUMENT), e o erro mandava tudo
 # para o caminho jurídico.
@@ -35,9 +40,16 @@ Devolva somente um JSON com a chave route e um destes valores:
   "devo comunicar este alerta?". Sem contexto de alerta, use domain.
   A menção isolada a comunicar numa decisão deste alerta não é pergunta jurídica;
   "o que a lei exige se eu comunicar este alerta?" continua legal.
-- domain: conceitos de PLD/fraude e prática de análise sem exigência legal;
-  tipologias (fan-out, fan-in, smurfing, estruturação, camadas, ciclos, mulas),
-  sinais de risco, score, contribuições, investigação e funcionamento do sistema.
+- system: dúvidas sobre o próprio aplicativo FraudRadar (onde fica uma tela ou recurso,
+  o que faz um botão ou filtro, como executar uma ação, pedidos para navegar/abrir uma tela),
+  perguntas sobre o que está visível na página atual, ou consultas e buscas nos dados do
+  sistema (alertas, semanas processadas, contagens, métricas).
+  Exemplos: "onde eu importo um CSV?", "o que faz o botão Processar agora?",
+  "quais destes alertas têm nota acima de 80?", "me leva para o monitoramento",
+  "quantos alertas pendentes temos nesta semana?", "resuma esta página".
+- domain: conceitos de PLD/fraude e prática de análise sem exigência legal nem busca
+  operacional no sistema; tipologias (fan-out, fan-in, smurfing, estruturação, camadas,
+  ciclos, mulas), sinais de risco, score, contribuições e investigação conceitual.
   Exemplos: "explique fan-out", "como ler as contribuições?",
   "o que verificar primeiro neste alerta?". Use has_alert_context para referências
   como "este alerta"; esse indicador não transforma temas alheios em domínio.
@@ -90,9 +102,19 @@ def _sanitize_router_message(message: str) -> str:
     return re.sub(r"\d+", "[NÚMERO_OCULTO]", safe_message)
 
 
-def _classify_from_settings(*, message: str, has_alert_context: bool) -> str | None:
-    """Faz uma chamada curta ao mesmo modelo configurado para a geração."""
-    model, api_key = gemini_settings()
+def _classify_with_model(
+    *,
+    message: str,
+    has_alert_context: bool,
+    model: str | None = None,
+    allowlist: Sequence[str] | None = None,
+) -> tuple[str | None, str]:
+    """Faz uma chamada curta ao modelo escolhido, com contingência única em 429/503."""
+    default_model, api_key = gemini_settings()
+    resolved_allowlist = (
+        list(allowlist) if allowlist is not None else build_allowlist(default_model)
+    )
+    chosen_model = model or resolved_allowlist[0]
     with genai.Client(
         api_key=api_key,
         http_options=types.HttpOptions(
@@ -100,24 +122,110 @@ def _classify_from_settings(*, message: str, has_alert_context: bool) -> str | N
             retry_options=types.HttpRetryOptions(attempts=1),
         ),
     ) as client:
-        response = client.models.generate_content(
-            model=model,
-            contents=json.dumps(
-                {"message": message, "has_alert_context": has_alert_context}, ensure_ascii=False
+        return call_with_model_fallback(
+            lambda candidate: (
+                client.models.generate_content(
+                    model=candidate,
+                    contents=json.dumps(
+                        {"message": message, "has_alert_context": has_alert_context},
+                        ensure_ascii=False,
+                    ),
+                    config=types.GenerateContentConfig(
+                        system_instruction=ROUTER_SYSTEM_INSTRUCTION,
+                        temperature=0,
+                        max_output_tokens=ROUTER_MAX_OUTPUT_TOKENS,
+                        response_mime_type="application/json",
+                        response_schema=types.Schema(
+                            type="OBJECT",
+                            properties={
+                                "route": types.Schema(type="STRING", enum=list(CHAT_ROUTES))
+                            },
+                            required=["route"],
+                        ),
+                    ),
+                ).text
             ),
-            config=types.GenerateContentConfig(
-                system_instruction=ROUTER_SYSTEM_INSTRUCTION,
-                temperature=0,
-                max_output_tokens=ROUTER_MAX_OUTPUT_TOKENS,
-                response_mime_type="application/json",
-                response_schema=types.Schema(
-                    type="OBJECT",
-                    properties={"route": types.Schema(type="STRING", enum=list(CHAT_ROUTES))},
-                    required=["route"],
-                ),
-            ),
+            model=chosen_model,
+            allowlist=resolved_allowlist,
         )
-        return response.text
+
+
+def _classify_from_settings(*, message: str, has_alert_context: bool) -> str | None:
+    """Faz uma chamada curta ao mesmo modelo configurado para a geração."""
+    text, _ = _classify_with_model(message=message, has_alert_context=has_alert_context)
+    return text
+
+
+_DEFAULT_CLASSIFY_FROM_SETTINGS = _classify_from_settings
+
+
+def route_chat_message_with_model(
+    message: str,
+    *,
+    has_alert_context: bool,
+    model: str | None = None,
+    allowlist: Sequence[str] | None = None,
+    classifier: Callable[..., str | None] | None = None,
+) -> tuple[ChatRoute, str | None]:
+    """Classifica a mensagem retornando `(rota, modelo_usado)` com contingência 429/503.
+
+    Quando todos os modelos falham com HTTP 429 ou 503, propaga a exceção para que a API
+    devolva 429/503 em vez de mascarar a indisponibilidade. Outras falhas voltam a `legal`.
+    """
+    if classify_legal_chat_intent(message) is not None:
+        return "small_talk", None
+    # O marcador já decide: evita uma chamada cujo resultado seria sobrescrito.
+    normalized = _normalize(message)
+    decision = _is_decision_question(normalized)
+    # Exceção estreita: uma decisão que menciona comunicar ESTE alerta, sem outro marcador legal.
+    decision_communication = (
+        decision
+        and re.search(r"\bcomunicar\s+(?:(?:este|esse|o)\s+)?alerta\b", normalized) is not None
+        and not _has_legal_markers(re.sub(r"\bcomunicar\b", "", normalized))
+    )
+    if _has_legal_markers(message) and not decision_communication:
+        return "legal", model
+    if decision:
+        return ("decision" if has_alert_context else "domain"), model
+
+    used_model = model
+    try:
+        safe_message = _sanitize_router_message(message)
+        if classifier is not None:
+            raw_output = classifier(message=safe_message, has_alert_context=has_alert_context)
+        elif (
+            model is None
+            and allowlist is None
+            and _classify_from_settings is not _DEFAULT_CLASSIFY_FROM_SETTINGS
+        ):
+            raw_output = _classify_from_settings(
+                message=safe_message, has_alert_context=has_alert_context
+            )
+        else:
+            raw_output, used_model = _classify_with_model(
+                message=safe_message,
+                has_alert_context=has_alert_context,
+                model=model,
+                allowlist=allowlist,
+            )
+        result = json.loads(raw_output)
+        if not isinstance(result, dict) or set(result) != {"route"}:
+            return "legal", used_model
+        route = result["route"]
+        if isinstance(route, str) and route in CHAT_ROUTES:
+            if route == "decision" and not has_alert_context:
+                return "domain", used_model
+            return cast(ChatRoute, route), used_model
+    except Exception as error:
+        if is_retryable_provider_error(error):
+            raise
+        # Só o tipo do erro: a pergunta e a mensagem do provedor podem conter identificadores.
+        logger.warning(
+            "Roteador do chat indisponível (%s); usando o caminho jurídico.", type(error).__name__
+        )
+        return "legal", used_model
+    logger.warning("Roteador do chat devolveu rota inválida; usando o caminho jurídico.")
+    return "legal", used_model
 
 
 def route_chat_message(
@@ -131,37 +239,9 @@ def route_chat_message(
     Falhas do roteador voltam ao caminho jurídico com citações. O classificador
     injetável recebe apenas dados higienizados, como o provedor real.
     """
-    if classify_legal_chat_intent(message) is not None:
-        return "small_talk"
-    # O marcador já decide: evita uma chamada cujo resultado seria sobrescrito.
-    normalized = _normalize(message)
-    decision = _is_decision_question(normalized)
-    # Exceção estreita: uma decisão que menciona comunicar ESTE alerta, sem outro marcador legal.
-    decision_communication = (
-        decision
-        and re.search(r"\bcomunicar\s+(?:(?:este|esse|o)\s+)?alerta\b", normalized) is not None
-        and not _has_legal_markers(re.sub(r"\bcomunicar\b", "", normalized))
+    route, _ = route_chat_message_with_model(
+        message,
+        has_alert_context=has_alert_context,
+        classifier=classifier,
     )
-    if _has_legal_markers(message) and not decision_communication:
-        return "legal"
-    if decision:
-        return "decision" if has_alert_context else "domain"
-    try:
-        classify = classifier or _classify_from_settings
-        safe_message = _sanitize_router_message(message)
-        result = json.loads(classify(message=safe_message, has_alert_context=has_alert_context))
-        if not isinstance(result, dict) or set(result) != {"route"}:
-            return "legal"
-        route = result["route"]
-        if isinstance(route, str) and route in CHAT_ROUTES:
-            if route == "decision" and not has_alert_context:
-                return "domain"
-            return cast(ChatRoute, route)
-    except Exception as error:
-        # Só o tipo do erro: a pergunta e a mensagem do provedor podem conter identificadores.
-        logger.warning(
-            "Roteador do chat indisponível (%s); usando o caminho jurídico.", type(error).__name__
-        )
-        return "legal"
-    logger.warning("Roteador do chat devolveu rota inválida; usando o caminho jurídico.")
-    return "legal"
+    return route

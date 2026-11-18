@@ -58,6 +58,39 @@ export function errorMessageFor(
   return detail ?? fallback;
 }
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  params?: Record<string, unknown>;
+
+  constructor(
+    message: string,
+    status: number,
+    code?: string,
+    params?: Record<string, unknown>,
+  ) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.code = code;
+    this.params = params;
+  }
+}
+
+function extractApiErrorMeta(body: unknown): {
+  code?: string;
+  params?: Record<string, unknown>;
+} {
+  if (typeof body !== "object" || body === null) return {};
+  const fields = body as { code?: unknown; params?: unknown };
+  const code = typeof fields.code === "string" && fields.code ? fields.code : undefined;
+  const params =
+    typeof fields.params === "object" && fields.params !== null
+      ? (fields.params as Record<string, unknown>)
+      : undefined;
+  return { code, params };
+}
+
 async function requestJson<T>(
   path: string,
   init: RequestInit = {},
@@ -71,12 +104,16 @@ async function requestJson<T>(
   });
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
-    throw new Error(
+    const { code, params } = extractApiErrorMeta(body);
+    throw new ApiError(
       errorMessageFor(
         response.status,
         body,
         getT("errors")("requestFailed", { status: response.status }),
       ),
+      response.status,
+      code,
+      params,
     );
   }
   if (response.status === 204) return undefined as T;

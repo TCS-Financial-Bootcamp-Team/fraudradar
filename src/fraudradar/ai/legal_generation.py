@@ -224,9 +224,30 @@ def generate_legal_answer_from_settings(
     allow_pending_review: bool = False,
     system_instruction: str = SYSTEM_INSTRUCTION,
     max_output_tokens: int = CHAT_MAX_OUTPUT_TOKENS,
+    model: str | None = None,
+    allowlist: list[str] | tuple[str, ...] | None = None,
 ) -> LegalAnswer:
     """Generate through the configured Gemini provider."""
-    model, api_key = gemini_settings()
+    default_model, api_key = gemini_settings()
+    if allowlist is None:
+        from fraudradar.ai.model_selection import (
+            InvalidModelError,
+            build_allowlist,
+            call_with_model_fallback,
+        )
+
+        resolved_allowlist = build_allowlist(default_model)
+        if model is None:
+            chosen_model = resolved_allowlist[0]
+        elif model in resolved_allowlist:
+            chosen_model = model
+        else:
+            raise InvalidModelError("O modelo de IA solicitado não é permitido.")
+    else:
+        from fraudradar.ai.model_selection import call_with_model_fallback
+
+        chosen_model = model or default_model
+        resolved_allowlist = list(allowlist)
 
     # Validate the context before creating the external client.
     _parse_context(
@@ -245,14 +266,19 @@ def generate_legal_answer_from_settings(
     )
 
     try:
-        return generate_legal_answer(
-            question=question,
-            context=context,
-            model=model,
-            client=client,
-            allow_pending_review=allow_pending_review,
-            system_instruction=system_instruction,
-            max_output_tokens=max_output_tokens,
+        answer, _ = call_with_model_fallback(
+            lambda candidate: generate_legal_answer(
+                question=question,
+                context=context,
+                model=candidate,
+                client=client,
+                allow_pending_review=allow_pending_review,
+                system_instruction=system_instruction,
+                max_output_tokens=max_output_tokens,
+            ),
+            model=chosen_model,
+            allowlist=resolved_allowlist,
         )
+        return answer
     finally:
         client.close()
