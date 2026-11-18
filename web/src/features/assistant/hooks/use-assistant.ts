@@ -12,11 +12,14 @@ import {
   buildChatRequest,
   readAlertContextEnabled,
   readStoredModel,
-  resolveSelectedModel,
   writeAlertContextEnabled,
   writeStoredModel,
 } from "../lib/context";
 import { filterAllowedLinks } from "../lib/links";
+import {
+  createModelsLoader,
+  type ModelsLoaderState,
+} from "../lib/models-loader";
 import { usePublishedPageContext } from "../lib/page-context";
 import {
   deleteConversation,
@@ -26,7 +29,6 @@ import {
   sendChatMessage,
 } from "../services/assistant-service";
 import type {
-  AiModelsResponse,
   ConversationSummary,
   Message,
 } from "../schemas/assistant";
@@ -84,14 +86,20 @@ export function useAssistant(alertId?: string, shareContext = true) {
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const [modelsCatalog, setModelsCatalog] = useState<AiModelsResponse | null>(
+  const modelsLoaderRef = useRef<ReturnType<typeof createModelsLoader> | null>(
     null,
   );
-  const [selectedModel, setSelectedModel] = useState<string | null>(() =>
-    readStoredModel(),
+  if (!modelsLoaderRef.current) {
+    modelsLoaderRef.current = createModelsLoader({
+      fetcher: (signal) => fetchAiModels(signal),
+      readStored: readStoredModel,
+      writeStored: writeStoredModel,
+      formatError: getErrorMessage,
+    });
+  }
+  const [modelsState, setModelsState] = useState<ModelsLoaderState>(() =>
+    modelsLoaderRef.current!.getState(),
   );
-  const [modelsLoading, setModelsLoading] = useState(false);
-  const [modelsError, setModelsError] = useState<string | null>(null);
 
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(false);
@@ -106,7 +114,6 @@ export function useAssistant(alertId?: string, shareContext = true) {
   const controllerRef = useRef<AbortController | null>(null);
   const lockedRef = useRef(false);
   const accountsRef = useRef(new Map<string, string>());
-  const modelsFetchRef = useRef<AbortController | null>(null);
   const conversationsFetchRef = useRef<AbortController | null>(null);
   const openFetchRef = useRef<AbortController | null>(null);
 
@@ -115,43 +122,29 @@ export function useAssistant(alertId?: string, shareContext = true) {
   const publishedPageContext = usePublishedPageContext();
 
   useEffect(() => {
+    const loader = modelsLoaderRef.current!;
+    setModelsState(loader.getState());
+    const unsubscribe = loader.subscribe(setModelsState);
     return () => {
+      unsubscribe();
+      loader.dispose();
       controllerRef.current?.abort();
-      modelsFetchRef.current?.abort();
       conversationsFetchRef.current?.abort();
       openFetchRef.current?.abort();
     };
   }, []);
 
   const loadModels = useCallback(async (force = false) => {
-    if (!force && modelsFetchRef.current) return;
-    modelsFetchRef.current?.abort();
-    const controller = new AbortController();
-    modelsFetchRef.current = controller;
-    setModelsLoading(true);
-    setModelsError(null);
-    try {
-      const catalog = await fetchAiModels(controller.signal);
-      if (controller.signal.aborted) return;
-      setModelsCatalog(catalog);
-      const resolved = resolveSelectedModel(readStoredModel(), catalog);
-      setSelectedModel(resolved || null);
-    } catch (error) {
-      if (controller.signal.aborted) return;
-      setModelsError(getErrorMessage(error));
-    } finally {
-      if (modelsFetchRef.current === controller) {
-        modelsFetchRef.current = null;
-      }
-      if (!controller.signal.aborted) {
-        setModelsLoading(false);
-      }
+    const loader = modelsLoaderRef.current!;
+    if (force) {
+      await loader.retry();
+      return;
     }
+    await loader.autoLoad();
   }, []);
 
   const selectModel = useCallback((modelId: string) => {
-    setSelectedModel(modelId);
-    writeStoredModel(modelId);
+    modelsLoaderRef.current!.selectModel(modelId);
   }, []);
 
   const startNewChat = useCallback(() => {
@@ -218,6 +211,7 @@ export function useAssistant(alertId?: string, shareContext = true) {
             sources: m.sources.length > 0 ? m.sources : undefined,
             links: filterAllowedLinks(m.links),
             model: m.model ?? null,
+            grounded: m.grounded ?? null,
           })),
         );
         return true;
@@ -294,7 +288,7 @@ export function useAssistant(alertId?: string, shareContext = true) {
           shareAlertContext: shareContext,
           pageState: publishedPageContext?.pageState,
           history: messages,
-          model: selectedModel,
+          model: modelsLoaderRef.current!.getRequestModel(),
           conversationId,
         }),
         controller.signal,
@@ -314,6 +308,7 @@ export function useAssistant(alertId?: string, shareContext = true) {
             kind: response.kind,
             links: filterAllowedLinks(response.links),
             model: response.model ?? null,
+            grounded: response.grounded ?? null,
           },
         ]);
       }
@@ -362,10 +357,11 @@ export function useAssistant(alertId?: string, shareContext = true) {
     notice,
     clearNotice,
     startNewChat,
-    modelsCatalog,
-    selectedModel,
-    modelsLoading,
-    modelsError,
+    modelsCatalog: modelsState.catalog,
+    selectedModel: modelsState.selectedModel,
+    modelsLoading: modelsState.loading,
+    modelsError: modelsState.error,
+    modelsAttempted: modelsState.attempted,
     loadModels,
     selectModel,
     conversations,

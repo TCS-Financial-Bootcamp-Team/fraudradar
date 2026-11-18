@@ -21,6 +21,7 @@
   },
   "weekContext": "Week of {week}",
   "close": "Close assistant",
+  "resizeHandle": "Resize assistant panel",
   "suggestions": {
     "typology": "What is the fan-out typology?",
     "legal": "What does the law require when reporting to COAF?",
@@ -33,6 +34,8 @@
   },
   "badge": {
     "legal": "Based on Law 9.613/1998",
+    "generalKnowledge": "General knowledge",
+    "generalKnowledgeTooltip": "Answered from general knowledge without legal KB sources; verify specific obligations against the law.",
     "domain": "General answer, no legal source",
     "domainTooltip": "Concept explanation; for legal obligations, ask what the law requires.",
     "decision": "Decision support — the decision is yours",
@@ -63,6 +66,7 @@
   "modelPicker": {
     "label": "Select model",
     "loading": "Loading models…",
+    "defaultModel": "Default model",
     "defaultTag": "Default",
     "switchModel": "Switch model",
     "unavailable": "Models unavailable"

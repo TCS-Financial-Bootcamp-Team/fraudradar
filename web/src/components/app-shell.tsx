@@ -82,7 +82,7 @@ function ShellContent({
         @media (min-width: 640px) {
           body:has([data-assistant-drawer="open"])
             section[data-toast-region][aria-live="polite"]:has(> .toast) {
-            right: 420px;
+            right: calc(var(--assistant-panel-width, 400px) + 20px);
           }
         }
         @media (prefers-reduced-motion: reduce) {
