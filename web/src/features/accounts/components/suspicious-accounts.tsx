@@ -12,6 +12,11 @@ import {
   RefreshBar,
   ResourceError,
 } from "@/components/ui/states";
+import {
+  usePublishPageContext,
+  type PublishedPageContext,
+} from "@/features/assistant/lib/page-context";
+import { PAGE_STATE_MAX_FILTER_STR_LENGTH } from "@/features/assistant/schemas/assistant";
 import { useFormatters } from "@/i18n/use-formatters";
 import { formatScore } from "@/lib/risk";
 import { useSuspiciousAccounts } from "../hooks/use-accounts";
@@ -42,6 +47,29 @@ export function SuspiciousAccountsView() {
   );
   const resource = useSuspiciousAccounts(filters);
   const pages = Math.max(1, Math.ceil((resource.data?.total ?? 0) / 20));
+
+  // Publica apenas filtros não identificadores (nunca números de conta nem o termo de busca de conta).
+  const pageContextValue = useMemo<PublishedPageContext>(() => {
+    const publishedFilters: Record<string, string> = {};
+    if (status) {
+      publishedFilters.status = status.slice(0, PAGE_STATE_MAX_FILTER_STR_LENGTH);
+    }
+    if (from) {
+      publishedFilters.from = from.slice(0, PAGE_STATE_MAX_FILTER_STR_LENGTH);
+    }
+    if (to) {
+      publishedFilters.to = to.slice(0, PAGE_STATE_MAX_FILTER_STR_LENGTH);
+    }
+    return {
+      pageState: {
+        filters: publishedFilters,
+        visible_alert_ids: [],
+        page,
+        total: resource.data ? resource.data.total : null,
+      },
+    };
+  }, [status, from, to, page, resource.data]);
+  usePublishPageContext(pageContextValue);
 
   return (
     <div className="flex w-full max-w-[1320px] flex-col gap-9">

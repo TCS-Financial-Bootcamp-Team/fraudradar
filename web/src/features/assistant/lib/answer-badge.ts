@@ -1,9 +1,12 @@
 import type { ChatKind, Source } from "../schemas/assistant";
 
 export interface AnswerBadgeInfo {
-  kind: "legal" | "domain" | "decision";
-  labelKey: "badge.legal" | "badge.domain" | "badge.decision";
-  tooltipKey?: "badge.domainTooltip" | "badge.decisionTooltip";
+  kind: "legal" | "domain" | "decision" | "system";
+  labelKey: "badge.legal" | "badge.domain" | "badge.decision" | "badge.system";
+  tooltipKey?:
+    | "badge.domainTooltip"
+    | "badge.decisionTooltip"
+    | "badge.systemTooltip";
 }
 
 /**
@@ -33,6 +36,13 @@ export function getAnswerBadge(
       kind: "decision",
       labelKey: "badge.decision",
       tooltipKey: "badge.decisionTooltip",
+    };
+  }
+  if (effectiveKind === "system") {
+    return {
+      kind: "system",
+      labelKey: "badge.system",
+      tooltipKey: "badge.systemTooltip",
     };
   }
   return null;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { cn } from "cn";
@@ -10,6 +11,10 @@ import {
   RefreshBar,
   ResourceError,
 } from "@/components/ui/states";
+import {
+  usePublishPageContext,
+  type PublishedPageContext,
+} from "@/features/assistant/lib/page-context";
 import { useFormatters } from "@/i18n/use-formatters";
 import { FeedbackPanel } from "@/features/feedback/components/feedback-panel";
 import { useMonitoring } from "../hooks/use-alerts";
@@ -100,6 +105,20 @@ export function MonitoringView() {
   const format = useFormatters();
   const { week } = useAppContext();
   const resource = useMonitoring();
+
+  const pageContextValue = useMemo<PublishedPageContext>(() => {
+    const filters: Record<string, string> = {};
+    if (week) filters.week = week;
+    return {
+      pageState: {
+        filters,
+        visible_alert_ids: [],
+        page: null,
+        total: null,
+      },
+    };
+  }, [week]);
+  usePublishPageContext(pageContextValue);
 
   if (resource.loading) return <LoadingState />;
 

@@ -5,11 +5,28 @@
   "alertContextTooltip": "A IA recebe os dados deste alerta sem números de conta.",
   "disableAlertContext": "Não usar o contexto desta página",
   "enableAlertContext": "Usar contexto",
+  "contextChip": {
+    "alert": "Contexto: Alerta #{id}",
+    "alerts": "Contexto: Alertas",
+    "alertsCount": "Contexto: Alertas ({count, plural, =1 {# visível} other {# visíveis}})",
+    "dashboard": "Contexto: Dashboard",
+    "monitoring": "Contexto: Monitoramento",
+    "accounts": "Contexto: Contas",
+    "ingestion": "Contexto: Fontes de dados",
+    "settings": "Contexto: Configurações",
+    "general": "Contexto: Geral",
+    "off": "Sem contexto",
+    "enabledTooltip": "Compartilhando o contexto da página (sem contas). Clique para desativar.",
+    "disabledTooltip": "Contexto da página desativado. Clique para compartilhar."
+  },
   "weekContext": "Semana de {week}",
   "close": "Fechar assistente",
   "suggestions": {
     "typology": "O que é a tipologia fan-out?",
     "legal": "O que a lei exige ao comunicar ao COAF?",
+    "whereImport": "Onde eu importo transações?",
+    "queueHighestScore": "Quais destes alertas têm a nota mais alta?",
+    "queueSummarizePage": "Resuma os alertas desta página",
     "decisionLaundering": "Isso parece lavagem de verdade?",
     "decisionAgainst": "O que pesa contra este alerta?",
     "decisionMissing": "O que falta verificar antes de decidir?"
@@ -19,7 +36,9 @@
     "domain": "Resposta geral, sem fonte jurídica",
     "domainTooltip": "Explicação de conceito; para obrigações legais, pergunte o que a lei exige.",
     "decision": "Apoio à decisão — a decisão é sua",
-    "decisionTooltip": "Sugestão baseada nos dados do alerta; não registra decisão."
+    "decisionTooltip": "Sugestão baseada nos dados do alerta; não registra decisão.",
+    "system": "Sistema",
+    "systemTooltip": "Resposta com base nas telas e nos dados do FraudRadar."
   },
   "strength": {
     "weak": "Força dos indícios: fraca",
@@ -40,5 +59,28 @@
   "placeholderShort": "Pergunte sobre sua análise…",
   "send": "Enviar pergunta",
   "failed": "Não foi possível responder. Tente enviar sua pergunta novamente.",
-  "sourcesToggle": "Fontes ({count})"
+  "sourcesToggle": "Fontes ({count})",
+  "modelPicker": {
+    "label": "Selecionar modelo",
+    "loading": "Carregando modelos…",
+    "defaultTag": "Padrão",
+    "switchModel": "Trocar modelo",
+    "unavailable": "Modelos indisponíveis"
+  },
+  "history": {
+    "open": "Histórico de conversas",
+    "close": "Voltar à conversa",
+    "title": "Conversas",
+    "newChat": "Nova conversa",
+    "loading": "Carregando conversas…",
+    "openingConversation": "Abrindo conversa…",
+    "empty": "Nenhuma conversa salva ainda.",
+    "loadError": "Não foi possível carregar o histórico.",
+    "retry": "Tentar novamente",
+    "delete": "Excluir conversa",
+    "confirmDelete": "Excluir",
+    "cancelDelete": "Cancelar",
+    "conversationNotFound": "A conversa anterior não foi encontrada. Um novo chat foi iniciado.",
+    "now": "agora"
+  }
 }
