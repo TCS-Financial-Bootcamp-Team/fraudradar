@@ -127,6 +127,7 @@ def test_global_decision_maps_to_domain_and_uses_safe_last_six(setup_http, monke
         return "Revise o histórico."
 
     monkeypatch.setattr(chat_service, "generate_domain_answer_from_settings", generate)
+    monkeypatch.setattr("api.routes.ai._persist_chat_turn", lambda **kwargs: 1)
     payload = request_payload("Devo arquivar?", alert_id=None)
     payload["history"] = [{"role": "user", "content": "DESCARTADO"}] + [
         {"role": "user", "content": "Conta 42 e conta 8865018891"} for _ in range(6)

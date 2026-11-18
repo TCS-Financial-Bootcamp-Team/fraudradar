@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     anthropic_api_key: str | None = None
     llm_model: str | None = None
+    llm_model_options: str | None = None
     embedding_model: str = "intfloat/multilingual-e5-small"
     embedding_dim: int = 384
 

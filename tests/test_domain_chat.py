@@ -60,6 +60,9 @@ def test_domain_service_never_calls_legal_answerer_and_strips_grouped_markers():
         "kind": "domain",
         "answer": "Compare com o histórico; revise os sinais.",
         "sources": [],
+        "links": [],
+        "model": None,
+        "conversation_id": None,
     }
     generator.assert_called_once_with(question="Como investigar?")
     legal.assert_not_called()

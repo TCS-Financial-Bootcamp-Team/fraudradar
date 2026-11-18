@@ -10,6 +10,7 @@ from google.genai import types
 
 from fraudradar.ai.domain_chat import validate_domain_answer
 from fraudradar.ai.legal_generation import LegalAnswerRejectedError, gemini_settings
+from fraudradar.ai.model_selection import build_allowlist, call_with_model_fallback
 
 DECISION_SYSTEM_INSTRUCTION = """Você apoia a análise de um alerta do FraudRadar.
 Responda em português brasileiro, em Markdown, com até cerca de 250 palavras.
@@ -116,13 +117,34 @@ def generate_decision_answer(*, question: str, model: str, client: Any) -> str:
     return validate_decision_answer(response.text)
 
 
-def generate_decision_answer_from_settings(*, question: str) -> str:
-    """Usa o Gemini configurado sem embeddings nem acesso ao banco."""
-    model, api_key = gemini_settings()
+def generate_decision_answer_with_model(
+    *,
+    question: str,
+    model: str | None = None,
+    allowlist: list[str] | tuple[str, ...] | None = None,
+) -> tuple[str, str]:
+    """Usa o Gemini configurado com contingência em 429/503 e retorna `(resposta, modelo)`."""
+    default_model, api_key = gemini_settings()
+    resolved_allowlist = (
+        list(allowlist) if allowlist is not None else build_allowlist(default_model)
+    )
+    chosen_model = model or resolved_allowlist[0]
     with genai.Client(
         api_key=api_key,
         http_options=types.HttpOptions(
             timeout=120000, retry_options=types.HttpRetryOptions(attempts=1)
         ),
     ) as client:
-        return generate_decision_answer(question=question, model=model, client=client)
+        return call_with_model_fallback(
+            lambda candidate: generate_decision_answer(
+                question=question, model=candidate, client=client
+            ),
+            model=chosen_model,
+            allowlist=resolved_allowlist,
+        )
+
+
+def generate_decision_answer_from_settings(*, question: str, model: str | None = None) -> str:
+    """Usa o Gemini configurado sem embeddings nem acesso ao banco."""
+    answer, _ = generate_decision_answer_with_model(question=question, model=model)
+    return answer
