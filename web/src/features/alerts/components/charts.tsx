@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { BarChart3, TrendingUp } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -53,6 +54,34 @@ export function generateSparklinePath(
 // que veio pronto (compatibilidade).
 function seriesWeekName(item: { name: string; week?: string | null }, locale: AppLocale) {
   return item.week ? formatDayMonth(item.week, locale) : item.name;
+}
+
+// Estado vazio compacto para gráficos: evita grandes blocos em branco e orienta qual ação gera dados.
+function ChartEmptyState({
+  icon = "bars",
+  message,
+  hint,
+}: {
+  icon?: "bars" | "trend";
+  message: string;
+  hint?: string;
+}) {
+  const Icon = icon === "trend" ? TrendingUp : BarChart3;
+  return (
+    <div className="flex flex-col items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-border bg-soft/40 px-4 py-6 text-center">
+      <Icon
+        className="size-5 text-muted-foreground"
+        strokeWidth={1.5}
+        aria-hidden="true"
+      />
+      <p className="m-0 text-[13px] font-medium text-foreground">{message}</p>
+      {hint && (
+        <p className="m-0 max-w-md text-xs leading-relaxed text-muted-foreground">
+          {hint}
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -108,18 +137,16 @@ export function Sparkline({
 export function WeeklyAlertsChart({
   data,
   currentWeekName,
+  emptyHint,
 }: {
   data: Series[];
   currentWeekName?: string;
+  emptyHint?: string;
 }) {
   const t = useTranslations("alerts.charts.weekly");
   const locale = useLocale();
   if (!data || data.length === 0) {
-    return (
-      <div className="flex h-[180px] items-center justify-center text-xs text-muted-foreground">
-        {t("empty")}
-      </div>
-    );
+    return <ChartEmptyState icon="bars" message={t("empty")} hint={emptyHint} />;
   }
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
@@ -222,22 +249,20 @@ export function WeeklyRateChart({
   data,
   unit,
   emptyText,
+  emptyHint,
   currentWeekName,
 }: {
   data: WeeklyRatePoint[];
   unit: string;
   emptyText: string;
+  emptyHint?: string;
   currentWeekName?: string;
 }) {
   const t = useTranslations("alerts.charts.rate");
   const locale = useLocale();
   const format = useFormatters();
-  if (!data || data.length === 0) {
-    return (
-      <div className="flex h-[180px] items-center justify-center text-center text-xs text-muted-foreground">
-        {emptyText}
-      </div>
-    );
+  if (!data || data.length === 0 || data.every((w) => w.value === null)) {
+    return <ChartEmptyState icon="trend" message={emptyText} hint={emptyHint} />;
   }
   const ariaLabel = data
     .map((w) => `${seriesWeekName(w, locale)}: ${describeRate(w, unit, locale)}`)
@@ -245,60 +270,64 @@ export function WeeklyRateChart({
 
   return (
     <div className="flex flex-col gap-2">
-      <div
-        role="img"
-        aria-label={ariaLabel}
-        className="flex h-[180px] items-end gap-1.5 border-b border-border pb-1"
-      >
-        {data.map((w, i) => {
-          const isCurrent = currentWeekName
-            ? w.name === currentWeekName
-            : i === data.length - 1;
-          const barHeight =
-            w.value === null ? 0 : Math.max(4, Math.round(w.value * 135));
-          return (
-            <div
-              key={w.name + i}
-              title={t("weekTooltip", {
-                name: seriesWeekName(w, locale),
-                text: describeRate(w, unit, locale),
-              })}
-              className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5"
-            >
-              <span
-                className={cn(
-                  "font-mono text-[11px] tabular-nums transition-colors",
-                  w.low_sample
-                    ? "text-muted-foreground"
-                    : isCurrent
-                      ? "font-semibold text-foreground"
-                      : "text-muted-foreground group-hover:text-foreground",
-                )}
-              >
-                {w.value === null ? "—" : format.percent(w.value)}
-                {w.low_sample && w.value !== null ? "*" : ""}
-              </span>
-              <span
-                style={{ height: `${barHeight}px` }}
-                className={cn(
-                  "w-full max-w-[26px] rounded-t-[4px] transition-all",
-                  isCurrent ? "bg-primary" : "bg-chart-muted group-hover:bg-primary/70",
-                )}
-              />
-            </div>
-          );
-        })}
-      </div>
-      <div className="flex gap-1.5">
-        {data.map((w, i) => (
-          <span
-            key={w.name + i}
-            className="flex-1 truncate text-center font-sans text-[11px] text-muted-foreground"
-            title={seriesWeekName(w, locale)}
+      <div className="overflow-x-auto pb-1">
+        <div className="flex min-w-full flex-col gap-2" style={{ minWidth: `${Math.max(data.length * 42, 0)}px` }}>
+          <div
+            role="img"
+            aria-label={ariaLabel}
+            className="flex h-[180px] items-end gap-1.5 border-b border-border pb-1"
           >
-            {seriesWeekName(w, locale)}
-          </span>
-        ))}
+            {data.map((w, i) => {
+              const isCurrent = currentWeekName
+                ? w.name === currentWeekName
+                : i === data.length - 1;
+              const barHeight =
+                w.value === null ? 0 : Math.max(4, Math.round(w.value * 135));
+              return (
+                <div
+                  key={w.name + i}
+                  title={t("weekTooltip", {
+                    name: seriesWeekName(w, locale),
+                    text: describeRate(w, unit, locale),
+                  })}
+                  className="group flex h-full flex-1 flex-col items-center justify-end gap-1.5"
+                >
+                  <span
+                    className={cn(
+                      "font-mono text-[11px] tabular-nums transition-colors",
+                      w.low_sample
+                        ? "text-muted-foreground"
+                        : isCurrent
+                          ? "font-semibold text-foreground"
+                          : "text-muted-foreground group-hover:text-foreground",
+                    )}
+                  >
+                    {w.value === null ? "—" : format.percent(w.value)}
+                    {w.low_sample && w.value !== null ? "*" : ""}
+                  </span>
+                  <span
+                    style={{ height: `${barHeight}px` }}
+                    className={cn(
+                      "w-full max-w-[26px] rounded-t-[4px] transition-all",
+                      isCurrent ? "bg-primary" : "bg-chart-muted group-hover:bg-primary/70",
+                    )}
+                  />
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-1.5">
+            {data.map((w, i) => (
+              <span
+                key={w.name + i}
+                className="flex-1 truncate text-center font-sans text-[11px] text-muted-foreground"
+                title={seriesWeekName(w, locale)}
+              >
+                {seriesWeekName(w, locale)}
+              </span>
+            ))}
+          </div>
+        </div>
       </div>
       {data.some((w) => w.low_sample && w.value !== null) && (
         <p className="m-0 text-xs text-muted-foreground">
@@ -316,17 +345,15 @@ export function WeeklyRateChart({
 export function ScoreHistogramChart({
   data,
   totalAlerts,
+  emptyHint,
 }: {
   data: Series[];
   totalAlerts?: number;
+  emptyHint?: string;
 }) {
   const t = useTranslations("alerts.charts.histogram");
   if (!data || data.length === 0) {
-    return (
-      <div className="flex h-[180px] items-center justify-center text-xs text-muted-foreground">
-        {t("empty")}
-      </div>
-    );
+    return <ChartEmptyState icon="bars" message={t("empty")} hint={emptyHint} />;
   }
 
   const maxValue = Math.max(...data.map((d) => d.value), 1);
@@ -494,19 +521,17 @@ export function HorizontalBarList({
   items,
   isRate = false,
   unit,
+  emptyHint,
 }: {
   items: Series[];
   isRate?: boolean;
   unit?: string;
+  emptyHint?: string;
 }) {
   const t = useTranslations("alerts.charts.bars");
   const format = useFormatters();
   if (!items || items.length === 0) {
-    return (
-      <div className="py-6 text-center text-xs text-muted-foreground">
-        {t("empty")}
-      </div>
-    );
+    return <ChartEmptyState icon="bars" message={t("empty")} hint={emptyHint} />;
   }
 
   const maxValue = Math.max(
@@ -577,19 +602,31 @@ export function ChartCard({
   data,
   type = "bars",
   isRate = false,
+  emptyText,
+  emptyHint,
 }: {
   title: string;
   data: Series[];
   type?: "area" | "bars" | "donut";
   isRate?: boolean;
+  emptyText?: string;
+  emptyHint?: string;
 }) {
   const t = useTranslations("alerts.charts.series");
+  const tb = useTranslations("alerts.charts.bars");
   const format = useFormatters();
   return (
     <section className="rounded-[14px] border border-border bg-card p-[20px_22px] flex flex-col gap-4">
       <header className="flex justify-between items-baseline">
         <h2 className="text-sm font-semibold text-foreground m-0">{title}</h2>
       </header>
+      {!data || data.length === 0 ? (
+        <ChartEmptyState
+          icon={type === "area" ? "trend" : "bars"}
+          message={emptyText ?? tb("empty")}
+          hint={emptyHint}
+        />
+      ) : (
       <div
         className="h-[250px] min-w-0"
         role="img"
@@ -689,7 +726,8 @@ export function ChartCard({
           )}
         </ResponsiveContainer>
       </div>
-      {type === "donut" && (
+      )}
+      {type === "donut" && data.length > 0 && (
         <ul className="grid grid-cols-2 gap-2.5 pt-2 text-xs text-muted-foreground border-t border-soft">
           {data.map((d) => (
             <li key={d.name} className="flex items-center gap-2">

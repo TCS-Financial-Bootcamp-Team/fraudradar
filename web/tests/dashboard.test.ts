@@ -101,8 +101,21 @@ test("dashboard: precisão confirmada no lugar do recall da fila", () => {
     ...summary,
     confirmed_precision: { value: null, numerator: 0, denominator: 0, low_sample: true },
   });
-  assert.deepEqual(empty, { value: "—", note: "sem decisões ainda", spark: [] });
-  assert.equal(confirmedPrecisionKpi(null).note, "sem decisões ainda");
+  assert.deepEqual(empty, {
+    value: null,
+    emptyMessage:
+      "Aguardando decisões conclusivas dos analistas para calcular a precisão.",
+    note: "Comunique ao COAF ou arquive como falso positivo confirmado na fila de alertas.",
+    spark: [],
+  });
+  assert.deepEqual(confirmedPrecisionKpi(null), empty);
+
+  const zero = confirmedPrecisionKpi({
+    ...summary,
+    confirmed_precision: { value: 0, numerator: 0, denominator: 5, low_sample: true },
+  });
+  assert.equal(zero.value, "0%");
+  assert.equal(zero.emptyMessage, undefined);
 
   assert.equal(
     describeRate(

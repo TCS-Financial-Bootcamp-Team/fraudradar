@@ -213,7 +213,7 @@ export function reportMock(id: string): Report {
     content:
       "RELATO DE OPERAÇÃO ATÍPICA\n\nO monitoramento identificou dispersão de recursos para múltiplas contrapartes em curto intervalo, com movimentação incompatível com o histórico observado.\n\nEvidências: regra R-014 e transferências vinculadas ao alerta " +
       id +
-      ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Este documento é uma simulação acadêmica.",
+      ".\n\nRecomendação: avaliar as evidências e complementar a diligência antes de qualquer comunicação oficial. Envio externo ao COAF não habilitado neste ambiente.",
   };
 }
 export function monitoringMock(week: string): Monitoring {

@@ -264,7 +264,7 @@ function SignupForm() {
           className="size-4 mt-0.5 rounded border-border accent-primary shrink-0"
         />
         <span>
-          {t("signup.academic")}
+          {t("signup.externalSubmissionNotice")}
         </span>
       </label>
 

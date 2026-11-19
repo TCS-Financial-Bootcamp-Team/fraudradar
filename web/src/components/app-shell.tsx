@@ -120,7 +120,7 @@ function ShellContent({
 
         {USE_MOCKS && (
           <div className="shrink-0 border-b border-border bg-soft px-4 py-2 text-center text-[11px] text-muted-foreground">
-            {t("demoBanner")}
+            {t("offlineBanner")}
           </div>
         )}
 

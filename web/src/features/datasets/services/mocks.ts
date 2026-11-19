@@ -10,7 +10,7 @@ export const datasetsMock: Dataset[] = [
   },
   {
     slug: "external-demo",
-    name: "Base externa demonstrativa",
+    name: "Base externa",
     origin: "external",
     active_model_version: null,
     created_at: "2026-11-11T12:00:00Z",

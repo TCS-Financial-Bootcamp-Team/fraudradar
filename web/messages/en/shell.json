@@ -33,7 +33,7 @@
     "toggleSidebar": "Collapse or expand menu"
   },
   "skipToContent": "Skip to content",
-  "demoBanner": "Demo environment · simulated data · no report is sent",
+  "offlineBanner": "Offline mode with local simulated data · not connected to the API · external submission not enabled",
   "header": {
     "assistant": "Assistant",
     "appearance": "Appearance",

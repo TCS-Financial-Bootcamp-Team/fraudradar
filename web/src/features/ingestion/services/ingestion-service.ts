@@ -137,7 +137,7 @@ export async function uploadCsv(
     onProgress(100);
     return receiptSchema.parse(
       (await import("./mocks")).receiptMock(
-        "Arquivo recebido em demonstração. Nenhum dado foi importado na API.",
+        "Arquivo recebido em modo offline. Nenhum dado foi importado na API.",
       ),
     );
   }
@@ -152,7 +152,7 @@ export async function submitTransaction(data: TransactionRequest) {
   return receiptSchema.parse(
     USE_MOCKS
       ? (await import("./mocks")).receiptMock(
-          "Transação registrada em demonstração.",
+          "Transação registrada em modo offline (sem persistência na API).",
         )
       : await apiPost("/ingestion/transactions", parsed),
   );

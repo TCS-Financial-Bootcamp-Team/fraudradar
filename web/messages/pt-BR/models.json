@@ -1,39 +1,4 @@
 {
-  "feedback": {
-    "region": "Retorno dos analistas",
-    "title": "Retorno dos analistas",
-    "intro": "O que uma plataforma real consegue medir: o que os analistas confirmaram nos alertas e o que a amostra de controle, sorteada abaixo do corte, achou fora da fila. Só comunicar e arquivar como falso positivo confirmado viram retorno.",
-    "untilWeek": "até a semana selecionada",
-    "loading": "Carregando o retorno dos analistas…",
-    "unavailable": "Retorno indisponível.",
-    "smallSample": " · amostra pequena",
-    "cells": {
-      "precision": "Precisão confirmada",
-      "precisionNone": "nenhum alerta da fila decidido ainda",
-      "precisionNote": "{numerator} de {denominator} alertas da fila{small}",
-      "outside": "Lavagem fora da fila",
-      "outsideNone": "amostra de controle desligada ou sem sorteio",
-      "outsideNote": "{numerator} de {reviewed} revisadas · {sampled} sorteadas{small}",
-      "labels": "Rótulos do retorno",
-      "labelsNote": "{laundering} lavagem confirmada · {falsePositive} falso positivo",
-      "newSince": "Novos desde a versão ativa",
-      "newSinceNote": "rótulos depois do treino de {version}",
-      "noActive": "sem versão ativa"
-    },
-    "weeklyTitle": "Precisão confirmada por semana",
-    "weeklyEmpty": "Sem decisões conclusivas nos alertas da fila ainda.",
-    "unit": "decididos",
-    "breakdown": {
-      "analyst": "Dos analistas",
-      "simulated": "Do analista simulado",
-      "model": "Na fila do modelo",
-      "exploration": "Na amostra de controle"
-    },
-    "simulatedNote": "{count} rótulos vêm do analista simulado da demonstração, que decide pelo gabarito: os números acima não são de analistas de verdade.",
-    "retrain": "Retreino com o retorno: ",
-    "retrainAvailable": "disponível em Configurações > Modelo.",
-    "retrainSimulated": "disponível só incluindo o retorno simulado (Configurações > Modelo)."
-  },
   "model": {
     "region": "Modelo",
     "title": "Modelo",
