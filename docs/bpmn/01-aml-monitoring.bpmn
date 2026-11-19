@@ -139,7 +139,7 @@
     </bpmn:textAnnotation>
     <bpmn:association id="Association_Note_period_detail" associationDirection="None" sourceRef="Note_period_detail" targetRef="Activity_process_open_period" />
     <bpmn:textAnnotation id="Note_assessment_planned">
-      <bpmn:text>Planejado (frente 3): hoje a rota do parecer responde 503. O LLM nunca recebe o número da conta.</bpmn:text>
+      <bpmn:text>Sob demanda (POST /alerts/{id}/assessment): gera o parecer com RAG e sugere a tipologia. O LLM nunca recebe o número da conta.</bpmn:text>
     </bpmn:textAnnotation>
     <bpmn:association id="Association_Note_assessment_planned" associationDirection="None" sourceRef="Note_assessment_planned" targetRef="Task_draft_assessment" />
     <bpmn:textAnnotation id="Note_feedback_labels">
@@ -218,7 +218,7 @@
           <dc:Bounds x="633" y="309" width="90" height="14" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_draft_assessment_di" bpmnElement="Task_draft_assessment" color:background-color="#fff3c4" color:border-color="#9a7400">
+      <bpmndi:BPMNShape id="Task_draft_assessment_di" bpmnElement="Task_draft_assessment">
         <dc:Bounds x="943" y="350" width="130" height="90" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="DataStore_decisions_di" bpmnElement="DataStore_decisions">

@@ -179,7 +179,8 @@ fraudradar/
 │   │                        003 a 005 (conjuntos, trabalhos, processamento, conexões)
 │   ├── upgrades/            atualização de banco que já existe (006_analyst_feedback.sql)
 │   └── rules/               regras de cenário em SQL (NNN_rule_name.sql), uma por arquivo
-├── rag/                     base do chat jurídico: sources.json e snapshots/ (Lei 9.613)
+├── rag/                     base do chat jurídico: sources.json e snapshots/ (Lei 9.613 e
+│                            Circular BCB 3.978/2020 em pending_review)
 ├── data/                    SAML-D.csv e derivados, fora do git
 ├── models/                  modelos treinados, fora do git
 ├── notebooks/               notebooks oficiais: 01_tratamento, 02_eda, 03_modelo,
@@ -369,7 +370,8 @@ Confira com `git log` antes de confiar; isto muda rápido.
 - **Produção**: a API roda numa VM da Oracle (Victor; `infra/docker-compose.prod.yml`,
   `infra/terraform-oci`) e o front numa conta da Vercel. O proxy HTTPS da VM não está no
   repositório.
-- **Documentos**: BPMN em `docs/bpmn/` e DER em `docs/erd/` (PR #21).
+- **Documentos**: BPMN em `docs/bpmn/` e DER em `docs/erd/` (PR #21; atualizados com o
+  parecer da IA entregue e as tabelas `chat_conversations` e `chat_messages`).
 - **Retorno dos analistas (branch `feat/analyst-feedback`, registros 107 e 108)**: motivo
   obrigatório ao arquivar, rótulos em `analyst_labels`, amostra de controle, retreino com o
   retorno e trava de promoção, analista simulado e `feedback-eval`, recall fora das telas.
@@ -399,13 +401,18 @@ Confira com `git log` antes de confiar; isto muda rápido.
   inteiro, a fila das 14 semanas do teste repete a ficha (recall 95,1%, precisão 99,0%, 2,2
   inocentes por semana) e os 2,76 milhões de scores são os do modelo. Fluxo da demo: `load`,
   `backfill`, e liberar as semanas no app.
+- **Regras de cenário (`db/rules/`)**: 5 regras determinísticas calibradas no SAML-D (`R-001` a
+  `R-005`: fracionamento em espécie, fan-out/fan-in elevado, jurisdições de alto risco, salto
+  brusco de volume e atividade concentrada em espécie), executadas pelo worker e testadas em
+  `tests/worker/test_worker_rules.py`.
+- **Notebooks oficiais (`notebooks/`)**: `01_tratamento.ipynb`, `02_eda.ipynb`,
+  `03_modelo.ipynb` e `04_avaliacao_llm.ipynb` gerados e executados sobre `src/fraudradar/`.
+- **Circular BCB 3.978/2020**: snapshot extraído da fonte oficial do BCB em `rag/snapshots/` com
+  `review_status: "pending_review"` (70 artigos, aguardando revisão humana antes de entrar no chat).
 - **Vazio ou faltando**:
-  - regras em `db/rules/` (frente 1; o worker já roda o que entrar lá);
-  - a Circular BCB 3.978/2020 na base do RAG (frente 3; listada em `rag/sources.json`, sem
-    snapshot revisado);
-  - os notebooks oficiais (`notebooks/` só tem o README);
+  - revisão humana do snapshot da Circular BCB 3.978/2020 para aprovação e ativação no chat;
   - os slides e o documento das etapas, fora do repositório;
-  - os registros de prompt do Victor e do Yuji.
+  - os registros de prompt do Yuji (os do Victor estão em `docs/vibe-coding/prompts/victor-rag-llm/`).
 - **Em exploração**: LSTM e GRU em notebooks do `lab/` (branch `origin/victor` e
   `lab/FraudRadar_LSTM.ipynb`).
 

@@ -59,6 +59,25 @@ erDiagram
         text created_by
         timestamptz created_at
     }
+    chat_conversations {
+        bigint id PK
+        text dataset FK
+        text owner_id
+        text title
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    chat_messages {
+        bigint id PK
+        bigint conversation_id FK
+        text role "user, assistant"
+        text content
+        text kind
+        jsonb sources
+        jsonb links
+        text model
+        timestamptz created_at
+    }
     model_versions {
         text version PK
     }
@@ -84,3 +103,5 @@ erDiagram
     datasets ||--|| processing_settings : "é configurado por"
     datasets ||..o{ jobs : "tem trabalhos"
     datasets |o..o{ external_connections : "recebe dados de"
+    datasets ||..o{ chat_conversations : "tem conversas"
+    chat_conversations ||--o{ chat_messages : "contém"

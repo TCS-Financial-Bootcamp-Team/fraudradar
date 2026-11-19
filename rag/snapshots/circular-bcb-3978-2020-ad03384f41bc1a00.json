@@ -1,0 +1,439 @@
+{
+  "schema_version": 1,
+  "source_id": "circular-bcb-3978-2020",
+  "title": "Circular BCB n\u00ba 3.978, de 23 de janeiro de 2020",
+  "authority": "Banco Central do Brasil",
+  "official_url": "https://www.bcb.gov.br/estabilidadefinanceira/exibenormativo?numero=3978&tipo=Circular",
+  "retrieved_at_utc": "2026-11-19T12:04:05.537642+00:00",
+  "document_type": "regulation",
+  "publication_date": "2020-01-23",
+  "version_policy": "current_compiled_text",
+  "review_status": "pending_review",
+  "extraction_method": "legal_html.extract_articles",
+  "html_sha256": "ad03384f41bc1a00a65cc097169fe289c8ea2d1ab837170062f48dc1284c8758",
+  "text_sha256": "60ac73bfc7afc628d0207f3586cb2bfa92ff98e207b8ced0ffbd550543958726",
+  "html_bytes": 74828,
+  "article_count": 70,
+  "articles": [
+    {
+      "reference": "Art. 1",
+      "paragraph_count": 2,
+      "content": "Art. 1\u00ba Esta Circular disp\u00f5e sobre a pol\u00edtica, os procedimentos e os controles internos a serem adotados pelas institui\u00e7\u00f5es autorizadas a funcionar pelo Banco Central do Brasil visando \u00e0 preven\u00e7\u00e3o da utiliza\u00e7\u00e3o do sistema financeiro para a pr\u00e1tica dos crimes de \u201clavagem\u201d ou oculta\u00e7\u00e3o de bens, direitos e valores, de que trata a Lei n\u00ba 9.613, de 3 de mar\u00e7o de 1998, e de financiamento do terrorismo, previsto na Lei n\u00ba 13.260, de 16 de mar\u00e7o de 2016.\n\nPar\u00e1grafo \u00fanico. Para os fins desta Circular, os crimes referidos no caput ser\u00e3o denominados genericamente \u201clavagem de dinheiro\u201d e \u201cfinanciamento do terrorismo\u201d.",
+      "content_sha256": "06968fc3e5a40116b11847ffc8aef38382267ba249bc59be30086f62e7d2e441"
+    },
+    {
+      "reference": "Art. 2",
+      "paragraph_count": 6,
+      "content": "Art. 2\u00ba As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem implementar e manter pol\u00edtica formulada com base em princ\u00edpios e diretrizes que busquem prevenir a sua utiliza\u00e7\u00e3o para as pr\u00e1ticas de lavagem de dinheiro e de financiamento do terrorismo.\n\nPar\u00e1grafo \u00fanico. A pol\u00edtica de que trata o caput deve ser compat\u00edvel com os perfis de risco:\n\nI - dos clientes;\n\nII - da institui\u00e7\u00e3o;\n\nIII - das opera\u00e7\u00f5es, transa\u00e7\u00f5es, produtos e servi\u00e7os; e\n\nIV - dos funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados.",
+      "content_sha256": "ca1b5f75b8eaecffc02918e8a3379c99d926c967d0e28efbb44034d915d7f712"
+    },
+    {
+      "reference": "Art. 3",
+      "paragraph_count": 15,
+      "content": "Art. 3\u00ba A pol\u00edtica referida no art. 2\u00ba deve contemplar, no m\u00ednimo:\n\nI - as diretrizes para:\n\na) a defini\u00e7\u00e3o de pap\u00e9is e responsabilidades para o cumprimento das obriga\u00e7\u00f5es de que trata esta Circular;\n\nb) a defini\u00e7\u00e3o de procedimentos voltados \u00e0 avalia\u00e7\u00e3o e \u00e0 an\u00e1lise pr\u00e9via de novos produtos e servi\u00e7os, bem como da utiliza\u00e7\u00e3o de novas tecnologias, tendo em vista o risco de lavagem de dinheiro e de financiamento do terrorismo;\n\nc) a avalia\u00e7\u00e3o interna de risco e a avalia\u00e7\u00e3o de efetividade de que tratam os arts. 10 e 62;\n\nd) a verifica\u00e7\u00e3o do cumprimento da pol\u00edtica, dos procedimentos e dos controles internos de que trata esta Circular, bem como a identifica\u00e7\u00e3o e a corre\u00e7\u00e3o das defici\u00eancias verificadas;\n\ne) a promo\u00e7\u00e3o de cultura organizacional de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo, contemplando, inclusive, os funcion\u00e1rios, os parceiros e os prestadores de servi\u00e7os terceirizados;\n\nf) a sele\u00e7\u00e3o e a contrata\u00e7\u00e3o de funcion\u00e1rios e de prestadores de servi\u00e7os terceirizados, tendo em vista o risco de lavagem de dinheiro e de financiamento do terrorismo; e\n\ng) a capacita\u00e7\u00e3o dos funcion\u00e1rios sobre o tema da preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo, incluindo os funcion\u00e1rios dos correspondentes no Pa\u00eds que prestem atendimento em nome das institui\u00e7\u00f5es mencionadas no art. 1\u00ba;\n\nII - as diretrizes para implementa\u00e7\u00e3o de procedimentos:\n\na) de coleta, verifica\u00e7\u00e3o, valida\u00e7\u00e3o e atualiza\u00e7\u00e3o de informa\u00e7\u00f5es cadastrais, visando a conhecer os clientes, os funcion\u00e1rios, os parceiros e os prestadores de servi\u00e7os terceirizados;\n\nb) de registro de opera\u00e7\u00f5es e de servi\u00e7os financeiros;\n\nc) de monitoramento, sele\u00e7\u00e3o e an\u00e1lise de opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas; e\n\nd) de comunica\u00e7\u00e3o de opera\u00e7\u00f5es ao Conselho de Controle de Atividades Financeiras (Coaf); e\n\nIII - o comprometimento da alta administra\u00e7\u00e3o com a efetividade e a melhoria cont\u00ednua da pol\u00edtica, dos procedimentos e dos controles internos relacionados com a preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo.",
+      "content_sha256": "93d1ce3cc33388757494f1e34476dc9a2607ff1e280a44f541d07ca3942453f7"
+    },
+    {
+      "reference": "Art. 4",
+      "paragraph_count": 2,
+      "content": "Art. 4\u00ba Admite-se a ado\u00e7\u00e3o de pol\u00edtica de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo \u00fanica por conglomerado prudencial e por sistema cooperativo de cr\u00e9dito.\n\nPar\u00e1grafo \u00fanico. As institui\u00e7\u00f5es que n\u00e3o constitu\u00edrem pol\u00edtica pr\u00f3pria, em decorr\u00eancia do disposto no caput, devem formalizar a op\u00e7\u00e3o por essa faculdade em reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, se inexistente, da diretoria da institui\u00e7\u00e3o.",
+      "content_sha256": "c68659ff71b6ba09cc7c950f7970121e35287ea38b52d5f96197a6d8dc97c7fb"
+    },
+    {
+      "reference": "Art. 5",
+      "paragraph_count": 2,
+      "content": "Art. 5\u00ba As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem assegurar a aplica\u00e7\u00e3o da pol\u00edtica referida no art. 2\u00ba em suas unidades situadas no exterior.\n\nPar\u00e1grafo \u00fanico. Na hip\u00f3tese de impedimento ou limita\u00e7\u00e3o legal \u00e0 aplica\u00e7\u00e3o da pol\u00edtica referida no caput \u00e0 unidade da institui\u00e7\u00e3o situada no exterior, dever\u00e1 ser elaborado relat\u00f3rio justificando o impedimento ou a limita\u00e7\u00e3o.",
+      "content_sha256": "ae47ee011dda7530665ab2d578b4c6666c003eb9b349df064f3deccd20f3a910"
+    },
+    {
+      "reference": "Art. 6",
+      "paragraph_count": 1,
+      "content": "Art. 6\u00ba A pol\u00edtica referida no art. 2\u00ba deve ser divulgada aos funcion\u00e1rios da institui\u00e7\u00e3o, parceiros e prestadores de servi\u00e7os terceirizados, mediante linguagem clara e acess\u00edvel, em n\u00edvel de detalhamento compat\u00edvel com as fun\u00e7\u00f5es desempenhadas e com a sensibilidade das informa\u00e7\u00f5es.",
+      "content_sha256": "1e2b1ec80f0ece63ebcc266b6d61edf8267d316302d8ff40831062b4b98ad07b"
+    },
+    {
+      "reference": "Art. 7",
+      "paragraph_count": 4,
+      "content": "Art. 7\u00ba A pol\u00edtica referida no art. 2\u00ba deve ser:\n\nI - documentada;\n\nII - aprovada pelo conselho de administra\u00e7\u00e3o ou, se inexistente, pela diretoria da institui\u00e7\u00e3o; e\n\nIII - mantida atualizada.",
+      "content_sha256": "f93c420111a4440407c4bbfd070bacac3c621aae480153865350f24c1a1b3554"
+    },
+    {
+      "reference": "Art. 8",
+      "paragraph_count": 1,
+      "content": "Art. 8\u00ba As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem dispor de estrutura de governan\u00e7a visando a assegurar o cumprimento da pol\u00edtica referida no art. 2\u00ba e dos procedimentos e controles internos de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo previstos nesta Circular.",
+      "content_sha256": "1e892cb7f889a0f607c7b8f807a4a1e55ce969526108c030baf1532d22ab21ef"
+    },
+    {
+      "reference": "Art. 9",
+      "paragraph_count": 3,
+      "content": "Art. 9\u00ba As institui\u00e7\u00f5es referidas no art. 1\u00ba devem indicar formalmente ao Banco Central do Brasil diretor respons\u00e1vel pelo cumprimento das obriga\u00e7\u00f5es previstas nesta Circular.\n\n\u00a7 1\u00ba O diretor mencionado no caput pode desempenhar outras fun\u00e7\u00f5es na institui\u00e7\u00e3o, desde que n\u00e3o haja conflito de interesses.\n\n\u00a7 2\u00ba A responsabilidade mencionada no caput deve ser observada em cada institui\u00e7\u00e3o, mesmo no caso de op\u00e7\u00e3o pela faculdade estabelecida nos arts. 4\u00ba, 11, 42, 46 e 52.",
+      "content_sha256": "1bee2df78891d8da889a22eab82dbbde8f29b1d4a4368888247e0cb6af9ab52a"
+    },
+    {
+      "reference": "Art. 10",
+      "paragraph_count": 9,
+      "content": "Art. 10. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem realizar avalia\u00e7\u00e3o interna com o objetivo de identificar e mensurar o risco de utiliza\u00e7\u00e3o de seus produtos e servi\u00e7os na pr\u00e1tica da lavagem de dinheiro e do financiamento do terrorismo.\n\n\u00a7 1\u00ba Para identifica\u00e7\u00e3o do risco de que trata o caput, a avalia\u00e7\u00e3o interna deve considerar, no m\u00ednimo, os perfis de risco:\n\nI - dos clientes;\n\nII - da institui\u00e7\u00e3o, incluindo o modelo de neg\u00f3cio e a \u00e1rea geogr\u00e1fica de atua\u00e7\u00e3o;\n\nIII - das opera\u00e7\u00f5es, transa\u00e7\u00f5es, produtos e servi\u00e7os, abrangendo todos os canais de distribui\u00e7\u00e3o e a utiliza\u00e7\u00e3o de novas tecnologias; e\n\nIV - das atividades exercidas pelos funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados.\n\n\u00a7 2\u00ba O risco identificado deve ser avaliado quanto \u00e0 sua probabilidade de ocorr\u00eancia e \u00e0 magnitude dos impactos financeiro, jur\u00eddico, reputacional e socioambiental para a institui\u00e7\u00e3o.\n\n\u00a7 3\u00ba Devem ser definidas categorias de risco que possibilitem a ado\u00e7\u00e3o de controles de gerenciamento e de mitiga\u00e7\u00e3o refor\u00e7ados para as situa\u00e7\u00f5es de maior risco e a ado\u00e7\u00e3o de controles simplificados nas situa\u00e7\u00f5es de menor risco.\n\n\u00a7 4\u00ba Devem ser utilizadas como subs\u00eddio \u00e0 avalia\u00e7\u00e3o interna de risco, quando dispon\u00edveis, avalia\u00e7\u00f5es realizadas por entidades p\u00fablicas do Pa\u00eds relativas ao risco de lavagem de dinheiro e de financiamento do terrorismo.",
+      "content_sha256": "1190179c88557754cbf25e60ff87d90928835a767e50551663785bc0b2d436bb"
+    },
+    {
+      "reference": "Art. 11",
+      "paragraph_count": 2,
+      "content": "Art. 11. A avalia\u00e7\u00e3o interna de risco pode ser realizada de forma centralizada em institui\u00e7\u00e3o do conglomerado prudencial e do sistema cooperativo de cr\u00e9dito.\n\nPar\u00e1grafo \u00fanico. As institui\u00e7\u00f5es que optarem por realizar a avalia\u00e7\u00e3o interna de risco na forma do caput devem formalizar essa op\u00e7\u00e3o em reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, se inexistente, da diretoria da institui\u00e7\u00e3o.",
+      "content_sha256": "47020034806f6c9575b238480edda5acd8eb139e7205260e03d8bc6a4def4484"
+    },
+    {
+      "reference": "Art. 12",
+      "paragraph_count": 9,
+      "content": "Art. 12. A avalia\u00e7\u00e3o interna de risco deve ser:\n\nI - documentada e aprovada pelo diretor referido no art. 9\u00ba;\n\nII - encaminhada para ci\u00eancia:\n\na) ao comit\u00ea de risco, quando houver;\n\nb) ao comit\u00ea de auditoria, quando houver; e\n\nc) ao conselho de administra\u00e7\u00e3o ou, se inexistente, \u00e0 diretoria da institui\u00e7\u00e3o; e\n\nIII - revisada a cada dois anos, bem como quando ocorrerem altera\u00e7\u00f5es significativas nos perfis de risco mencionados no art. 10, \u00a7 1\u00ba.\n\nSe\u00e7\u00e3o I\n\nDos Procedimentos",
+      "content_sha256": "0b721aa1e19ed53fbb0acc2390e2490e2d76f1f9789ed82f05e0bf8a261df073"
+    },
+    {
+      "reference": "Art. 13",
+      "paragraph_count": 7,
+      "content": "Art. 13. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem implementar procedimentos destinados a conhecer seus clientes, incluindo procedimentos que assegurem a devida dilig\u00eancia na sua identifica\u00e7\u00e3o, qualifica\u00e7\u00e3o e classifica\u00e7\u00e3o.\n\n\u00a7 1\u00ba Os procedimentos referidos no caput devem ser compat\u00edveis com:\n\nI - o perfil de risco do cliente, contemplando medidas refor\u00e7adas para clientes classificados em categorias de maior risco, de acordo com a avalia\u00e7\u00e3o interna de risco referida no art. 10;\n\nII - a pol\u00edtica de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo de que trata o art. 2\u00ba; e\n\nIII - a avalia\u00e7\u00e3o interna de risco de que trata o art. 10.\n\n\u00a7 2\u00ba Os procedimentos mencionados no caput devem ser formalizados em manual espec\u00edfico.\n\n\u00a7 3\u00ba O manual referido no \u00a7 2\u00ba deve ser aprovado pela diretoria da institui\u00e7\u00e3o e mantido atualizado.",
+      "content_sha256": "f25632fe38e600ce46db339a2091eec068cdc38476ac277d33cb2f03f167afcf"
+    },
+    {
+      "reference": "Art. 14",
+      "paragraph_count": 1,
+      "content": "Art. 14. As informa\u00e7\u00f5es obtidas e utilizadas nos procedimentos referidos no art. 13 devem ser armazenadas em sistemas informatizados e utilizadas nos procedimentos de que trata o Cap\u00edtulo VII.",
+      "content_sha256": "45904bdb315931ffffe7e9c0974cee5df0121a523c18023f67cdff2ac034a207"
+    },
+    {
+      "reference": "Art. 15",
+      "paragraph_count": 3,
+      "content": "Art. 15. Os procedimentos previstos neste Cap\u00edtulo devem ser observados sem preju\u00edzo do disposto na regulamenta\u00e7\u00e3o que disciplina produtos e servi\u00e7os espec\u00edficos.\n\nSe\u00e7\u00e3o II\n\nDa Identifica\u00e7\u00e3o dos Clientes",
+      "content_sha256": "49c68be5d1c7514803450a230a712c42ae391bb44c332014ca833b6c06332ca8"
+    },
+    {
+      "reference": "Art. 16",
+      "paragraph_count": 7,
+      "content": "Art. 16. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem adotar procedimentos de identifica\u00e7\u00e3o que permitam verificar e validar a identidade do cliente.\n\n\u00a7 1\u00ba Os procedimentos referidos no caput devem incluir a obten\u00e7\u00e3o, a verifica\u00e7\u00e3o e a valida\u00e7\u00e3o da autenticidade de informa\u00e7\u00f5es de identifica\u00e7\u00e3o do cliente, inclusive, se necess\u00e1rio, mediante confronta\u00e7\u00e3o dessas informa\u00e7\u00f5es com as dispon\u00edveis em bancos de dados de car\u00e1ter p\u00fablico e privado.\n\n\u00a7 2\u00ba No processo de identifica\u00e7\u00e3o do cliente devem ser coletados, no m\u00ednimo:\n\nI - o nome completo, o endere\u00e7o residencial e o n\u00famero de registro no Cadastro de Pessoas F\u00edsicas (CPF), no caso de pessoa natural; e\n\nII - a firma ou denomina\u00e7\u00e3o social, o endere\u00e7o da sede e o n\u00famero de registro no Cadastro Nacional da Pessoa Jur\u00eddica (CNPJ), no caso de pessoa jur\u00eddica.\n\n\u00a7 3\u00ba No caso de cliente pessoa natural residente no exterior desobrigada de inscri\u00e7\u00e3o no CPF, na forma definida pela Secretaria da Receita Federal do Brasil, admite-se a utiliza\u00e7\u00e3o de documento de viagem na forma da Lei, devendo ser coletados, no m\u00ednimo, o pa\u00eds emissor, o n\u00famero e o tipo do documento.\n\n\u00a7 4\u00ba No caso de cliente pessoa jur\u00eddica com domic\u00edlio ou sede no exterior desobrigada de inscri\u00e7\u00e3o no CNPJ, na forma definida pela Secretaria da Receita Federal do Brasil, as institui\u00e7\u00f5es devem coletar, no m\u00ednimo, o nome da empresa, o endere\u00e7o da sede e o n\u00famero de identifica\u00e7\u00e3o ou de registro da empresa no respectivo pa\u00eds de origem.",
+      "content_sha256": "c815a9f24799a777e07e2c670cd5ad1bfdba5b5ef8a884720400fd33b343554b"
+    },
+    {
+      "reference": "Art. 17",
+      "paragraph_count": 3,
+      "content": "Art. 17. As informa\u00e7\u00f5es referidas no art. 16 devem ser mantidas atualizadas.\n\nSe\u00e7\u00e3o III\n\nDa Qualifica\u00e7\u00e3o dos Clientes",
+      "content_sha256": "723adc5ea118cbef58169ca84105e2ef6ccaf77cb3d6eabc56f37037cec833a9"
+    },
+    {
+      "reference": "Art. 18",
+      "paragraph_count": 7,
+      "content": "Art. 18. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem adotar procedimentos que permitam qualificar seus clientes por meio da coleta, verifica\u00e7\u00e3o e valida\u00e7\u00e3o de informa\u00e7\u00f5es, compat\u00edveis com o perfil de risco do cliente e com a natureza da rela\u00e7\u00e3o de neg\u00f3cio.\n\n\u00a7 1\u00ba Os procedimentos de qualifica\u00e7\u00e3o referidos no caput devem incluir a coleta de informa\u00e7\u00f5es que permitam avaliar a capacidade financeira do cliente, incluindo a renda, no caso de pessoa natural, ou o faturamento, no caso de pessoa jur\u00eddica.\n\n\u00a7 2\u00ba A necessidade de verifica\u00e7\u00e3o e de valida\u00e7\u00e3o das informa\u00e7\u00f5es referidas no \u00a7 1\u00ba deve ser avaliada pelas institui\u00e7\u00f5es de acordo com o perfil de risco do cliente e com a natureza da rela\u00e7\u00e3o de neg\u00f3cio.\n\n\u00a7 3\u00ba Nos procedimentos de que trata o caput, devem ser coletadas informa\u00e7\u00f5es adicionais do cliente compat\u00edveis com o risco de utiliza\u00e7\u00e3o de produtos e servi\u00e7os na pr\u00e1tica da lavagem de dinheiro e do financiamento do terrorismo.\n\n\u00a7 4\u00ba A qualifica\u00e7\u00e3o do cliente deve ser reavaliada de forma permanente, de acordo com a evolu\u00e7\u00e3o da rela\u00e7\u00e3o de neg\u00f3cio e do perfil de risco.\n\n\u00a7 5\u00ba As informa\u00e7\u00f5es coletadas na qualifica\u00e7\u00e3o do cliente devem ser mantidas atualizadas.\n\n\u00a7 6\u00ba O Banco Central do Brasil poder\u00e1 divulgar rol de informa\u00e7\u00f5es a serem coletadas, verificadas e validadas em procedimentos espec\u00edficos de qualifica\u00e7\u00e3o de clientes.",
+      "content_sha256": "8f3719aa00d156599d12a088bb0446599eb62fe91d32a473cb9b8fd04c0d2244"
+    },
+    {
+      "reference": "Art. 19",
+      "paragraph_count": 16,
+      "content": "Art. 19. Os procedimentos de qualifica\u00e7\u00e3o referidos no art. 18 devem incluir a verifica\u00e7\u00e3o da condi\u00e7\u00e3o do cliente como pessoa exposta politicamente, nos termos do art. 27, bem como a verifica\u00e7\u00e3o da condi\u00e7\u00e3o de representante, familiar ou estreito colaborador dessas pessoas.\n\n\u00a7 1\u00ba Para os fins desta Circular, considera-se:\n\nI - familiar, os parentes, na linha reta ou colateral, at\u00e9 o segundo grau, o c\u00f4njuge, o companheiro, a companheira, o enteado e a enteada; e\n\nII - estreito colaborador:\n\na) pessoa natural conhecida por ter qualquer tipo de estreita rela\u00e7\u00e3o com pessoa exposta politicamente, inclusive por:\n\n1. ter participa\u00e7\u00e3o conjunta em pessoa jur\u00eddica de direito privado;\n\n2. figurar como mandat\u00e1ria, ainda que por instrumento particular da pessoa mencionada no item 1; ou\n\n3. ter participa\u00e7\u00e3o conjunta em arranjos sem personalidade jur\u00eddica; e\n\nb) pessoa natural que tem o controle de pessoas jur\u00eddicas ou de arranjos sem personalidade jur\u00eddica, conhecidos por terem sido criados para o benef\u00edcio de pessoa exposta politicamente.\n\n\u00a7 2\u00ba Para os clientes qualificados como pessoa exposta politicamente ou como representante, familiar ou estreito colaborador dessas pessoas, as institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem:\n\nI - adotar procedimentos e controles internos compat\u00edveis com essa qualifica\u00e7\u00e3o;\n\nII - considerar essa qualifica\u00e7\u00e3o na classifica\u00e7\u00e3o do cliente nas categorias de risco referidas no art. 20; e\n\nIII - avaliar o interesse no in\u00edcio ou na manuten\u00e7\u00e3o do relacionamento com o cliente.\n\n\u00a7 3\u00ba A avalia\u00e7\u00e3o mencionada no \u00a7 2\u00ba, inciso III, deve ser realizada por detentor de cargo ou fun\u00e7\u00e3o de n\u00edvel hier\u00e1rquico superior ao do respons\u00e1vel pela autoriza\u00e7\u00e3o do relacionamento com o cliente.\n\nSe\u00e7\u00e3o IV\n\nDa Classifica\u00e7\u00e3o dos Clientes",
+      "content_sha256": "0179d19b5790b45a3d544172de79f322b47f1d41bea0b8192c4666a3e052c8c1"
+    },
+    {
+      "reference": "Art. 20",
+      "paragraph_count": 6,
+      "content": "Art. 20. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem classificar seus clientes nas categorias de risco definidas na avalia\u00e7\u00e3o interna de risco mencionada no art. 10, com base nas informa\u00e7\u00f5es obtidas nos procedimentos de qualifica\u00e7\u00e3o do cliente referidos no art. 18.\n\nPar\u00e1grafo \u00fanico. A classifica\u00e7\u00e3o mencionada no caput deve ser:\n\nI - realizada com base no perfil de risco do cliente e na natureza da rela\u00e7\u00e3o de neg\u00f3cio; e\n\nII - revista sempre que houver altera\u00e7\u00f5es no perfil de risco do cliente e na natureza da rela\u00e7\u00e3o de neg\u00f3cio.\n\nSe\u00e7\u00e3o V\n\nDisposi\u00e7\u00f5es Comuns \u00e0 Identifica\u00e7\u00e3o, \u00e0 Qualifica\u00e7\u00e3o e \u00e0 Classifica\u00e7\u00e3o dos Clientes",
+      "content_sha256": "916bccbc2aff0ebe45affe2d35cb1ab1ee62b71caf8df3f9eb2395dc68b6afbd"
+    },
+    {
+      "reference": "Art. 21",
+      "paragraph_count": 2,
+      "content": "Art. 21. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem adotar os procedimentos de identifica\u00e7\u00e3o, de qualifica\u00e7\u00e3o e de classifica\u00e7\u00e3o previstos neste Cap\u00edtulo para os administradores de clientes pessoas jur\u00eddicas e para os representantes de clientes.\n\nPar\u00e1grafo \u00fanico. Os procedimentos referidos no caput devem ser compat\u00edveis com a fun\u00e7\u00e3o exercida pelo administrador e com a abrang\u00eancia da representa\u00e7\u00e3o.",
+      "content_sha256": "27ae56f2555d2b530e5561c5fc31cf4c897f51619c1c62c8af53370f346d4599"
+    },
+    {
+      "reference": "Art. 22",
+      "paragraph_count": 1,
+      "content": "Art. 22. Os crit\u00e9rios utilizados para a defini\u00e7\u00e3o das informa\u00e7\u00f5es necess\u00e1rias e dos procedimentos de verifica\u00e7\u00e3o, valida\u00e7\u00e3o e atualiza\u00e7\u00e3o das informa\u00e7\u00f5es para cada categoria de risco devem ser previstos no manual de que trata o art. 13, \u00a7 2\u00ba.",
+      "content_sha256": "7003aa7216760c284bfe982d1000dfa9a9273c0add3e6dc97e8810c43a442a93"
+    },
+    {
+      "reference": "Art. 23",
+      "paragraph_count": 4,
+      "content": "Art. 23. \u00c9 vedado \u00e0s institui\u00e7\u00f5es referidas no art. 1\u00ba iniciar rela\u00e7\u00e3o de neg\u00f3cios sem que os procedimentos de identifica\u00e7\u00e3o e de qualifica\u00e7\u00e3o do cliente estejam conclu\u00eddos.\n\nPar\u00e1grafo \u00fanico. Admite-se, por um per\u00edodo m\u00e1ximo de trinta dias, o in\u00edcio da rela\u00e7\u00e3o de neg\u00f3cios em caso de insufici\u00eancia de informa\u00e7\u00f5es relativas \u00e0 qualifica\u00e7\u00e3o do cliente, desde que n\u00e3o haja preju\u00edzo aos procedimentos de monitoramento e sele\u00e7\u00e3o de que trata o art. 39.\n\nSe\u00e7\u00e3o VI\n\nDa Identifica\u00e7\u00e3o e da Qualifica\u00e7\u00e3o do Benefici\u00e1rio Final",
+      "content_sha256": "eea049cc792ff2b1325f6418b1f76d435f197d26a150e223d4c4f52a3e1ddc04"
+    },
+    {
+      "reference": "Art. 24",
+      "paragraph_count": 4,
+      "content": "Art. 24. Os procedimentos de qualifica\u00e7\u00e3o do cliente pessoa jur\u00eddica devem incluir a an\u00e1lise da cadeia de participa\u00e7\u00e3o societ\u00e1ria at\u00e9 a identifica\u00e7\u00e3o da pessoa natural caracterizada como seu benefici\u00e1rio final, observado o disposto no art. 25.\n\n\u00a7 1\u00ba Devem ser aplicados \u00e0 pessoa natural referida no caput, no m\u00ednimo, os procedimentos de qualifica\u00e7\u00e3o definidos para a categoria de risco do cliente pessoa jur\u00eddica na qual o benefici\u00e1rio final detenha participa\u00e7\u00e3o societ\u00e1ria.\n\n\u00a7 2\u00ba \u00c9 tamb\u00e9m considerado benefici\u00e1rio final o representante, inclusive o procurador e o preposto, que exer\u00e7a o comando de fato sobre as atividades da pessoa jur\u00eddica.\n\n\u00a7 3\u00ba Excetuam-se do disposto no caput as pessoas jur\u00eddicas constitu\u00eddas sob a forma de companhia aberta ou entidade sem fins lucrativos e as cooperativas, para as quais as informa\u00e7\u00f5es coletadas devem abranger as informa\u00e7\u00f5es das pessoas naturais autorizadas a represent\u00e1-las, bem como seus controladores, administradores e diretores, se houver.",
+      "content_sha256": "6bb9ea6e36c8b19a692654e94a7594da39b60abc23def3d7e2e4ec5a80eff5f0"
+    },
+    {
+      "reference": "Art. 25",
+      "paragraph_count": 3,
+      "content": "Art. 25. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem estabelecer valor m\u00ednimo de refer\u00eancia de participa\u00e7\u00e3o societ\u00e1ria para a identifica\u00e7\u00e3o de benefici\u00e1rio final.\n\n\u00a7 1\u00ba O valor m\u00ednimo de refer\u00eancia de participa\u00e7\u00e3o societ\u00e1ria de que trata o caput deve ser estabelecido com base no risco e n\u00e3o pode ser superior a 25% (vinte e cinco por cento), considerada, em qualquer caso, a participa\u00e7\u00e3o direta e a indireta.\n\n\u00a7 2\u00ba O valor de refer\u00eancia de que trata o caput deve ser justificado e documentado no manual de procedimentos referido no art. 13, \u00a7 2\u00ba.",
+      "content_sha256": "6ef225c852d581a44f021d4a7ac0136a34287418e9215efc0f0fc5b915c80ccb"
+    },
+    {
+      "reference": "Art. 26",
+      "paragraph_count": 3,
+      "content": "Art. 26. No caso de rela\u00e7\u00e3o de neg\u00f3cio com cliente residente no exterior, que tamb\u00e9m seja cliente de institui\u00e7\u00e3o do mesmo grupo no exterior, fiscalizada por autoridade supervisora com a qual o Banco Central do Brasil mantenha conv\u00eanio para a troca de informa\u00e7\u00f5es, admite-se que as informa\u00e7\u00f5es relativas ao benefici\u00e1rio final sejam obtidas da institui\u00e7\u00e3o no exterior, desde que assegurado ao Banco Central do Brasil o acesso \u00e0s informa\u00e7\u00f5es e aos procedimentos adotados.\n\nSe\u00e7\u00e3o VII\n\nDa Qualifica\u00e7\u00e3o como Pessoa Exposta Politicamente",
+      "content_sha256": "6b33f2a9de9aef00ea72bcd67315fd9b45d700e6864e81a70505900240efc2d3"
+    },
+    {
+      "reference": "Art. 27",
+      "paragraph_count": 30,
+      "content": "Art. 27. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem implementar procedimentos que permitam qualificar seus clientes como pessoa exposta politicamente.\n\n\u00a7 1\u00ba Consideram-se pessoas expostas politicamente:\n\nI - os detentores de mandatos eletivos dos Poderes Executivo e Legislativo da Uni\u00e3o;\n\nII - os ocupantes de cargo, no Poder Executivo da Uni\u00e3o, de:\n\na) Ministro de Estado ou equiparado;\n\nb) Natureza Especial ou equivalente;\n\nc) presidente, vice-presidente e diretor, ou equivalentes, de entidades da administra\u00e7\u00e3o p\u00fablica indireta; e\n\nd) Grupo Dire\u00e7\u00e3o e Assessoramento Superiores (DAS), n\u00edvel 6, ou equivalente;\n\nIII - os membros do Conselho Nacional de Justi\u00e7a, do Supremo Tribunal Federal, dos Tribunais Superiores, dos Tribunais Regionais Federais, dos Tribunais Regionais do Trabalho, dos Tribunais Regionais Eleitorais, do Conselho Superior da Justi\u00e7a do Trabalho e do Conselho da Justi\u00e7a Federal;\n\nIV - os membros do Conselho Nacional do Minist\u00e9rio P\u00fablico, o Procurador-Geral da Rep\u00fablica, o Vice-Procurador-Geral da Rep\u00fablica, o Procurador-Geral do Trabalho, o Procurador-Geral da Justi\u00e7a Militar, os Subprocuradores-Gerais da Rep\u00fablica e os Procuradores-Gerais de Justi\u00e7a dos Estados e do Distrito Federal;\n\nV - os membros do Tribunal de Contas da Uni\u00e3o, o Procurador-Geral e os Subprocuradores-Gerais do Minist\u00e9rio P\u00fablico junto ao Tribunal de Contas da Uni\u00e3o;\n\nVI - os presidentes e os tesoureiros nacionais, ou equivalentes, de partidos pol\u00edticos;\n\nVII - os Governadores e os Secret\u00e1rios de Estado e do Distrito Federal, os Deputados Estaduais e Distritais, os presidentes, ou equivalentes, de entidades da administra\u00e7\u00e3o p\u00fablica indireta estadual e distrital e os presidentes de Tribunais de Justi\u00e7a, Tribunais Militares, Tribunais de Contas ou equivalentes dos Estados e do Distrito Federal; e\n\nVIII - os Prefeitos, os Vereadores, os Secret\u00e1rios Municipais, os presidentes, ou equivalentes, de entidades da administra\u00e7\u00e3o p\u00fablica indireta municipal e os Presidentes de Tribunais de Contas ou equivalentes dos Munic\u00edpios.\n\n\u00a7 2\u00ba S\u00e3o tamb\u00e9m consideradas expostas politicamente as pessoas que, no exterior, sejam:\n\nI - chefes de estado ou de governo;\n\nII - pol\u00edticos de escal\u00f5es superiores;\n\nIII - ocupantes de cargos governamentais de escal\u00f5es superiores;\n\nIV - oficiais-generais e membros de escal\u00f5es superiores do Poder Judici\u00e1rio;\n\nV - executivos de escal\u00f5es superiores de empresas p\u00fablicas; ou\n\nVI - dirigentes de partidos pol\u00edticos.\n\n\u00a7 3\u00ba S\u00e3o tamb\u00e9m consideradas pessoas expostas politicamente os dirigentes de escal\u00f5es superiores de entidades de direito internacional p\u00fablico ou privado.\n\n\u00a7 4\u00ba No caso de clientes residentes no exterior, para fins do disposto no caput, as institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem adotar pelo menos duas das seguintes provid\u00eancias:\n\nI - solicitar declara\u00e7\u00e3o expressa do cliente a respeito da sua qualifica\u00e7\u00e3o;\n\nII - recorrer a informa\u00e7\u00f5es p\u00fablicas dispon\u00edveis; e\n\nIII - consultar bases de dados p\u00fablicas ou privadas sobre pessoas expostas politicamente.\n\n\u00a7 5\u00ba A condi\u00e7\u00e3o de pessoa exposta politicamente deve ser aplicada pelos cinco anos seguintes \u00e0 data em que a pessoa deixou de se enquadrar nas categorias previstas nos \u00a7\u00a7 1\u00ba, 2\u00ba, e 3\u00ba.\n\n\u00a7 6\u00ba No caso de rela\u00e7\u00e3o de neg\u00f3cio com cliente residente no exterior que tamb\u00e9m seja cliente de institui\u00e7\u00e3o do mesmo grupo no exterior, fiscalizada por autoridade supervisora com a qual o Banco Central do Brasil mantenha conv\u00eanio para troca de informa\u00e7\u00f5es, admite-se que as informa\u00e7\u00f5es de qualifica\u00e7\u00e3o de pessoa exposta politicamente sejam obtidas da institui\u00e7\u00e3o no exterior, desde que assegurado ao Banco Central do Brasil o acesso aos respectivos dados e procedimentos adotados.\n\nSe\u00e7\u00e3o I\n\nDisposi\u00e7\u00f5es Gerais",
+      "content_sha256": "86eee1b9f9ac0e0c2a5e582b46c270836dd4b6175ddc07580d6e519324dd4631"
+    },
+    {
+      "reference": "Art. 28",
+      "paragraph_count": 14,
+      "content": "Art. 28. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem manter registros de todas as opera\u00e7\u00f5es realizadas, produtos e servi\u00e7os contratados, inclusive saques, dep\u00f3sitos, aportes, pagamentos, recebimentos e transfer\u00eancias de recursos.\n\n\u00a7 1\u00ba Os registros referidos no caput devem conter, no m\u00ednimo, as seguintes informa\u00e7\u00f5es sobre cada opera\u00e7\u00e3o:\n\nI - tipo;\n\nII - valor, quando aplic\u00e1vel;\n\nIII - data de realiza\u00e7\u00e3o;\n\nIV - nome e n\u00famero de inscri\u00e7\u00e3o no CPF ou no CNPJ do titular e do benefici\u00e1rio da opera\u00e7\u00e3o, no caso de pessoa residente ou sediada no Pa\u00eds; e\n\nV - canal utilizado.\n\n\u00a7 2\u00ba No caso de opera\u00e7\u00f5es envolvendo pessoa natural residente no exterior desobrigada de inscri\u00e7\u00e3o no CPF, na forma definida pela Secretaria da Receita Federal do Brasil, as institui\u00e7\u00f5es devem incluir no registro as seguintes informa\u00e7\u00f5es:\n\nI - nome;\n\nII - tipo e n\u00famero do documento de viagem e respectivo pa\u00eds emissor; e\n\nIII - organismo internacional de que seja representante para o exerc\u00edcio de fun\u00e7\u00f5es espec\u00edficas no Pa\u00eds, quando for o caso.\n\n\u00a7 3\u00ba No caso de opera\u00e7\u00f5es envolvendo pessoa jur\u00eddica com domic\u00edlio ou sede no exterior desobrigada de inscri\u00e7\u00e3o no CNPJ, na forma definida pela Secretaria da Receita Federal do Brasil, as institui\u00e7\u00f5es devem incluir no registro as seguintes informa\u00e7\u00f5es:\n\nI - nome da empresa; e\n\nII - n\u00famero de identifica\u00e7\u00e3o ou de registro da empresa no respectivo pa\u00eds de origem.",
+      "content_sha256": "a88a3cf54607af124c8c9a8ab261b3457faff8a84d26d8553dacffc5a24ac7f1"
+    },
+    {
+      "reference": "Art. 29",
+      "paragraph_count": 3,
+      "content": "Art. 29. Os registros de que trata este Cap\u00edtulo devem ser realizados inclusive nas situa\u00e7\u00f5es em que a opera\u00e7\u00e3o ocorrer no \u00e2mbito da mesma institui\u00e7\u00e3o.\n\nSe\u00e7\u00e3o II\n\nDo Registro de Opera\u00e7\u00f5es de Pagamento, de Recebimento e de Transfer\u00eancia de Recursos",
+      "content_sha256": "241a72dd471b7156f584ea65d88a2592afc3cf0a364e1bb702fa9fd97a9a7007"
+    },
+    {
+      "reference": "Art. 30",
+      "paragraph_count": 9,
+      "content": "Art. 30. No caso de opera\u00e7\u00f5es relativas a pagamentos, recebimentos e transfer\u00eancias de recursos, por meio de qualquer instrumento, as institui\u00e7\u00f5es referidas no art. 1\u00ba devem incluir nos registros mencionados no art. 28 as informa\u00e7\u00f5es necess\u00e1rias \u00e0 identifica\u00e7\u00e3o da origem e do destino dos recursos.\n\n\u00a7 1\u00ba A origem mencionada no caput refere-se \u00e0 institui\u00e7\u00e3o pagadora, sacada ou remetente e \u00e0 pessoa sacada ou remetente dos recursos, bem como ao instrumento de transfer\u00eancia ou de pagamento utilizado na transa\u00e7\u00e3o.\n\n\u00a7 2\u00ba O destino mencionado no caput refere-se \u00e0 institui\u00e7\u00e3o recebedora ou destinat\u00e1ria e \u00e0 pessoa recebedora ou destinat\u00e1ria dos recursos, bem como ao instrumento de transfer\u00eancia ou de pagamento utilizado na transa\u00e7\u00e3o.\n\n\u00a7 3\u00ba Para fins do cumprimento do disposto no caput, devem ser inclu\u00eddas no registro das opera\u00e7\u00f5es, no m\u00ednimo, as seguintes informa\u00e7\u00f5es, quando couber:\n\nI - nome e n\u00famero de inscri\u00e7\u00e3o no CPF ou no CNPJ do remetente ou sacado;\n\nII - nome e n\u00famero de inscri\u00e7\u00e3o no CPF ou no CNPJ do recebedor ou benefici\u00e1rio;\n\nIII - c\u00f3digos de identifica\u00e7\u00e3o, no sistema de liquida\u00e7\u00e3o de pagamentos ou de transfer\u00eancia de fundos, das institui\u00e7\u00f5es envolvidas na opera\u00e7\u00e3o; e\n\nIV - n\u00fameros das depend\u00eancias e das contas envolvidas na opera\u00e7\u00e3o.\n\n\u00a7 4\u00ba No caso de transfer\u00eancia de recursos por meio de cheque, as institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem incluir no registro da opera\u00e7\u00e3o, al\u00e9m das informa\u00e7\u00f5es referidas no \u00a7 3\u00ba, o n\u00famero do cheque.",
+      "content_sha256": "b9c6f3aa89470a647443797b916cfb3f3bd55995f8a0c358f1ba28fc8977272e"
+    },
+    {
+      "reference": "Art. 31",
+      "paragraph_count": 2,
+      "content": "Art. 31. Caso as institui\u00e7\u00f5es referidas no art. 1\u00ba estabele\u00e7am rela\u00e7\u00e3o de neg\u00f3cio com terceiros n\u00e3o sujeitos a autoriza\u00e7\u00e3o para funcionar do Banco Central do Brasil, participantes de arranjo de pagamento do qual a institui\u00e7\u00e3o tamb\u00e9m participe, deve ser estipulado em contrato o acesso da institui\u00e7\u00e3o \u00e0 identifica\u00e7\u00e3o dos destinat\u00e1rios finais dos recursos, para fins de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e do financiamento do terrorismo.\n\nPar\u00e1grafo \u00fanico. O disposto no caput se aplica inclusive no caso de rela\u00e7\u00e3o de neg\u00f3cio que envolva a interoperabilidade com arranjo de pagamento n\u00e3o sujeito a autoriza\u00e7\u00e3o pelo Banco Central do Brasil, do qual as institui\u00e7\u00f5es referidas no art. 1\u00ba n\u00e3o participem.",
+      "content_sha256": "3d93d2bdb96a9630be8c7e4a87a231e1b1bcec17376121ecc27bee8b75312d6e"
+    },
+    {
+      "reference": "Art. 32",
+      "paragraph_count": 3,
+      "content": "Art. 32. No caso de transfer\u00eancia de recursos por meio da compensa\u00e7\u00e3o interbanc\u00e1ria de cheque, a institui\u00e7\u00e3o sacada deve informar \u00e0 institui\u00e7\u00e3o deposit\u00e1ria, e a institui\u00e7\u00e3o deposit\u00e1ria deve informar \u00e0 institui\u00e7\u00e3o sacada, os n\u00fameros de inscri\u00e7\u00e3o no CPF ou no CNPJ dos titulares da conta sacada e da conta deposit\u00e1ria, respectivamente.\n\nSe\u00e7\u00e3o III\n\nDo Registro das Opera\u00e7\u00f5es em Esp\u00e9cie",
+      "content_sha256": "c8e6aaeae4cc8425b1c46167a38f69f3e4c04bc4a5deb4aecf865892721ae137"
+    },
+    {
+      "reference": "Art. 33",
+      "paragraph_count": 1,
+      "content": "Art. 33. No caso de opera\u00e7\u00f5es com utiliza\u00e7\u00e3o de recursos em esp\u00e9cie de valor individual superior a R$2.000,00 (dois mil reais), as institui\u00e7\u00f5es referidas no art. 1\u00ba devem incluir no registro, al\u00e9m das informa\u00e7\u00f5es previstas nos arts. 28 e 30, o nome e o respectivo n\u00famero de inscri\u00e7\u00e3o no CPF do portador dos recursos.",
+      "content_sha256": "a10f0bbcd520c2997417116634562b382695cfacb4e28c87f35b5742ba516fd6"
+    },
+    {
+      "reference": "Art. 34",
+      "paragraph_count": 5,
+      "content": "Art. 34. No caso de opera\u00e7\u00f5es de dep\u00f3sito ou aporte em esp\u00e9cie de valor individual igual ou superior a R$50.000,00 (cinquenta mil reais), as institui\u00e7\u00f5es referidas no art. 1\u00ba devem incluir no registro, al\u00e9m das informa\u00e7\u00f5es previstas nos arts. 28 e 30:\n\nI - o nome e o respectivo n\u00famero de inscri\u00e7\u00e3o no CPF ou no CNPJ, conforme o caso, do propriet\u00e1rio dos recursos;\n\nII - o nome e o respectivo n\u00famero de inscri\u00e7\u00e3o no CPF do portador dos recursos; e\n\nIII - a origem dos recursos depositados ou aportados.\n\nPar\u00e1grafo \u00fanico. Na hip\u00f3tese de recusa do cliente ou do portador dos recursos em prestar a informa\u00e7\u00e3o referida no inciso III do caput, a institui\u00e7\u00e3o deve registrar o fato e utilizar essa informa\u00e7\u00e3o nos procedimentos de monitoramento, sele\u00e7\u00e3o e an\u00e1lise de que tratam os art. 38 a 47.",
+      "content_sha256": "eef768eeb74333f411a35d84c83811f6787e9ae6ef0808cb41bed04f460897fa"
+    },
+    {
+      "reference": "Art. 35",
+      "paragraph_count": 6,
+      "content": "Art. 35. No caso de opera\u00e7\u00f5es de saque, inclusive as realizadas por meio de cheque ou ordem de pagamento, de valor individual igual ou superior a R$50.000,00 (cinquenta mil reais), as institui\u00e7\u00f5es referidas no art. 1\u00ba devem incluir no registro, al\u00e9m das informa\u00e7\u00f5es previstas nos arts. 28 e 30:\n\nI - o nome e o respectivo n\u00famero de inscri\u00e7\u00e3o no CPF ou no CNPJ, conforme o caso, do destinat\u00e1rio dos recursos;\n\nII - o nome e o respectivo n\u00famero de inscri\u00e7\u00e3o no CPF do portador dos recursos;\n\nIII - a finalidade do saque; e\n\nIV - o n\u00famero do protocolo referido no art. 36, \u00a7 2\u00ba, inciso II.\n\nPar\u00e1grafo \u00fanico. Na hip\u00f3tese de recusa do cliente ou do portador dos recursos em prestar a informa\u00e7\u00e3o referida no inciso III do caput, a institui\u00e7\u00e3o deve registrar o fato e utilizar essa informa\u00e7\u00e3o nos procedimentos de monitoramento, sele\u00e7\u00e3o e an\u00e1lise de que tratam os art. 38 a 47.",
+      "content_sha256": "b5801aebca9d233f87148461e2373978eafaf5ac0c4344467635f18790c5e584"
+    },
+    {
+      "reference": "Art. 36",
+      "paragraph_count": 8,
+      "content": "Art. 36. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem requerer dos sacadores clientes e n\u00e3o clientes solicita\u00e7\u00e3o de provisionamento com, no m\u00ednimo, tr\u00eas dias \u00fateis de anteced\u00eancia, das opera\u00e7\u00f5es de saque, inclusive as realizadas por meio de cheque ou ordem de pagamento, de valor igual ou superior a R$50.000,00 (cinquenta mil reais).\n\n\u00a7 1\u00ba As opera\u00e7\u00f5es de saque de que trata o caput devem ser consideradas individualmente, para efeitos de observa\u00e7\u00e3o do limite previsto no caput.\n\n\u00a7 2\u00ba As institui\u00e7\u00f5es referidas no caput devem:\n\nI - possibilitar a solicita\u00e7\u00e3o de provisionamento por meio do s\u00edtio eletr\u00f4nico da institui\u00e7\u00e3o na internet e das ag\u00eancias ou Postos de Atendimento;\n\nII - emitir protocolo de atendimento ao cliente ou ao sacador n\u00e3o cliente, no qual devem ser informados o valor da opera\u00e7\u00e3o, a depend\u00eancia na qual dever\u00e1 ser efetuado o saque e a data programada para o saque; e\n\nIII - registrar, no ato da solicita\u00e7\u00e3o de provisionamento, as informa\u00e7\u00f5es indicadas no art. 35, conforme o caso.\n\n\u00a7 3\u00ba No caso de saque em esp\u00e9cie a ser realizado por meio de cheque por sacador n\u00e3o cliente, a solicita\u00e7\u00e3o de provisionamento de que trata o caput deve ser realizada exclusivamente em ag\u00eancias ou em Postos de Atendimento.\n\n\u00a7 4\u00ba O disposto neste artigo deve ser observado sem preju\u00edzo do art. 2\u00ba da Resolu\u00e7\u00e3o n\u00ba 3.695, de 26 de mar\u00e7o de 2009.",
+      "content_sha256": "9d02b6174ee9276b491459335daa4e97387c423f5a43808e51cc4effe289fcac"
+    },
+    {
+      "reference": "Art. 37",
+      "paragraph_count": 4,
+      "content": "Art. 37. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem manter registro espec\u00edfico de recebimentos de boleto de pagamento pagos com recursos em esp\u00e9cie.\n\nPar\u00e1grafo \u00fanico. A institui\u00e7\u00e3o que receber boleto de pagamento que n\u00e3o seja de sua emiss\u00e3o deve remeter \u00e0 institui\u00e7\u00e3o emissora a informa\u00e7\u00e3o de que o boleto foi pago em esp\u00e9cie.\n\nSe\u00e7\u00e3o I\n\nDos Procedimentos de Monitoramento, Sele\u00e7\u00e3o e An\u00e1lise de Opera\u00e7\u00f5es e Situa\u00e7\u00f5es Suspeitas",
+      "content_sha256": "64cc0bbf7921ff17bd4b83142e1c3f2fdb48170a36ff4bd02c7818f916e3fa0c"
+    },
+    {
+      "reference": "Art. 38",
+      "paragraph_count": 10,
+      "content": "Art. 38. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem implementar procedimentos de monitoramento, sele\u00e7\u00e3o e an\u00e1lise de opera\u00e7\u00f5es e situa\u00e7\u00f5es com o objetivo de identificar e dispensar especial aten\u00e7\u00e3o \u00e0s suspeitas de lavagem de dinheiro e de financiamento do terrorismo.\n\n\u00a7 1\u00ba Para os fins desta Circular, opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas referem-se a qualquer opera\u00e7\u00e3o ou situa\u00e7\u00e3o que apresente ind\u00edcios de utiliza\u00e7\u00e3o da institui\u00e7\u00e3o para a pr\u00e1tica dos crimes de lavagem de dinheiro e de financiamento do terrorismo.\n\n\u00a7 2\u00ba Os procedimentos de que trata o caput devem ser aplicados, inclusive, \u00e0s propostas de opera\u00e7\u00f5es.\n\n\u00a7 3\u00ba Os procedimentos mencionados no caput devem:\n\nI - ser compat\u00edveis com a pol\u00edtica de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo de que trata o art. 2\u00ba;\n\nII - ser definidos com base na avalia\u00e7\u00e3o interna de risco de que trata o art. 10;\n\nIII - considerar a condi\u00e7\u00e3o de pessoa exposta politicamente, nos termos do art. 27, bem como a condi\u00e7\u00e3o de representante, familiar ou estreito colaborador da pessoa exposta politicamente, nos termos do art. 19; e\n\nIV - estar descritos em manual espec\u00edfico, aprovado pela diretoria da institui\u00e7\u00e3o.\n\nSe\u00e7\u00e3o II\n\nDo Monitoramento e da Sele\u00e7\u00e3o de Opera\u00e7\u00f5es e Situa\u00e7\u00f5es Suspeitas",
+      "content_sha256": "c42efae999dec2e6210b0cbc63c832742960d9b068b4c2e893f0fb8f5dc23bf6"
+    },
+    {
+      "reference": "Art. 39",
+      "paragraph_count": 12,
+      "content": "Art. 39. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem implementar procedimentos de monitoramento e sele\u00e7\u00e3o que permitam identificar opera\u00e7\u00f5es e situa\u00e7\u00f5es que possam indicar suspeitas de lavagem de dinheiro e de financiamento do terrorismo, especialmente:\n\nI - as opera\u00e7\u00f5es realizadas e os produtos e servi\u00e7os contratados que, considerando as partes envolvidas, os valores, as formas de realiza\u00e7\u00e3o, os instrumentos utilizados ou a falta de fundamento econ\u00f4mico ou legal, possam configurar a exist\u00eancia de ind\u00edcios de lavagem de dinheiro ou de financiamento do terrorismo, inclusive:\n\na) as opera\u00e7\u00f5es realizadas ou os servi\u00e7os prestados que, por sua habitualidade, valor ou forma, configurem artif\u00edcio que objetive burlar os procedimentos de identifica\u00e7\u00e3o, qualifica\u00e7\u00e3o, registro, monitoramento e sele\u00e7\u00e3o previstos nesta Circular;\n\nb) as opera\u00e7\u00f5es de dep\u00f3sito ou aporte em esp\u00e9cie, saque em esp\u00e9cie, ou pedido de provisionamento para saque que apresentem ind\u00edcios de oculta\u00e7\u00e3o ou dissimula\u00e7\u00e3o da natureza, da origem, da localiza\u00e7\u00e3o, da disposi\u00e7\u00e3o, da movimenta\u00e7\u00e3o ou da propriedade de bens, direitos e valores;\n\nc) as opera\u00e7\u00f5es realizadas e os produtos e servi\u00e7os contratados que, considerando as partes e os valores envolvidos, apresentem incompatibilidade com a capacidade financeira do cliente, incluindo a renda, no caso de pessoa natural, ou o faturamento, no caso de pessoa jur\u00eddica, e o patrim\u00f4nio;\n\nd) as opera\u00e7\u00f5es com pessoas expostas politicamente de nacionalidade brasileira e com representantes, familiares ou estreitos colaboradores de pessoas expostas politicamente;\n\ne) as opera\u00e7\u00f5es com pessoas expostas politicamente estrangeiras;\n\nf) os clientes e as opera\u00e7\u00f5es em rela\u00e7\u00e3o aos quais n\u00e3o seja poss\u00edvel identificar o benefici\u00e1rio final;\n\ng) as opera\u00e7\u00f5es oriundas ou destinadas a pa\u00edses ou territ\u00f3rios com defici\u00eancias estrat\u00e9gicas na implementa\u00e7\u00e3o das recomenda\u00e7\u00f5es do Grupo de A\u00e7\u00e3o Financeira (Gafi); e\n\nh) as situa\u00e7\u00f5es em que n\u00e3o seja poss\u00edvel manter atualizadas as informa\u00e7\u00f5es cadastrais de seus clientes; e\n\nII - as opera\u00e7\u00f5es e situa\u00e7\u00f5es que possam indicar suspeitas de financiamento do terrorismo.\n\nPar\u00e1grafo \u00fanico. O per\u00edodo para a execu\u00e7\u00e3o dos procedimentos de monitoramento e de sele\u00e7\u00e3o das opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas n\u00e3o pode exceder o prazo de quarenta e cinco dias, contados a partir da data de ocorr\u00eancia da opera\u00e7\u00e3o ou da situa\u00e7\u00e3o.",
+      "content_sha256": "86cc4a0650673abffdbabe990f5bf8933eccfb7bfe553493882590f3755daa7c"
+    },
+    {
+      "reference": "Art. 40",
+      "paragraph_count": 3,
+      "content": "Art. 40. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem assegurar que os sistemas utilizados no monitoramento e na sele\u00e7\u00e3o de opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas contenham informa\u00e7\u00f5es detalhadas das opera\u00e7\u00f5es realizadas e das situa\u00e7\u00f5es ocorridas, inclusive informa\u00e7\u00f5es sobre a identifica\u00e7\u00e3o e a qualifica\u00e7\u00e3o dos envolvidos.\n\n\u00a7 1\u00ba As institui\u00e7\u00f5es devem manter documenta\u00e7\u00e3o detalhada dos par\u00e2metros, vari\u00e1veis, regras e cen\u00e1rios utilizados no monitoramento e sele\u00e7\u00e3o de opera\u00e7\u00f5es e situa\u00e7\u00f5es que possam indicar suspeitas de lavagem de dinheiro e de financiamento do terrorismo.\n\n\u00a7 2\u00ba Os sistemas e os procedimentos utilizados no monitoramento e na sele\u00e7\u00e3o de opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas devem ser pass\u00edveis de verifica\u00e7\u00e3o quanto \u00e0 sua adequa\u00e7\u00e3o e efetividade.",
+      "content_sha256": "9c408ef3255e534eb04547e1b57de29e587356951c7be3366a41740ea64b471a"
+    },
+    {
+      "reference": "Art. 41",
+      "paragraph_count": 3,
+      "content": "Art. 41. Devem ser inclu\u00eddos no manual referido no art. 38, \u00a7 3\u00ba, inciso IV:\n\nI - os crit\u00e9rios de defini\u00e7\u00e3o da periodicidade de execu\u00e7\u00e3o dos procedimentos de monitoramento e sele\u00e7\u00e3o para os diferentes tipos de opera\u00e7\u00f5es e situa\u00e7\u00f5es monitoradas; e\n\nII - os par\u00e2metros, as vari\u00e1veis, as regras e os cen\u00e1rios utilizados no monitoramento e sele\u00e7\u00e3o para os diferentes tipos de opera\u00e7\u00f5es e situa\u00e7\u00f5es.",
+      "content_sha256": "960b7bdec8beba32c94a82f01e6fe7e3c69ab2e5929bd854d41e3d8055c29e2b"
+    },
+    {
+      "reference": "Art. 42",
+      "paragraph_count": 4,
+      "content": "Art. 42. Os procedimentos de monitoramento e sele\u00e7\u00e3o referidos no art. 39 podem ser realizados de forma centralizada em institui\u00e7\u00e3o do conglomerado prudencial e do sistema cooperativo de cr\u00e9dito.\n\nPar\u00e1grafo \u00fanico. As institui\u00e7\u00f5es que optarem por realizar os procedimentos de monitoramento e sele\u00e7\u00e3o na forma do caput devem formalizar essa op\u00e7\u00e3o em reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, se inexistente, da diretoria da institui\u00e7\u00e3o.\n\nSe\u00e7\u00e3o III\n\nDos Procedimentos de An\u00e1lise de Opera\u00e7\u00f5es e Situa\u00e7\u00f5es Suspeitas",
+      "content_sha256": "10772387aba6637e338ece4951097e49304f9f8129c6967af3916327ecde0fb8"
+    },
+    {
+      "reference": "Art. 43",
+      "paragraph_count": 3,
+      "content": "Art. 43. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem implementar procedimentos de an\u00e1lise das opera\u00e7\u00f5es e situa\u00e7\u00f5es selecionadas por meio dos procedimentos de monitoramento e sele\u00e7\u00e3o de que trata o art. 39, com o objetivo de caracteriz\u00e1-las ou n\u00e3o como suspeitas de lavagem de dinheiro e de financiamento do terrorismo.\n\n\u00a7 1\u00ba O per\u00edodo para a execu\u00e7\u00e3o dos procedimentos de an\u00e1lise das opera\u00e7\u00f5es e situa\u00e7\u00f5es selecionadas n\u00e3o pode exceder o prazo de quarenta e cinco dias, contados a partir da data da sele\u00e7\u00e3o da opera\u00e7\u00e3o ou situa\u00e7\u00e3o.\n\n\u00a7 2\u00ba A an\u00e1lise mencionada no caput deve ser formalizada em dossi\u00ea, independentemente da comunica\u00e7\u00e3o ao Coaf referida no art. 48.",
+      "content_sha256": "703ebc05641b4b7647902a295d618710a70a7f9f70155b68664d7f4e289b994e"
+    },
+    {
+      "reference": "Art. 44",
+      "paragraph_count": 4,
+      "content": "Art. 44. \u00c9 vedada:\n\nI - a contrata\u00e7\u00e3o de terceiros para a realiza\u00e7\u00e3o da an\u00e1lise referida no art. 43; e\n\nII - a realiza\u00e7\u00e3o da an\u00e1lise referida no art. 43 no exterior.\n\nPar\u00e1grafo \u00fanico. A veda\u00e7\u00e3o mencionada no caput n\u00e3o inclui a contrata\u00e7\u00e3o de terceiros para a presta\u00e7\u00e3o de servi\u00e7os auxiliares \u00e0 an\u00e1lise referida no art. 43.",
+      "content_sha256": "c18114f53129a29deab1982f8aaa334c868dc964ca78e3cca2b38a2f18c7aa82"
+    },
+    {
+      "reference": "Art. 45",
+      "paragraph_count": 1,
+      "content": "Art. 45. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem dispor, no Pa\u00eds, de recursos e compet\u00eancias necess\u00e1rios \u00e0 an\u00e1lise de opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas referida no art. 43.",
+      "content_sha256": "46719a31ee4b1dbab96e56130be6917b83f8776a2d113d6beda9bb9d4ce72e48"
+    },
+    {
+      "reference": "Art. 46",
+      "paragraph_count": 4,
+      "content": "Art. 46. Os procedimentos de an\u00e1lise referidos no art. 43 podem ser realizados de forma centralizada em institui\u00e7\u00e3o do conglomerado prudencial e do sistema cooperativo de cr\u00e9dito.\n\nPar\u00e1grafo \u00fanico. As institui\u00e7\u00f5es que optarem por realizar os procedimentos de an\u00e1lise na forma do caput devem formalizar a op\u00e7\u00e3o em reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, se inexistente, da diretoria da institui\u00e7\u00e3o.\n\nSe\u00e7\u00e3o IV\n\nDisposi\u00e7\u00f5es Gerais",
+      "content_sha256": "15f344af63f1a38b72816c13a6d663015c88ac6bac8b1d06df635b43448fad2b"
+    },
+    {
+      "reference": "Art. 47",
+      "paragraph_count": 5,
+      "content": "Art. 47. No caso de contrata\u00e7\u00e3o de servi\u00e7os de processamento e armazenamento de dados e de computa\u00e7\u00e3o em nuvem utilizados para monitoramento e sele\u00e7\u00e3o de opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas, bem como de servi\u00e7os auxiliares \u00e0 an\u00e1lise dessas opera\u00e7\u00f5es e situa\u00e7\u00f5es, as institui\u00e7\u00f5es referidas no art. 1\u00ba devem observar:\n\nI - o disposto no Cap\u00edtulo III da Circular n\u00ba 3.909, de 16 de agosto de 2018, e, no que couber, nos Cap\u00edtulos IV e V da referida Circular, no caso de institui\u00e7\u00f5es de pagamento; e\n\nII - o disposto no Cap\u00edtulo III da Resolu\u00e7\u00e3o n\u00ba 4.658, de 26 de abril de 2018, e, no que couber, nos Cap\u00edtulos IV e V da referida Resolu\u00e7\u00e3o, no caso de institui\u00e7\u00f5es financeiras e demais institui\u00e7\u00f5es autorizadas a funcionar pelo Banco Central do Brasil.\n\nSe\u00e7\u00e3o I\n\nDa Comunica\u00e7\u00e3o de Opera\u00e7\u00f5es e Situa\u00e7\u00f5es Suspeitas",
+      "content_sha256": "ec1d785859fe28ca05391d086bb69ed240f53d222d5b645481ef089c5d14f590"
+    },
+    {
+      "reference": "Art. 48",
+      "paragraph_count": 8,
+      "content": "Art. 48. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem comunicar ao Coaf as opera\u00e7\u00f5es ou situa\u00e7\u00f5es suspeitas de lavagem de dinheiro e de financiamento do terrorismo.\n\n\u00a7 1\u00ba A decis\u00e3o de comunica\u00e7\u00e3o da opera\u00e7\u00e3o ou situa\u00e7\u00e3o ao Coaf deve:\n\nI - ser fundamentada com base nas informa\u00e7\u00f5es contidas no dossi\u00ea mencionado no art. 43, \u00a7 2\u00ba;\n\nII - ser registrada de forma detalhada no dossi\u00ea mencionado no art. 43, \u00a7 2\u00ba; e\n\nIII - ocorrer at\u00e9 o final do prazo de an\u00e1lise referido no art. 43, \u00a7 1\u00ba.\n\n\u00a7 2\u00ba A comunica\u00e7\u00e3o da opera\u00e7\u00e3o ou situa\u00e7\u00e3o suspeita ao Coaf deve ser realizada at\u00e9 o dia \u00fatil seguinte ao da decis\u00e3o de comunica\u00e7\u00e3o.\n\nSe\u00e7\u00e3o II\n\nDa Comunica\u00e7\u00e3o de Opera\u00e7\u00f5es em Esp\u00e9cie",
+      "content_sha256": "4796a9e81ee6075154d55788e446f568c8ec7debe09ee81cbe8c087d6218b546"
+    },
+    {
+      "reference": "Art. 49",
+      "paragraph_count": 7,
+      "content": "Art. 49. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem comunicar ao Coaf:\n\nI - as opera\u00e7\u00f5es de dep\u00f3sito ou aporte em esp\u00e9cie ou saque em esp\u00e9cie de valor igual ou superior a R$50.000,00 (cinquenta mil reais);\n\nII - as opera\u00e7\u00f5es relativas a pagamentos, recebimentos e transfer\u00eancias de recursos, por meio de qualquer instrumento, contra pagamento em esp\u00e9cie, de valor igual ou superior a R$50.000,00 (cinquenta mil reais); e\n\nIII - a solicita\u00e7\u00e3o de provisionamento de saques em esp\u00e9cie de valor igual ou superior a R$50.000,00 (cinquenta mil reais) de que trata o art. 36.\n\nPar\u00e1grafo \u00fanico. A comunica\u00e7\u00e3o mencionada no caput deve ser realizada at\u00e9 o dia \u00fatil seguinte ao da ocorr\u00eancia da opera\u00e7\u00e3o ou do provisionamento.\n\nSe\u00e7\u00e3o III\n\nDisposi\u00e7\u00f5es Gerais",
+      "content_sha256": "3a12b371c1e6dadd4b2107399b658097850d67d6b71a419b4ec330d7563019bc"
+    },
+    {
+      "reference": "Art. 50",
+      "paragraph_count": 1,
+      "content": "Art. 50. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem realizar as comunica\u00e7\u00f5es mencionadas nos arts. 48 e 49 sem dar ci\u00eancia aos envolvidos ou a terceiros.",
+      "content_sha256": "f4876090f5cf336f4422503c413bbca32adad7c326b351151b12375f30a62423"
+    },
+    {
+      "reference": "Art. 51",
+      "paragraph_count": 1,
+      "content": "Art. 51. As comunica\u00e7\u00f5es alteradas ou canceladas ap\u00f3s o quinto dia \u00fatil seguinte ao da sua realiza\u00e7\u00e3o devem ser acompanhadas de justificativa da ocorr\u00eancia.",
+      "content_sha256": "6dbf90893288bf44f62fe6ffd75ab441766fb27e573682400edb9cc00cd20175"
+    },
+    {
+      "reference": "Art. 52",
+      "paragraph_count": 2,
+      "content": "Art. 52. As comunica\u00e7\u00f5es podem ser realizadas de forma centralizada por meio de institui\u00e7\u00e3o do conglomerado prudencial e de sistema cooperativo de cr\u00e9dito, em nome da institui\u00e7\u00e3o na qual ocorreu a opera\u00e7\u00e3o ou a situa\u00e7\u00e3o.\n\nPar\u00e1grafo \u00fanico. As institui\u00e7\u00f5es que optarem por realizar as comunica\u00e7\u00f5es de forma centralizada, nos termos do caput, devem formalizar a op\u00e7\u00e3o em reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, se inexistente, da diretoria da institui\u00e7\u00e3o.",
+      "content_sha256": "021d424ca7f28a189c2d89c90c3529bd0d9febbb38fe26c852c0e644c945e03b"
+    },
+    {
+      "reference": "Art. 53",
+      "paragraph_count": 4,
+      "content": "Art. 53. As comunica\u00e7\u00f5es referidas nos arts. 48 e 49 devem especificar, quando for o caso, se a pessoa objeto da comunica\u00e7\u00e3o:\n\nI - \u00e9 pessoa exposta politicamente ou representante, familiar ou estreito colaborador dessa pessoa;\n\nII - \u00e9 pessoa que, reconhecidamente, praticou ou tenha intentado praticar atos terroristas ou deles participado ou facilitado o seu cometimento; e\n\nIII - \u00e9 pessoa que possui ou controla, direta ou indiretamente, recursos na institui\u00e7\u00e3o, no caso do inciso II.",
+      "content_sha256": "1580fb6436d0758bb20c7cd04d0dbd1771a0fd09f801241b88d6db2f47b071c0"
+    },
+    {
+      "reference": "Art. 54",
+      "paragraph_count": 1,
+      "content": "Art. 54. As institui\u00e7\u00f5es de que trata o art. 1\u00ba que n\u00e3o tiverem efetuado comunica\u00e7\u00f5es ao Coaf em cada ano civil dever\u00e3o prestar declara\u00e7\u00e3o, at\u00e9 dez dias \u00fateis ap\u00f3s o encerramento do referido ano, atestando a n\u00e3o ocorr\u00eancia de opera\u00e7\u00f5es ou situa\u00e7\u00f5es pass\u00edveis de comunica\u00e7\u00e3o.",
+      "content_sha256": "c7bd875a11c3ab1c7f6de156bb81a242ccab2ffd4269bf4e511db01e8d411e54"
+    },
+    {
+      "reference": "Art. 55",
+      "paragraph_count": 1,
+      "content": "Art. 55. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem se habilitar para realizar as comunica\u00e7\u00f5es no Sistema de Controle de Atividades Financeiras (Siscoaf), do Coaf.",
+      "content_sha256": "46f7b25b7072d59894dc7562b9395ba0eeba071ec0a0f06134d09e9d0f6f200a"
+    },
+    {
+      "reference": "Art. 56",
+      "paragraph_count": 2,
+      "content": "Art. 56. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem implementar procedimentos destinados a conhecer seus funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados, incluindo procedimentos de identifica\u00e7\u00e3o e qualifica\u00e7\u00e3o.\n\nPar\u00e1grafo \u00fanico. Os procedimentos referidos no caput devem ser compat\u00edveis com a pol\u00edtica de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo de que trata o art. 2\u00ba e com a avalia\u00e7\u00e3o interna de risco de que trata o art. 10.",
+      "content_sha256": "3c8dfea3c8ea1eec7430c2d4291d023245437a8c8391f1eaff5dfbe3594d7367"
+    },
+    {
+      "reference": "Art. 57",
+      "paragraph_count": 2,
+      "content": "Art. 57. Os procedimentos referidos no art. 56 devem ser formalizados em documento espec\u00edfico aprovado pela diretoria da institui\u00e7\u00e3o.\n\nPar\u00e1grafo \u00fanico. O documento mencionado no caput deve ser mantido atualizado.",
+      "content_sha256": "b6d05dd41d8b80915d09f6cdab88aa6dc22758be84627f8fdb2632ebd51f15fe"
+    },
+    {
+      "reference": "Art. 58",
+      "paragraph_count": 4,
+      "content": "Art. 58. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem classificar as atividades exercidas por seus funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados nas categorias de risco definidas na avalia\u00e7\u00e3o interna de risco, nos termos do art. 10.\n\n\u00a7 1\u00ba A classifica\u00e7\u00e3o em categorias de risco mencionada no caput deve ser mantida atualizada.\n\n\u00a7 2\u00ba Os crit\u00e9rios para a classifica\u00e7\u00e3o em categorias de risco referida no caput devem estar previstos no documento mencionado no art. 57.\n\n\u00a7 3\u00ba As informa\u00e7\u00f5es relativas aos funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados devem ser mantidas atualizadas, considerando inclusive eventuais altera\u00e7\u00f5es que impliquem mudan\u00e7a de classifica\u00e7\u00e3o nas categorias de risco.",
+      "content_sha256": "9c123115b13b412b611efb51cdc5719888992f166a167fa3eead4135f05687c7"
+    },
+    {
+      "reference": "Art. 59",
+      "paragraph_count": 8,
+      "content": "Art. 59. As institui\u00e7\u00f5es referidas no art. 1\u00ba, na celebra\u00e7\u00e3o de contratos com institui\u00e7\u00f5es financeiras sediadas no exterior, devem:\n\nI - obter informa\u00e7\u00f5es sobre o contratado que permitam compreender a natureza de sua atividade e a sua reputa\u00e7\u00e3o;\n\nII - verificar se o contratado foi objeto de investiga\u00e7\u00e3o ou de a\u00e7\u00e3o de autoridade supervisora relacionada com lavagem de dinheiro ou com financiamento do terrorismo;\n\nIII - certificar que o contratado tem presen\u00e7a f\u00edsica no pa\u00eds onde est\u00e1 constitu\u00eddo ou licenciado;\n\nIV - conhecer os controles adotados pelo contratado relativos \u00e0 preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo;\n\nV - obter a aprova\u00e7\u00e3o do detentor de cargo ou fun\u00e7\u00e3o de n\u00edvel hier\u00e1rquico superior ao do respons\u00e1vel pela contrata\u00e7\u00e3o; e\n\nVI - dar ci\u00eancia do contrato de parceria ao diretor mencionado no art. 9\u00ba.\n\nPar\u00e1grafo \u00fanico. O disposto no caput aplica-se inclusive \u00e0s rela\u00e7\u00f5es de parceria estabelecidas com bancos correspondentes no exterior.",
+      "content_sha256": "d76fc929c07934cd0920a9389672585a52fdb6f75333d87bcade63c98dbd5f2d"
+    },
+    {
+      "reference": "Art. 60",
+      "paragraph_count": 6,
+      "content": "Art. 60. As institui\u00e7\u00f5es referidas no art. 1\u00ba, na celebra\u00e7\u00e3o de contratos com terceiros n\u00e3o sujeitos a autoriza\u00e7\u00e3o para funcionar do Banco Central do Brasil, participantes de arranjo de pagamento do qual a institui\u00e7\u00e3o tamb\u00e9m participe, devem:\n\nI - obter informa\u00e7\u00f5es sobre o terceiro que permitam compreender a natureza de sua atividade e a sua reputa\u00e7\u00e3o;\n\nII - verificar se o terceiro foi objeto de investiga\u00e7\u00e3o ou de a\u00e7\u00e3o de autoridade supervisora relacionada com lavagem de dinheiro ou com financiamento do terrorismo;\n\nIII - certificar que o terceiro tem licen\u00e7a do instituidor do arranjo para operar, quando for o caso;\n\nIV - conhecer os controles adotados pelo terceiro relativos \u00e0 preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo; e\n\nV - dar ci\u00eancia do contrato ao diretor mencionado no art. 9\u00ba.",
+      "content_sha256": "451acf95e11061dfc93323c63dacfa28c625be4baba18f0fb6004062874a4eaa"
+    },
+    {
+      "reference": "Art. 61",
+      "paragraph_count": 5,
+      "content": "Art. 61. As institui\u00e7\u00f5es mencionadas no art. 1\u00ba devem instituir mecanismos de acompanhamento e de controle de modo a assegurar a implementa\u00e7\u00e3o e a adequa\u00e7\u00e3o da pol\u00edtica, dos procedimentos e dos controles internos de que trata esta Circular, incluindo:\n\nI - a defini\u00e7\u00e3o de processos, testes e trilhas de auditoria;\n\nII - a defini\u00e7\u00e3o de m\u00e9tricas e indicadores adequados; e\n\nIII - a identifica\u00e7\u00e3o e a corre\u00e7\u00e3o de eventuais defici\u00eancias.\n\nPar\u00e1grafo \u00fanico. Os mecanismos de que trata o caput devem ser submetidos a testes peri\u00f3dicos pela auditoria interna, quando aplic\u00e1veis, compat\u00edveis com os controles internos da institui\u00e7\u00e3o.",
+      "content_sha256": "6339bcef03c4bc2d2245a8b848099f05a5152615c0f1914d4b13811780db087a"
+    },
+    {
+      "reference": "Art. 62",
+      "paragraph_count": 7,
+      "content": "Art. 62. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem avaliar a efetividade da pol\u00edtica, dos procedimentos e dos controles internos de que trata esta Circular.\n\n\u00a7 1\u00ba A avalia\u00e7\u00e3o referida no caput deve ser documentada em relat\u00f3rio espec\u00edfico.\n\n\u00a7 2\u00ba O relat\u00f3rio de que trata o \u00a7 1\u00ba deve ser:\n\nI - elaborado anualmente, com data-base de 31 de dezembro; e\n\nII - encaminhado, para ci\u00eancia, at\u00e9 31 de mar\u00e7o do ano seguinte ao da data-base:\n\na) ao comit\u00ea de auditoria, quando houver; e\n\nb) ao conselho de administra\u00e7\u00e3o ou, se inexistente, \u00e0 diretoria da institui\u00e7\u00e3o.",
+      "content_sha256": "b46ffee8c1af3cd9f2deaefde50e314e885256005e1f0fcd3bdf202d24040888"
+    },
+    {
+      "reference": "Art. 63",
+      "paragraph_count": 14,
+      "content": "Art. 63. O relat\u00f3rio referido no art. 62, \u00a7 1\u00ba, deve:\n\nI - conter informa\u00e7\u00f5es que descrevam:\n\na) a metodologia adotada na avalia\u00e7\u00e3o de efetividade;\n\nb) os testes aplicados;\n\nc) a qualifica\u00e7\u00e3o dos avaliadores; e\n\nd) as defici\u00eancias identificadas; e\n\nII - conter, no m\u00ednimo, a avalia\u00e7\u00e3o:\n\na) dos procedimentos destinados a conhecer clientes, incluindo a verifica\u00e7\u00e3o e a valida\u00e7\u00e3o das informa\u00e7\u00f5es dos clientes e a adequa\u00e7\u00e3o dos dados cadastrais;\n\nb) dos procedimentos de monitoramento, sele\u00e7\u00e3o, an\u00e1lise e comunica\u00e7\u00e3o ao Coaf, incluindo a avalia\u00e7\u00e3o de efetividade dos par\u00e2metros de sele\u00e7\u00e3o de opera\u00e7\u00f5es e de situa\u00e7\u00f5es suspeitas;\n\nc) da governan\u00e7a da pol\u00edtica de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo;\n\nd) das medidas de desenvolvimento da cultura organizacional voltadas \u00e0 preven\u00e7\u00e3o da lavagem de dinheiro e ao financiamento do terrorismo;\n\ne) dos programas de capacita\u00e7\u00e3o peri\u00f3dica de pessoal;\n\nf) dos procedimentos destinados a conhecer os funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados; e\n\ng) das a\u00e7\u00f5es de regulariza\u00e7\u00e3o dos apontamentos oriundos da auditoria interna e da supervis\u00e3o do Banco Central do Brasil.",
+      "content_sha256": "e8663a00317ca4627aab6c5a01506c932330c4a133dabe314e7087fdbaeccd20"
+    },
+    {
+      "reference": "Art. 64",
+      "paragraph_count": 2,
+      "content": "Art. 64. Admite-se a elabora\u00e7\u00e3o de um \u00fanico relat\u00f3rio de avalia\u00e7\u00e3o de efetividade nos termos do art. 62, \u00a7 1\u00ba, relativo \u00e0s institui\u00e7\u00f5es do conglomerado prudencial e do sistema cooperativo de cr\u00e9dito.\n\nPar\u00e1grafo \u00fanico. As institui\u00e7\u00f5es que optarem por realizar o relat\u00f3rio de avalia\u00e7\u00e3o de efetividade na forma do caput devem formalizar a op\u00e7\u00e3o em reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, se inexistente, da diretoria da institui\u00e7\u00e3o.",
+      "content_sha256": "e265fea53c03d1ec1c9c9324d4724c3b7fafbd7b0d22b15c5403f3ef5de4ea3e"
+    },
+    {
+      "reference": "Art. 65",
+      "paragraph_count": 6,
+      "content": "Art. 65. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem elaborar plano de a\u00e7\u00e3o destinado a solucionar as defici\u00eancias identificadas por meio da avalia\u00e7\u00e3o de efetividade de que trata o art. 62.\n\n\u00a7 1\u00ba O acompanhamento da implementa\u00e7\u00e3o do plano de a\u00e7\u00e3o referido no caput deve ser documentado por meio de relat\u00f3rio de acompanhamento.\n\n\u00a7 2\u00ba O plano de a\u00e7\u00e3o e o respectivo relat\u00f3rio de acompanhamento devem ser encaminhados para ci\u00eancia e avalia\u00e7\u00e3o, at\u00e9 30 de junho do ano seguinte ao da data-base do relat\u00f3rio de que trata o art. 62, \u00a7 1\u00ba:\n\nI - do comit\u00ea de auditoria, quando houver;\n\nII - da diretoria da institui\u00e7\u00e3o; e\n\nIII - do conselho de administra\u00e7\u00e3o, quando existente.",
+      "content_sha256": "b37735ff25b7aa003863573170e0358e172be87952da45df4c420a51d6ae3ac3"
+    },
+    {
+      "reference": "Art. 66",
+      "paragraph_count": 17,
+      "content": "Art. 66. Devem permanecer \u00e0 disposi\u00e7\u00e3o do Banco Central do Brasil:\n\nI - o documento de que trata o art. 7\u00ba, inciso I, relativo \u00e0 pol\u00edtica de preven\u00e7\u00e3o \u00e0 lavagem de dinheiro e ao financiamento do terrorismo de que trata o art. 2\u00ba;\n\nII - a ata de reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, na sua inexist\u00eancia, da diretoria da institui\u00e7\u00e3o, no caso de ser formalizada a op\u00e7\u00e3o de que trata o caput do art. 4\u00ba;\n\nIII - o relat\u00f3rio de que trata o art. 5\u00ba, par\u00e1grafo \u00fanico, se existente;\n\nIV - o documento relativo \u00e0 avalia\u00e7\u00e3o interna de risco de que trata o art. 12, inciso I, juntamente com a documenta\u00e7\u00e3o de suporte \u00e0 sua elabora\u00e7\u00e3o;\n\nV - o contrato referido no art. 31;\n\nVI - a ata de reuni\u00e3o do conselho de administra\u00e7\u00e3o ou, na sua inexist\u00eancia, da diretoria da institui\u00e7\u00e3o, no caso de serem formalizadas as op\u00e7\u00f5es mencionadas nos arts. 11, 42, 46, 52 e 64;\n\nVII - o relat\u00f3rio de avalia\u00e7\u00e3o de efetividade de que trata o art. 62, \u00a7 1\u00ba;\n\nVIII - as vers\u00f5es anteriores da avalia\u00e7\u00e3o interna de risco de que trata o art. 10;\n\nIX - o manual relativo aos procedimentos destinados a conhecer os clientes referido no art. 13, \u00a7 2\u00ba;\n\nX - o manual relativo aos procedimentos de monitoramento, sele\u00e7\u00e3o e an\u00e1lise de opera\u00e7\u00f5es e situa\u00e7\u00f5es suspeitas mencionado no art. 38, \u00a7 3\u00ba, inciso IV;\n\nXI - o documento relativo aos procedimentos destinados a conhecer os funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados mencionado no art. 57;\n\nXII - as vers\u00f5es anteriores do relat\u00f3rio de avalia\u00e7\u00e3o de efetividade de que trata o art. 62, \u00a7 1\u00ba;\n\nXIII - os dados, os registros e as informa\u00e7\u00f5es relativas aos mecanismos de acompanhamento e de controle de que trata o art. 61; e\n\nXIV - os documentos relativos ao plano de a\u00e7\u00e3o e ao respectivo relat\u00f3rio de acompanhamento mencionados no art. 65.\n\n\u00a7 1\u00ba O contrato referido no inciso V do caput deve permanecer \u00e0 disposi\u00e7\u00e3o do Banco Central do Brasil pelo prazo m\u00ednimo de cinco anos ap\u00f3s o encerramento da rela\u00e7\u00e3o contratual.\n\n\u00a7 2\u00ba Os documentos e informa\u00e7\u00f5es referidos nos incisos VIII a XIV do caput devem permanecer \u00e0 disposi\u00e7\u00e3o do Banco Central do Brasil pelo prazo m\u00ednimo de cinco anos.",
+      "content_sha256": "fb5372e0b1021359617f9920ec6050e9b8c4537e40909f770382765b4c7c4197"
+    },
+    {
+      "reference": "Art. 67",
+      "paragraph_count": 5,
+      "content": "Art. 67. As institui\u00e7\u00f5es referidas no art. 1\u00ba devem manter \u00e0 disposi\u00e7\u00e3o do Banco Central do Brasil e conservar pelo per\u00edodo m\u00ednimo de dez anos:\n\nI - as informa\u00e7\u00f5es coletadas nos procedimentos destinados a conhecer os clientes de que tratam os arts. 13, 16 e 18, contado o prazo referido no caput a partir do primeiro dia do ano seguinte ao t\u00e9rmino do relacionamento com o cliente;\n\nII - as informa\u00e7\u00f5es coletadas nos procedimentos destinados a conhecer os funcion\u00e1rios, parceiros e prestadores de servi\u00e7os terceirizados de que trata o art. 56, contado o prazo referido no caput a partir da data de encerramento da rela\u00e7\u00e3o contratual;\n\nIII - as informa\u00e7\u00f5es e registros de que tratam os arts. 28 a 37, contado o prazo referido no caput a partir do primeiro dia do ano seguinte ao da realiza\u00e7\u00e3o da opera\u00e7\u00e3o; e\n\nIV - o dossi\u00ea referido no art. 43, \u00a7 2\u00ba.",
+      "content_sha256": "3d92dc44ec147ae81f87e6a433ca838888f5d9d79248fe3b1536d4f3f0b33541"
+    },
+    {
+      "reference": "Art. 68",
+      "paragraph_count": 4,
+      "content": "Art. 68. A Circular n\u00ba 3.691, de 16 de dezembro de 2013, passa a vigorar com as seguintes altera\u00e7\u00f5es:\n\n\u201cArt. 18. Os agentes autorizados a operar no mercado de c\u00e2mbio devem verificar a legalidade das opera\u00e7\u00f5es, as responsabilidades das partes envolvidas, bem como identificar seus clientes previamente \u00e0 realiza\u00e7\u00e3o das opera\u00e7\u00f5es no mercado de c\u00e2mbio na forma prevista pela regulamenta\u00e7\u00e3o sobre a pol\u00edtica, os procedimentos e os controles internos na preven\u00e7\u00e3o \u00e0 pr\u00e1tica dos crimes de \u2018lavagem\u2019 ou oculta\u00e7\u00e3o de bens, direitos e valores, previstos na Lei n\u00ba 9.613, de 3 de mar\u00e7o de 1998, e de financiamento do terrorismo, de que trata a Lei n\u00ba 13.260, de 16 de mar\u00e7o de 2016.\u201d (NR)\n\n\u201cArt. 135. As institui\u00e7\u00f5es autorizadas a operar no mercado de c\u00e2mbio devem desenvolver mecanismos que permitam evitar a pr\u00e1tica de opera\u00e7\u00f5es que visem a burlar os limites e outros requerimentos estabelecidos nesta Circular.\u201d (NR)\n\n\u201cArt. 139. As institui\u00e7\u00f5es autorizadas a operar no mercado de c\u00e2mbio devem certificar-se da qualifica\u00e7\u00e3o de seus clientes, mediante documenta\u00e7\u00e3o em meio f\u00edsico ou eletr\u00f4nico e mediante a realiza\u00e7\u00e3o, entre outras provid\u00eancias pertinentes, de avalia\u00e7\u00e3o de desempenho, de procedimentos comerciais e de capacidade financeira.\u201d (NR)",
+      "content_sha256": "29292ee8d0efbb25a1cca93a56662362cc9601aef661b75d54cb51d906c040aa"
+    },
+    {
+      "reference": "Art. 69",
+      "paragraph_count": 19,
+      "content": "Art. 69. Ficam revogados:\n\nI - a Circular n\u00ba 3.461, de 24 de julho de 2009;\n\nII - a Circular n\u00ba 3.517, de 7 de dezembro de 2010;\n\nIII - a Circular n\u00ba 3.583, de 12 de mar\u00e7o de 2012;\n\nIV - a Circular n\u00ba 3.654, de 27 de mar\u00e7o de 2013;\n\nV - a Circular n\u00ba 3.839, de 28 de junho de 2017;\n\nVI - a Circular n\u00ba 3.889, de 28 de mar\u00e7o de 2018;\n\nVII - os arts. 6\u00ba, 6\u00ba-A e 6\u00ba-B da Circular n\u00ba 3.680, de 4 de novembro de 2013;\n\nVIII - o \u00a7 2\u00ba do art. 11 da Circular n\u00ba 3.691, de 2013;\n\nIX - o par\u00e1grafo \u00fanico do art. 19 da Circular n\u00ba 3.691, de 2013;\n\nX - o art. 32 da Circular n\u00ba 3.691, de 2013;\n\nXI - o inciso IV do art. 32-A da Circular n\u00ba 3.691, de 2013;\n\nXII - os incisos I e II do art. 139 da Circular n\u00ba 3.691, de 2013;\n\nXIII - o art. 166 da Circular n\u00ba 3.691, de 2013;\n\nXIV - o art. 170 da Circular n\u00ba 3.691, de 2013;\n\nXV - o art. 213 da Circular n\u00ba 3.691, de 2013;\n\nXVI - o art. 2\u00ba da Circular n\u00ba 3.727, de 6 de novembro de 2014;\n\nXVII - o art. 3\u00ba da Circular n\u00ba 3.780, de 21 de janeiro de 2016; e\n\nXVIII - o art. 18 da Circular n\u00ba 3.858, de 14 de novembro de 2017.",
+      "content_sha256": "967df5ccf046a33df394185151e68e81bcc60623f4004942cc4c2cbcea932c5f"
+    },
+    {
+      "reference": "Art. 70",
+      "paragraph_count": 1,
+      "content": "Art. 70. Esta Circular entra em vigor em 1\u00ba de julho de 2020. Ot\u00e1vio Ribeiro Damaso Diretor de Regula\u00e7\u00e3o",
+      "content_sha256": "7727dcc07616b086b777a081ee5b1cab0659991b84d2d16b460286e04251f7a4"
+    }
+  ]
+}
