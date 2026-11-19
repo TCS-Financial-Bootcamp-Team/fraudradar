@@ -1,5 +1,5 @@
 ---
-title: "Visão geral: as 19 tabelas e como se ligam"
+title: "Visão geral: as 21 tabelas e como se ligam"
 ---
 erDiagram
     direction TB
@@ -7,6 +7,8 @@ erDiagram
     processing_settings
     jobs
     external_connections
+    chat_conversations
+    chat_messages
     ingestions
     transactions
     accounts
@@ -44,6 +46,8 @@ erDiagram
     datasets ||--|| processing_settings : "é configurado por"
     datasets ||..o{ jobs : "tem trabalhos"
     datasets |o..o{ external_connections : "recebe dados de"
+    datasets ||..o{ chat_conversations : "tem conversas"
+    chat_conversations ||--o{ chat_messages : "contém"
     classDef ground_truth_class fill:#FBE3E4,stroke:#B4232C,stroke-width:2px
     class ground_truth ground_truth_class
     classDef analyst_labels_class fill:#E3F1E5,stroke:#2E7D32,stroke-width:2px

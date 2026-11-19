@@ -95,4 +95,4 @@ editar o `.bpmn`, exporte os dois de novo.
 | O que cada semana grava, fila e amostra de controle | README (seção Worker), `worker/batch.py`, `worker/queue.py` |
 | Quando o retreino pode rodar | `src/fraudradar/model/eligibility.py`, `src/fraudradar/model/feedback.py` |
 | Trava de promoção | `api/repositories/models.py`, `src/fraudradar/model/training.py` |
-| Parecer da IA (planejado) | `api/routes/ai.py` |
+| Parecer da IA e sugestão de tipologia | `api/routes/ai.py`, `src/fraudradar/ai/alert_assessment.py` |

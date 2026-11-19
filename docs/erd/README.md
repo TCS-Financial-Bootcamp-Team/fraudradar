@@ -1,7 +1,7 @@
 # DER do FraudRadar
 
 Diagramas entidade-relacionamento do banco. Eles foram gerados a partir do DDL versionado em
-`db/init/002_tables.sql` a `005_connections.sql`, na `main` de 16/11/2026.
+`db/init/002_tables.sql` a `006_chat.sql` (21 tabelas: 15 por conjunto + 6 globais).
 
 Cada diagrama tem três arquivos:
 
@@ -10,10 +10,10 @@ Cada diagrama tem três arquivos:
 
 | Diagrama | O que mostra |
 |---|---|
-| [01-overview](01-overview.png) | as 19 tabelas e como elas se ligam, sem as colunas |
+| [01-overview](01-overview.png) | as 21 tabelas e como elas se ligam, sem as colunas |
 | [02-transactions-model](02-transactions-model.png) | transações, contas, envios pela API, gabarito, versões do modelo, notas e lotes semanais |
 | [03-alerts-decisions](03-alerts-decisions.png) | alerta, evidências, parecer, decisão, comunicação ao COAF e rótulo do analista |
-| [04-platform](04-platform.png) | tabelas globais (`public`): conjuntos de dados, processamento, trabalhos e conexões externas; também a base do RAG e a auditoria |
+| [04-platform](04-platform.png) | tabelas globais (`public`): conjuntos de dados, processamento, trabalhos, conexões externas e histórico do chat; também a base do RAG e a auditoria |
 
 ![Visão geral do banco](01-overview.svg)
 
@@ -40,8 +40,8 @@ Cada diagrama tem três arquivos:
   uma vez em cada conjunto. O SAML-D usa `public`, e cada base externa ganha um schema próprio,
   registrado em `datasets.schema_name`. A API escolhe o schema pelo cabeçalho `X-Dataset`, com
   `SET LOCAL search_path` ([external-data.md](../external-data.md)).
-- **Globais:** `datasets`, `processing_settings`, `jobs` e `external_connections` ficam sempre em
-  `public` (`003` a `005`).
+- **Globais:** `datasets`, `processing_settings`, `jobs`, `external_connections`,
+  `chat_conversations` e `chat_messages` (6 tabelas) ficam sempre em `public` (`003` a `006`).
 
 ## Vínculos sem constraint
 
@@ -70,10 +70,13 @@ Cada diagrama tem três arquivos:
   cosseno, e `(source, chunk_index)` é único.
 - **`external_connections`:** a senha só existe cifrada (`password_encrypted`, Fernet).
 
+- **`chat_conversations` e `chat_messages`:** `chat_messages.role` aceita `user` ou `assistant` e
+  `content` tem de 1 a 16.000 caracteres; apagar uma conversa apaga suas mensagens em cascata.
+
 ## Bancos antigos
 
-`db/upgrades/006_analyst_feedback.sql` e `007_i18n.sql` levam um banco já criado ao mesmo
-esquema. O DER mostra o resultado, que é igual ao do `db/init`.
+`db/upgrades/006_analyst_feedback.sql`, `007_i18n.sql`, `008_legacy_ingestion_sources.sql` e
+`009_chat.sql` levam um banco já criado ao mesmo esquema. O DER mostra o resultado, que é igual ao do `db/init`.
 
 ## Como editar
 
