@@ -180,7 +180,7 @@ function buildSystemMockAnswer(
         `**Resumo do contexto da página** (${request.context.path ?? request.context.page})\n\n` +
         `- Filtros ativos: ${filtersSummary}.${totalInfo}${idsInfo}\n` +
         `- Os alertas na fila já vêm ordenados da maior para a menor nota de risco (amostra de controle ao final).\n\n` +
-        `Esta resposta é demonstrativa; abra qualquer alerta da tabela para revisar sinais SHAP, grafo e parecer.`,
+        `Resposta gerada em modo offline com dados locais; abra qualquer alerta da tabela para revisar sinais SHAP, grafo e parecer.`,
       sources: [],
       links: [
         { href: "/alerts", label: "Ver Fila de alertas" },
@@ -303,7 +303,7 @@ function buildBaseAnswer(
       return {
         kind: "domain",
         answer:
-          "Comece conferindo as **regras acionadas** e as **contribuições SHAP** para entender o que elevou a nota de risco, depois valide as movimentações da janela semanal e as contrapartes no grafo.\n\nEsta resposta é demonstrativa e não substitui a revisão do caso.",
+          "Comece conferindo as **regras acionadas** e as **contribuições SHAP** para entender o que elevou a nota de risco, depois valide as movimentações da janela semanal e as contrapartes no grafo.\n\nEsta resposta apoia a triagem e não substitui a revisão do caso.",
         sources: [],
         links: [],
         model: usedModel,
@@ -313,7 +313,7 @@ function buildBaseAnswer(
     return {
       kind: "domain",
       answer:
-        "**Análise da semana**\n\nPriorize os alertas de maior nota de risco e revise as regras acionadas antes de registrar uma decisão. Use o detalhe do caso para consultar movimentações, conexões e o parecer.\n\nEsta resposta é demonstrativa e não conclui a ocorrência de lavagem de dinheiro.",
+        "**Análise da semana**\n\nPriorize os alertas de maior nota de risco e revise as regras acionadas antes de registrar uma decisão. Use o detalhe do caso para consultar movimentações, conexões e o parecer.\n\nEsta resposta apoia a triagem e não conclui a ocorrência de lavagem de dinheiro.",
       sources: [],
       links: [],
       model: usedModel,

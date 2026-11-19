@@ -526,9 +526,9 @@ function ReportSection({
       />
       <p className="rounded-lg bg-soft px-2.5 py-2 text-xs">
         <strong className="font-medium">
-          {t("simulation")}
+          {t("externalSubmission")}
         </strong>{" "}
-        {t("simulationNote")}
+        {t("externalSubmissionNote")}
       </p>
       <form
         className="grid gap-3"

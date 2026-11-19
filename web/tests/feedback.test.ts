@@ -75,6 +75,8 @@ test("retorno: as células do painel avisam amostra pequena e período sem decis
       "Novos desde a versão ativa",
     ],
   );
+  assert.notEqual(cells[0].value, null);
+  assert.equal(cells[0].emptyMessage, undefined);
   assert.match(cells[0].note, /amostra pequena/);
   const empty = feedbackCells({
     ...summary,
@@ -85,7 +87,40 @@ test("retorno: as células do painel avisam amostra pequena e período sem decis
       found_outside_queue: { value: null, numerator: 0, denominator: 0, low_sample: true },
     },
   });
-  assert.equal(empty[0].value, "—");
-  assert.equal(empty[0].note, "nenhum alerta da fila decidido ainda");
-  assert.equal(empty[1].note, "amostra de controle desligada ou sem sorteio");
+  assert.equal(empty[0].value, null);
+  assert.equal(
+    empty[0].emptyMessage,
+    "Aguardando decisões conclusivas dos analistas para calcular a precisão.",
+  );
+  assert.equal(
+    empty[0].note,
+    "Comunique ao COAF ou arquive como falso positivo confirmado na fila de alertas.",
+  );
+  assert.equal(empty[1].value, null);
+  assert.equal(
+    empty[1].emptyMessage,
+    "Nenhuma conta da amostra de controle foi revisada até o momento.",
+  );
+  assert.equal(
+    empty[1].note,
+    "Nenhuma conta sorteada até esta semana. Configure o tamanho da amostra em Configurações > Processamento.",
+  );
+
+  const sampledPending = feedbackCells({
+    ...summary,
+    control_sample: {
+      sampled: 3,
+      reviewed: 0,
+      found_outside_queue: { value: null, numerator: 0, denominator: 0, low_sample: true },
+    },
+  });
+  assert.equal(sampledPending[1].value, null);
+  assert.equal(
+    sampledPending[1].emptyMessage,
+    "Nenhuma conta da amostra de controle foi revisada até o momento.",
+  );
+  assert.equal(
+    sampledPending[1].note,
+    "3 contas sorteadas aguardam decisão conclusiva na fila.",
+  );
 });

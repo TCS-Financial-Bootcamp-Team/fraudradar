@@ -6,6 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { cn } from "cn";
 import { AccountLabel } from "@/components/account-label";
 import { useAppContext } from "@/components/app-context";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import {
   EmptyState,
   LoadingState,
@@ -67,11 +68,18 @@ export function confirmedPrecisionKpi(
   locale: AppLocale = DEFAULT_LOCALE,
 ) {
   const t = getT("alerts.dashboard.precision", locale);
+  const tf = getT("alerts.feedback.cells", locale);
   const rate = summary?.confirmed_precision;
   if (!rate || rate.value === null)
-    return { value: "—", note: t("none"), spark: [] as number[] };
+    return {
+      value: null as string | null,
+      emptyMessage: tf("precisionEmpty"),
+      note: tf("precisionEmptyHint"),
+      spark: [] as number[],
+    };
   return {
     value: formatPercent(rate.value, locale),
+    emptyMessage: undefined as string | undefined,
     note: t("note", {
       numerator: formatNumber(rate.numerator, locale),
       denominator: formatNumber(rate.denominator, locale),
@@ -96,6 +104,7 @@ const STATUS_DOTS: Record<AlertStatus, string> = {
 
 export function Dashboard() {
   const t = useTranslations("alerts.dashboard");
+  const tfTooltips = useTranslations("alerts.feedback.tooltips");
   const tc = useTranslations("common.status");
   const tu = useTranslations("alerts.charts.units");
   const locale = useLocale();
@@ -188,10 +197,24 @@ export function Dashboard() {
 
   const weekValues = data.weeks.map((w) => w.value);
   const precision = feedback.loading
-    ? { value: "…", note: t("precision.loading"), spark: [] as number[] }
+    ? {
+        value: "…" as string | null,
+        emptyMessage: undefined as string | undefined,
+        note: t("precision.loading"),
+        spark: [] as number[],
+      }
     : confirmedPrecisionKpi(feedback.data, locale);
 
-  const kpis = [
+  const kpis: Array<{
+    label: string;
+    value: string | null;
+    emptyMessage?: string;
+    note: string;
+    spark: number[];
+    sparkLabel: string;
+    tooltipLabel?: string;
+    tooltip?: string;
+  }> = [
     {
       label: t("kpi.alerts"),
       value: format.number(data.indicators.alerts),
@@ -216,9 +239,12 @@ export function Dashboard() {
     {
       label: t("kpi.precision"),
       value: precision.value,
+      emptyMessage: precision.emptyMessage,
       note: precision.note,
       spark: precision.spark,
       sparkLabel: t("kpi.precisionSpark"),
+      tooltipLabel: tfTooltips("precisionLabel"),
+      tooltip: tfTooltips("precision"),
     },
   ];
 
@@ -243,14 +269,32 @@ export function Dashboard() {
             key={k.label}
             className="bg-card p-[18px_20px_16px] flex flex-col gap-1 min-w-0"
           >
-            <span className="text-[13px] text-muted-foreground">{k.label}</span>
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="text-[32px] font-medium tracking-[-0.03em] leading-[1.1] tabular-nums text-foreground">
-                {k.value}
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[13px] text-muted-foreground">
+                {k.label}
               </span>
-              <Sparkline values={k.spark} label={k.sparkLabel} />
+              {k.tooltip && k.tooltipLabel && (
+                <InfoTooltip label={k.tooltipLabel} content={k.tooltip} />
+              )}
             </div>
-            <span className="font-mono text-xs text-muted-foreground truncate">
+            {k.value !== null ? (
+              <div className="flex items-baseline justify-between gap-3">
+                <span className="text-[32px] font-medium tracking-[-0.03em] leading-[1.1] tabular-nums text-foreground">
+                  {k.value}
+                </span>
+                <Sparkline values={k.spark} label={k.sparkLabel} />
+              </div>
+            ) : (
+              <p className="m-0 pt-0.5 text-[13px] font-medium leading-snug text-foreground">
+                {k.emptyMessage}
+              </p>
+            )}
+            <span
+              className={cn(
+                "text-xs text-muted-foreground",
+                k.value !== null ? "font-mono truncate" : "leading-relaxed",
+              )}
+            >
               {k.note}
             </span>
           </div>

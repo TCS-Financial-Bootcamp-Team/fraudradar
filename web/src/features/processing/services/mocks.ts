@@ -28,10 +28,13 @@ export function processingSettingsMock(): ProcessingSettings {
 export function saveProcessingSettingsMock(
   update: ProcessingSettingsUpdate,
 ): ProcessingSettings {
+  const previous = processingSettingsMock();
   const value = {
-    ...processingSettingsMock(),
+    ...previous,
     ...update,
-    next_run_at: new Date(Date.now() + update.interval_minutes * 60_000).toISOString(),
+    next_run_at: update.enabled
+      ? new Date(Date.now() + update.interval_minutes * 60_000).toISOString()
+      : previous.next_run_at,
   };
   settings.set(value.dataset, value);
   return value;

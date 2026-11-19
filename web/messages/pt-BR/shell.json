@@ -33,7 +33,7 @@
     "toggleSidebar": "Recolher ou expandir menu"
   },
   "skipToContent": "Pular para o conteúdo",
-  "demoBanner": "Ambiente demonstrativo · dados simulados · nenhuma comunicação é enviada",
+  "offlineBanner": "Modo offline com dados locais simulados · sem conexão com a API · envio externo não habilitado",
   "header": {
     "assistant": "Assistente",
     "appearance": "Aparência",

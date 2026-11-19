@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useTranslations } from "next-intl";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -27,6 +27,11 @@ function ProfileForm({
   onSave: (name: string) => Promise<void>;
 }) {
   const t = useTranslations("settings.profile");
+  const baseId = useId();
+  const nameId = `${baseId}-name`;
+  const roleId = `${baseId}-role`;
+  const emailId = `${baseId}-email`;
+  const emailHintId = `${baseId}-email-hint`;
   const {
     register,
     handleSubmit,
@@ -42,18 +47,35 @@ function ProfileForm({
       className="grid grid-cols-1 sm:grid-cols-2 gap-4"
     >
       <Field label={t("name")} error={errors.name?.message}>
-        <Input autoComplete="name" {...register("name")} />
+        <Input
+          id={nameId}
+          autoComplete="name"
+          aria-invalid={Boolean(errors.name) || undefined}
+          {...register("name")}
+        />
       </Field>
       <Field label={t("role")}>
-        <Input defaultValue={t("roleValue")} readOnly className="opacity-80" />
+        <Input
+          id={roleId}
+          value={t("roleValue")}
+          readOnly
+          className="opacity-80"
+        />
       </Field>
       <div className="sm:col-span-2 flex flex-col gap-1.5">
         <Field label={t("email")}>
-          <Input type="email" value={email} readOnly className="opacity-80" />
+          <Input
+            id={emailId}
+            type="email"
+            value={email}
+            readOnly
+            aria-describedby={emailHintId}
+            className="opacity-80"
+          />
         </Field>
-        <span className="text-xs text-muted-foreground">
+        <p id={emailHintId} className="m-0 text-xs text-muted-foreground">
           {t("emailHint")}
-        </span>
+        </p>
       </div>
       <div className="sm:col-span-2 pt-2">
         <Button type="submit" disabled={busy}>
@@ -86,7 +108,7 @@ export function Settings() {
       {/* Card 1: Perfil */}
       <section
         aria-busy={profile.refreshing || undefined}
-        className="relative overflow-hidden bg-card border border-border rounded-[14px] p-[22px] flex flex-col gap-4"
+        className="relative overflow-hidden bg-card border border-border rounded-[14px] p-4 sm:p-[22px] flex flex-col gap-4"
       >
         <RefreshBar active={profile.refreshing} />
         <h2 className="m-0 text-sm font-semibold text-foreground">
@@ -112,15 +134,16 @@ export function Settings() {
       </section>
 
       {/* Card 2: Aparência */}
-      <section className="bg-card border border-border rounded-[14px] p-[22px] flex flex-col gap-3.5">
-        <div className="flex justify-between items-baseline">
+      <section className="bg-card border border-border rounded-[14px] p-4 sm:p-[22px] flex flex-col gap-3.5">
+        <div className="flex flex-wrap justify-between items-center gap-2">
           <h2 className="m-0 text-sm font-semibold text-foreground">
             {t("appearance.title")}
           </h2>
           <button
             type="button"
+            aria-expanded={showCustomizer}
             onClick={() => setShowCustomizer((prev) => !prev)}
-            className="border-0 bg-transparent p-0 text-[13px] text-foreground underline underline-offset-[3px] cursor-pointer hover:opacity-80"
+            className="-my-2 min-h-11 inline-flex items-center border-0 bg-transparent px-1 text-[13px] text-foreground underline underline-offset-[3px] cursor-pointer hover:opacity-80 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {showCustomizer
               ? t("appearance.hideCustomizer")
