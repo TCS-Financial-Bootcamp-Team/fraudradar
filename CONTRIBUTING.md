@@ -13,7 +13,7 @@ Formato (Conventional Commits, em português):
 
 <corpo opcional: o porquê da mudança, não o como>
 
-Prompt: <id do nó no VibeLog ou arquivo em docs/vibe-coding/prompts/>
+Prompt: <arquivo em docs/vibe-coding/prompts/>
 Co-Authored-By: <IA que escreveu, quando houver>
 ```
 
@@ -33,7 +33,7 @@ Co-Authored-By: <IA que escreveu, quando houver>
 | `model`    | treino, features ou avaliação do modelo (com métricas no corpo) |
 
 **Escopos**: `web`, `api`, `worker`, `data`, `features`, `model`, `ai` (LLM/RAG),
-`db`, `infra`, `vibelog`, `docs`. Mais de um escopo? Separe o commit.
+`db`, `infra`, `docs`. Mais de um escopo? Separe o commit.
 
 **Exemplos**
 
@@ -67,14 +67,11 @@ cd web && pnpm lint && pnpm build
 
 ## Vibe-coding
 
-Todo trabalho feito com IA precisa estar registrado no VibeLog: o prompt da pessoa,
-os prompts que a IA mandou para outras IAs e o resultado (commit + prints).
-Quem registra são as próprias IAs, veja `vibelog/AGENTS.md`. Cite o nó no rodapé
-`Prompt:` do commit.
-
-Sem a chave do VibeLog (`vibelog/.env.local`)? Registre em Markdown, em
+Todo trabalho feito com IA precisa estar registrado: o prompt da pessoa, os prompts
+que a IA mandou para outras IAs e o resultado (commit e o que foi conferido). Quem
+registra são as próprias IAs, em Markdown, em
 `docs/vibe-coding/prompts/NNN-<autor>-<assunto>.md`, com o próximo número livre e
-este cabeçalho:
+este cabeçalho. Cite o arquivo no rodapé `Prompt:` do commit.
 
 ```
 ---
@@ -87,6 +84,5 @@ data: AAAA-MM-DD
 ---
 ```
 
-Um arquivo para cada prompt da pessoa, cada delegação e cada resultado. Quem tem a
-chave importa com `pnpm vibelog import-md ../docs/vibe-coding/prompts` (a partir
-de `vibelog/`).
+Um arquivo para cada prompt da pessoa, cada delegação e cada resultado. Nunca registre
+segredos, dados pessoais ou números de conta.
