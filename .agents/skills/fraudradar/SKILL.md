@@ -65,7 +65,7 @@ O processamento de referência é em lote semanal, não em tempo real. Confirme 
 - Documentação, comentários, docstrings e mensagens de log e de erro do servidor: **português brasileiro**, salvo convenção já existente no módulo. Textos de interface: PT-BR é o idioma padrão e a fonte das traduções; todo texto de tela novo entra nos dois arquivos de mensagens (`web/messages/pt-BR/` e `web/messages/en/`), veja `web/AGENTS.md`.
 - Consulte `docs/glossary.md` antes de criar termos que cruzem banco, API e frontend.
 - Não duplique lógica de features ou scoring em API, Worker, frontend ou notebooks. Reutilize o pacote compartilhado em `src/fraudradar/`.
-- Respeite os padrões locais e leia `api/AGENTS.md`, `web/AGENTS.md` ou `vibelog/AGENTS.md` antes de alterar essas áreas.
+- Respeite os padrões locais e leia `api/AGENTS.md` ou `web/AGENTS.md` antes de alterar essas áreas.
 - Faça mudanças pequenas e focadas. Evite refatorações amplas não solicitadas.
 - Adicione ou atualize testes para o comportamento alterado. Atualize contratos e documentação quando a interface entre componentes mudar.
 - Não invente nomes de campos, rotas, tabelas, comandos ou variáveis. Confira os schemas, migrations, testes e `--help` existentes.
@@ -106,7 +106,7 @@ Quando houver geração de conteúdo:
 - Não trabalhe diretamente na `main`; siga `CONTRIBUTING.md` e o padrão de branches do time.
 - Não faça commit, push, merge ou abertura de PR sem solicitação explícita.
 - Não inclua no commit alterações preexistentes que não pertençam à tarefa.
-- O projeto exige registro dos prompts que levam a mudanças ou decisões em `docs/vibe-coding/prompts/`. Confira `AGENTS.md` e `vibelog/AGENTS.md` para formato e fluxo. Nunca registre segredos, dados pessoais ou números de conta.
+- O projeto exige registro dos prompts que levam a mudanças ou decisões em `docs/vibe-coding/prompts/`. O formato está em `CONTRIBUTING.md`, seção Vibe-coding. Nunca registre segredos, dados pessoais ou números de conta.
 - Se a pessoa pedir commit, siga a convenção definida em `CONTRIBUTING.md` e inclua o identificador do registro de prompt quando aplicável.
 
 ## 11. Verificação antes de concluir

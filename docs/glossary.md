@@ -17,10 +17,6 @@ sentido e acrescente a linha.
 ## O que não muda
 
 - Colunas e valores do SAML-D (`Sender_account`, `Is_laundering`, `"UK pounds"`...).
-- Esquema do Supabase do VibeLog (`vibelog_nos`, `vibelog_evidencias`, `pai_id`,
-  `origem_id`, bucket `vibelog-evidencias`) e os valores gravados nele
-  (`prompt_humano`, `prompt_ia`, `resposta`, `marco`; áreas `ia`, `dados`,
-  `geral`...). O `vibelog/AGENTS.md` proíbe mexer nesse esquema.
 - Chaves do frontmatter dos registros de prompt (`id`, `area`, `autor`,
   `destino`, `pai`, `data`, `tipo`, `modelo`, `filhos`) e os nomes dos registros
   antigos em `docs/vibe-coding/prompts/`.
@@ -293,8 +289,6 @@ O grupo de dependências `ia` do `pyproject.toml` virou `ai`
 | `api/rotas/`, `api/repositorios/` | `api/routes/`, `api/repositories/` |
 | `api/dependencias.py`, `api/dominio.py` | `api/dependencies.py`, `api/domain.py` |
 | `api/repositorios/fila.py` | `api/repositories/alert_queue.py` |
-| `vibelog/ENTREGA.md` | `vibelog/DELIVERY.md` |
-| `vibelog/src/features/registros`, `autenticacao` | `vibelog/src/features/records`, `auth` |
 
 Constantes citadas na documentação: `MOEDA_DOS_VALORES` → `AMOUNT_CURRENCY`,
 `RENOMEAR` → `COLUMN_RENAMES`, `COLUNAS_TRANSACAO` → `TRANSACTION_COLUMNS`,
@@ -313,13 +307,6 @@ Constantes citadas na documentação: `MOEDA_DOS_VALORES` → `AMOUNT_CURRENCY`,
 | reprocessar / aceitar semana do treino (não existiam) | `--force` / `--allow-in-sample` (em `batch` e `backfill`) |
 | decidir pelo gabarito, para a demonstração (não existia) | `python -m worker simulate-analyst [--from] [--to] [--error-rate] [--insufficient-rate] [--seed] [--undo]` |
 | medir o efeito do retorno (não existia) | `python -m worker feedback-eval [--include-simulated]` |
-| `pnpm vibelog no` | `pnpm vibelog node` |
-| `pnpm vibelog evidencia` | `pnpm vibelog evidence` |
-| `pnpm vibelog importar-md`, `importar-claude`, `importar-codex` | `pnpm vibelog import-md`, `import-claude`, `import-codex` |
-| `--tipo`, `--autor`, `--titulo`, `--pai`, `--destino`, `--modelo`, `--origem-id`, `--arquivo`, `--no`, `--legenda`, `--tema escuro\|claro` | `--type`, `--author`, `--title`, `--parent`, `--target`, `--model`, `--source-id`, `--file`, `--node`, `--caption`, `--theme dark\|light` |
-
-Os valores aceitos por `--type` e `--area` são os gravados no Supabase e não
-mudam (`prompt_humano`, `resposta`, `ia`, `dados`...).
 
 ## Modelo (`src/fraudradar/features` e `src/fraudradar/model`)
 
