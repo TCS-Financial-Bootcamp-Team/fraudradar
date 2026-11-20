@@ -198,7 +198,6 @@ fraudradar/
 │   ├── messages/            textos das telas: pt-BR/ (fonte) e en/, um JSON por módulo
 │   └── tests/               node:test: contratos, fluxos com mock, API real, sidebar, mensagens
 │
-├── vibelog/                 APP À PARTE: árvore dos prompts do vibe-coding (leia vibelog/AGENTS.md)
 ├── infra/
 │   ├── docker-compose.yml   serviços db, api, web e worker
 │   ├── docker-compose.prod.yml  a VM da Oracle (Victor): banco sem porta, API no loopback
@@ -207,6 +206,7 @@ fraudradar/
 ├── docs/
 │   ├── bpmn/                BPMN do processo: 3 diagramas (.bpmn editável, .svg e .png)
 │   ├── erd/                 DER do banco: 4 diagramas (.mmd editável, .svg e .png)
+│   ├── development-process.md  as etapas do desenvolvimento (exigência do bootcamp)
 │   ├── glossary.md          português do time → nomes do código
 │   ├── project-requirements.md  o que o bootcamp exige
 │   └── vibe-coding/prompts/ registro de cada prompt (NNN-autor-assunto.md)
@@ -296,13 +296,11 @@ Detalhes (limites, códigos de erro, padrões de código): `README.md` e `api/AG
 - Next 16 tem mudanças de API: leia `web/node_modules/next/dist/docs/` antes de usar
   algo do Next de que não tenha certeza.
 
-## 10. VibeLog (`vibelog/`)
+## 10. Registro dos prompts
 
-App Next separado (porta 3001) que mostra a árvore de prompts do projeto: prompt da
-pessoa → delegações para outras IAs → resultados, com commits e prints. Os dados ficam
-no Supabase do projeto. Só as IAs escrevem, pela CLI (`pnpm vibelog ...`), com a chave
-de `vibelog/.env.local`. Sem a chave, o registro em `docs/vibe-coding/prompts/` basta e
-é importado depois.
+Todo prompt que leva a mudança ou decisão fica em `docs/vibe-coding/prompts/`, um arquivo
+Markdown por prompt (`NNN-autor-assunto.md`), no formato de `CONTRIBUTING.md`. O app
+VibeLog, que mostrava esses registros em árvore, foi removido do repositório em 19/11/2026.
 
 ## 11. Rodando
 
@@ -380,7 +378,7 @@ Confira com `git log` antes de confiar; isto muda rápido.
 
 - **Pronto**: API (fila, detalhe, grafo, decisões, comunicação, monitoramento, replay,
   ingestão); front (todas as telas, também com dados simulados); esquema do banco;
-  Compose, Terraform e CI; VibeLog.
+  Compose, Terraform e CI.
 - **Chat jurídico (Victor, frente 3; na `main` desde o PR #19)**: `POST /chat` responde com o RAG
   da Lei 9.613 (`src/fraudradar/ai`, `api/legal_chat_service.py`, `rag/`), busca híbrida em
   `rag_documents` e resposta do Gemini com citações conferidas. A base é carregada por
@@ -411,7 +409,8 @@ Confira com `git log` antes de confiar; isto muda rápido.
   `review_status: "pending_review"` (70 artigos, aguardando revisão humana antes de entrar no chat).
 - **Vazio ou faltando**:
   - revisão humana do snapshot da Circular BCB 3.978/2020 para aprovação e ativação no chat;
-  - os slides e o documento das etapas, fora do repositório;
+  - os slides, entregues fora do repositório (o documento das etapas está em
+    `docs/development-process.md` desde 19/11/2026);
   - os registros de prompt do Yuji (os do Victor estão em `docs/vibe-coding/prompts/victor-rag-llm/`).
 - **Em exploração**: LSTM e GRU em notebooks do `lab/` (branch `origin/victor` e
   `lab/FraudRadar_LSTM.ipynb`).
@@ -419,6 +418,6 @@ Confira com `git log` antes de confiar; isto muda rápido.
 ## 15. Onde ler mais
 
 `README.md` (visão e comandos) · `AGENTS.md` (regras) · `api/AGENTS.md` ·
-`web/AGENTS.md` e `web/API_CONTRACTS.md` · `vibelog/AGENTS.md` ·
+`web/AGENTS.md` e `web/API_CONTRACTS.md` ·
 `db/init/002_tables.sql` · `docs/glossary.md` · `CONTRIBUTING.md` · `lab/README.md` ·
 `docs/vibe-coding/prompts/` (o histórico de decisões, prompt a prompt).
