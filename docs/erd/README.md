@@ -14,7 +14,7 @@ Cada diagrama tem três arquivos:
 | [02-transactions-model](02-transactions-model.png) | transações, contas, envios pela API, gabarito, versões do modelo, notas e lotes semanais |
 | [03-alerts-decisions](03-alerts-decisions.png) | alerta, evidências, parecer, decisão, comunicação ao COAF e rótulo do analista |
 | [04-platform](04-platform.png) | tabelas globais (`public`): conjuntos de dados, processamento, trabalhos, conexões externas e histórico do chat; também a base do RAG e a auditoria |
-| [05-full](05-full.png) | as 21 tabelas com todas as colunas e ligações num diagrama só (junta o 01 com as colunas do 02, 03 e 04; grande, para consulta, não para slide) |
+| [05-full](05-full.png) | as 21 tabelas com todas as colunas e ligações num diagrama só (junta o 01 com as colunas do 02, 03 e 04; espaçamento reduzido para caber num quadrado) |
 
 ![Visão geral do banco](01-overview.svg)
 
