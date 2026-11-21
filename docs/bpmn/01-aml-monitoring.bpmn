@@ -3,9 +3,7 @@
   <bpmn:collaboration id="Collaboration_aml_monitoring">
     <bpmn:participant id="Participant_data_sources" name="Fontes de dados (CSV, API, banco externo, simulador)" />
     <bpmn:participant id="Participant_fraudradar" name="FraudRadar PLD" processRef="Process_aml_monitoring" />
-    <bpmn:participant id="Participant_coaf" name="COAF" />
     <bpmn:messageFlow id="MessageFlow_transactions" name="Transações (sem gabarito)" sourceRef="Participant_data_sources" targetRef="Event_transactions_received" />
-    <bpmn:messageFlow id="MessageFlow_suspicious_activity_report" name="Comunicação de operação suspeita" sourceRef="Task_send_to_coaf" targetRef="Participant_coaf" />
   </bpmn:collaboration>
   <bpmn:process id="Process_aml_monitoring" name="Monitoramento PLD: da transação à comunicação ao COAF" isExecutable="false">
     <bpmn:documentation>Visão de ponta a ponta. O processamento do período está no diagrama 2 (02-period-processing.bpmn); o retreino com o retorno dos analistas, no diagrama 3 (03-model-retraining.bpmn).</bpmn:documentation>
@@ -30,7 +28,6 @@
         <bpmn:flowNodeRef>Gateway_decision</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Event_alert_archived</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Task_approve_report</bpmn:flowNodeRef>
-        <bpmn:flowNodeRef>Task_send_to_coaf</bpmn:flowNodeRef>
         <bpmn:flowNodeRef>Event_alert_closed</bpmn:flowNodeRef>
       </bpmn:lane>
     </bpmn:laneSet>
@@ -110,12 +107,8 @@
       <bpmn:incoming>Flow_15</bpmn:incoming>
       <bpmn:outgoing>Flow_16</bpmn:outgoing>
     </bpmn:userTask>
-    <bpmn:manualTask id="Task_send_to_coaf" name="Enviar a comunicação ao COAF (fora do sistema)">
-      <bpmn:incoming>Flow_16</bpmn:incoming>
-      <bpmn:outgoing>Flow_17</bpmn:outgoing>
-    </bpmn:manualTask>
     <bpmn:endEvent id="Event_alert_closed" name="Alerta encerrado">
-      <bpmn:incoming>Flow_17</bpmn:incoming>
+      <bpmn:incoming>Flow_16</bpmn:incoming>
     </bpmn:endEvent>
     <bpmn:sequenceFlow id="Flow_01" sourceRef="Event_transactions_received" targetRef="Task_validate_submission" />
     <bpmn:sequenceFlow id="Flow_02" sourceRef="Task_validate_submission" targetRef="Event_awaiting_processing" />
@@ -132,8 +125,7 @@
     <bpmn:sequenceFlow id="Flow_archive" name="Arquivar" sourceRef="Gateway_decision" targetRef="Event_alert_archived" />
     <bpmn:sequenceFlow id="Flow_escalate" name="Aprofundar" sourceRef="Gateway_decision" targetRef="Task_analyze_evidence" />
     <bpmn:sequenceFlow id="Flow_15" sourceRef="Task_build_report_draft" targetRef="Task_approve_report" />
-    <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_approve_report" targetRef="Task_send_to_coaf" />
-    <bpmn:sequenceFlow id="Flow_17" sourceRef="Task_send_to_coaf" targetRef="Event_alert_closed" />
+    <bpmn:sequenceFlow id="Flow_16" sourceRef="Task_approve_report" targetRef="Event_alert_closed" />
     <bpmn:textAnnotation id="Note_period_detail">
       <bpmn:text>Detalhe no diagrama 2: nota de cada transação, fila por conta (até 300), amostra de controle e evidências. Períodos fechados não mudam.</bpmn:text>
     </bpmn:textAnnotation>
@@ -155,9 +147,9 @@
     </bpmn:textAnnotation>
     <bpmn:association id="Association_Note_last_decision" associationDirection="None" sourceRef="Note_last_decision" targetRef="Gateway_decision" />
     <bpmn:textAnnotation id="Note_outside_system">
-      <bpmn:text>A aprovação encerra o alerta no FraudRadar, que não envia nada: o envio ao COAF, pelo Siscoaf, fica fora do sistema (simulação acadêmica).</bpmn:text>
+      <bpmn:text>A aprovação encerra o alerta. O FraudRadar não envia a comunicação: o envio ao COAF, pelo Siscoaf, é feito pela instituição fora do sistema.</bpmn:text>
     </bpmn:textAnnotation>
-    <bpmn:association id="Association_Note_outside_system" associationDirection="None" sourceRef="Note_outside_system" targetRef="Task_send_to_coaf" />
+    <bpmn:association id="Association_Note_outside_system" associationDirection="None" sourceRef="Note_outside_system" targetRef="Event_alert_closed" />
   </bpmn:process>
   <bpmn:message id="Message_transacoes_recebidas" name="Transações recebidas" />
   <bpmn:message id="Message_processar_agora" name="Processar agora" />
@@ -169,9 +161,6 @@
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Participant_fraudradar_di" bpmnElement="Participant_fraudradar" isHorizontal="true">
         <dc:Bounds x="0" y="110" width="2285" height="610" />
-      </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Participant_coaf_di" bpmnElement="Participant_coaf" isHorizontal="true">
-        <dc:Bounds x="0" y="770" width="2285" height="60" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Lane_system_di" bpmnElement="Lane_system" isHorizontal="true">
         <dc:Bounds x="30" y="110" width="2255" height="350" />
@@ -260,13 +249,10 @@
       <bpmndi:BPMNShape id="Task_approve_report_di" bpmnElement="Task_approve_report">
         <dc:Bounds x="1768" y="485" width="130" height="90" />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Task_send_to_coaf_di" bpmnElement="Task_send_to_coaf" color:background-color="#ececec" color:border-color="#6b6b6b">
-        <dc:Bounds x="1933" y="485" width="130" height="90" />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Event_alert_closed_di" bpmnElement="Event_alert_closed">
-        <dc:Bounds x="2145" y="512" width="36" height="36" />
+        <dc:Bounds x="1985" y="512" width="36" height="36" />
         <bpmndi:BPMNLabel>
-          <dc:Bounds x="2118" y="554" width="90" height="28" />
+          <dc:Bounds x="1958" y="554" width="90" height="28" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Note_period_detail_di" bpmnElement="Note_period_detail">
@@ -285,7 +271,7 @@
         <dc:Bounds x="1533" y="624" width="230" height="57" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Note_outside_system_di" bpmnElement="Note_outside_system">
-        <dc:Bounds x="2013" y="624" width="250" height="72" />
+        <dc:Bounds x="1925" y="610" width="300" height="72" />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_01_di" bpmnElement="Flow_01">
         <di:waypoint x="201" y="175" />
@@ -365,24 +351,13 @@
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_16_di" bpmnElement="Flow_16">
         <di:waypoint x="1898" y="530" />
-        <di:waypoint x="1933" y="530" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_17_di" bpmnElement="Flow_17">
-        <di:waypoint x="2063" y="530" />
-        <di:waypoint x="2145" y="530" />
+        <di:waypoint x="1985" y="530" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="MessageFlow_transactions_di" bpmnElement="MessageFlow_transactions">
         <di:waypoint x="183" y="60" />
         <di:waypoint x="183" y="157" />
         <bpmndi:BPMNLabel>
           <dc:Bounds x="191" y="66" width="90" height="28" />
-        </bpmndi:BPMNLabel>
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="MessageFlow_suspicious_activity_report_di" bpmnElement="MessageFlow_suspicious_activity_report">
-        <di:waypoint x="1998" y="575" />
-        <di:waypoint x="1998" y="770" />
-        <bpmndi:BPMNLabel>
-          <dc:Bounds x="1900" y="652" width="90" height="42" />
         </bpmndi:BPMNLabel>
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Association_Note_period_detail_di" bpmnElement="Association_Note_period_detail">
@@ -406,8 +381,8 @@
         <di:waypoint x="1516" y="541" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Association_Note_outside_system_di" bpmnElement="Association_Note_outside_system">
-        <di:waypoint x="2099" y="624" />
-        <di:waypoint x="2046" y="575" />
+        <di:waypoint x="2003" y="610" />
+        <di:waypoint x="2003" y="584" />
       </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="DataOutputAssociation_1_di" bpmnElement="DataOutputAssociation_1">
         <di:waypoint x="1338" y="485" />

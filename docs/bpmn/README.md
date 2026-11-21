@@ -22,7 +22,6 @@ editar o `.bpmn`, exporte os dois de novo.
 |---|---|
 | Tarefa com ícone de pessoa | feita pelo analista nas telas |
 | Tarefa com engrenagem | feita pelo sistema (API, worker ou IA) |
-| Tarefa com mão | feita por uma pessoa fora do sistema |
 | Tarefa com tabela | regra de negócio aplicada pelo sistema |
 | Borda grossa com `+` | o detalhe está em outro diagrama |
 | Caixa grande com `≡` embaixo | repete em ordem, uma vez para cada item (aqui, cada semana) |
@@ -35,7 +34,6 @@ editar o `.bpmn`, exporte os dois de novo.
 | Linha tracejada com seta | mensagem entre participantes |
 | Texto com colchete | anotação |
 | Tarefa **amarela** | planejada, ainda não existe |
-| Tarefa **cinza** | fora do sistema |
 
 ## 1. Monitoramento PLD
 
@@ -50,8 +48,9 @@ editar o `.bpmn`, exporte os dois de novo.
 - O analista registra a decisão com justificativa (pelo menos 10 caracteres), e o nome dele fica
   gravado. Arquivar exige o motivo: falso positivo confirmado ou sem evidência suficiente.
   Aprofundar volta para a análise.
-- Comunicar gera o rascunho, que o analista revisa e aprova. A aprovação encerra o alerta. O envio
-  ao COAF fica fora do sistema: o FraudRadar é uma simulação acadêmica e não envia nada.
+- Comunicar gera o rascunho, que o analista revisa e aprova. A aprovação encerra o alerta. O
+  FraudRadar não envia a comunicação: o envio ao COAF, pelo Siscoaf, é feito pela instituição fora
+  do sistema, por isso o COAF não aparece no diagrama.
 - A decisão pode ser refeita até a comunicação ser aprovada; vale a última. Cada decisão grava o
   rótulo do retorno dos analistas (usado no diagrama 3) e a auditoria.
 
