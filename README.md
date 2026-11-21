@@ -165,7 +165,8 @@ O front existe em português (padrão) e inglês, com o seletor no cabeçalho. C
 - **Variáveis** (`src/fraudradar/features`): 21 variáveis por transação, calculadas só com o
   passado das contas (sem vazar o futuro), mais sinais semanais e o grafo de contrapartes.
 - **Modelo** (`src/fraudradar/model`, `notebooks/03_modelo`): LightGBM com divisão no tempo
-  (treino até 21/05/2023, teste nas 14 semanas seguintes), comparado no `lab/` com regras,
+  (treino até 23/04/2023, validação de 24/04 a 21/05/2023 e teste nas 14 semanas
+  seguintes), comparado no `lab/` com regras,
   regressão logística, GRU e Isolation Forest.
 
 | Número do modelo oficial (teste) | Valor |
