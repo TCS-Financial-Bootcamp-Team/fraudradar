@@ -1,0 +1,249 @@
+---
+title: "Banco completo: as 21 tabelas com as colunas"
+---
+erDiagram
+    direction LR
+    datasets {
+        text slug PK
+        text name
+        text schema_name UK
+        text origin "saml-d, external"
+        text active_model_version FK "sem constraint"
+        integer labeled_weeks
+        boolean has_laundering
+        timestamptz labels_checked_at
+        timestamptz created_at
+    }
+    processing_settings {
+        text dataset PK, FK
+        integer interval_minutes
+        boolean enabled
+        boolean demo_mode
+        timestamptz last_run_at
+        timestamptz next_run_at
+        timestamptz updated_at
+        integer exploration_per_week
+    }
+    jobs {
+        bigint id PK
+        text kind "import, process, simulate, train"
+        text dataset FK
+        jsonb payload
+        text status "queued, running, done, failed"
+        integer progress
+        text message
+        text message_code
+        jsonb message_params
+        text created_by
+        timestamptz created_at
+        timestamptz started_at
+        timestamptz finished_at
+    }
+    external_connections {
+        bigint id PK
+        text name
+        text host
+        integer port
+        text database
+        text username
+        text password_encrypted
+        text source_table
+        text control_column
+        text last_position
+        text status "untested, connected, incompatible, error, syncing"
+        jsonb compatibility
+        text last_error
+        text dataset FK
+        text mode "history, follow, both"
+        timestamptz last_synced_at
+        text created_by
+        timestamptz created_at
+    }
+    chat_conversations {
+        bigint id PK
+        text dataset FK
+        text owner_id
+        text title
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    chat_messages {
+        bigint id PK
+        bigint conversation_id FK
+        text role "user, assistant"
+        text content
+        text kind
+        jsonb sources
+        jsonb links
+        text model
+        timestamptz created_at
+    }
+    ingestions {
+        bigint id PK
+        text source "csv, api, simulation, connection"
+        text file_name
+        integer row_count
+        text status "received, processing, completed"
+        text created_by
+        timestamptz created_at
+    }
+    transactions {
+        bigint id PK
+        timestamp occurred_at
+        bigint sender FK "sem constraint"
+        bigint receiver FK "sem constraint"
+        numeric amount
+        text payment_currency
+        text received_currency
+        text sender_country
+        text receiver_country
+        text payment_type
+        bigint ingestion_id FK "sem constraint"
+    }
+    accounts {
+        bigint account PK
+        timestamp first_seen_at
+        timestamp last_seen_at
+        smallint segment
+        timestamptz updated_at
+    }
+    ground_truth {
+        bigint transaction_id PK, FK
+        smallint label
+        text original_typology
+        text typology
+    }
+    model_versions {
+        text version PK
+        timestamptz created_at
+        jsonb features
+        real threshold
+        jsonb metrics
+        boolean active
+    }
+    transaction_scores {
+        bigint transaction_id PK, FK
+        text model_version PK, FK
+        real score
+        timestamptz created_at
+    }
+    weekly_batches {
+        date week PK
+        text model_version FK
+        integer active_accounts
+        jsonb metrics
+        timestamptz processed_at
+        timestamptz released_at
+    }
+    alerts {
+        bigint id PK
+        bigint account FK "único com week"
+        date week FK "sem constraint; único com account"
+        real score
+        integer queue_position
+        text status "new, in_review, archived, escalated, reported"
+        text[] countries
+        text typology
+        numeric total_amount
+        integer transaction_count
+        text model_version FK
+        timestamptz created_at
+        timestamptz updated_at
+        text origin "model, exploration"
+    }
+    evidence {
+        bigint alert_id PK, FK
+        jsonb contributions
+        jsonb rules
+        jsonb weekly_signals
+        jsonb graph
+        timestamptz created_at
+    }
+    assessments {
+        bigint id PK
+        bigint alert_id FK
+        text content
+        text suggested_typology
+        jsonb sources
+        jsonb validation
+        boolean is_valid
+        text llm_model
+        timestamptz created_at
+    }
+    decisions {
+        bigint id PK
+        bigint alert_id FK
+        bigint assessment_id FK
+        text analyst
+        text decision "archive, escalate, report"
+        text justification
+        timestamptz decided_at
+        text archive_reason "false_positive, insufficient_evidence"
+    }
+    reports {
+        bigint id PK
+        bigint alert_id FK
+        bigint decision_id FK
+        text draft
+        text status "draft, approved"
+        text approved_by
+        timestamptz approved_at
+        timestamptz created_at
+    }
+    analyst_labels {
+        bigint alert_id PK, FK
+        bigint decision_id FK
+        bigint account
+        date week
+        smallint label
+        text origin "model, exploration"
+        text source "analyst, simulated"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+    rag_documents {
+        bigint id PK
+        text source "único com chunk_index"
+        integer chunk_index "único com source"
+        text content
+        jsonb metadata
+        vector(384) embedding
+        timestamptz created_at
+    }
+    audit_log {
+        bigint id PK
+        text actor
+        text action
+        text entity
+        text entity_id
+        jsonb details
+        timestamptz occurred_at
+    }
+    ingestions |o..o{ transactions : "traz (sem FK)"
+    accounts ||..o{ transactions : "envia (sem FK)"
+    accounts ||..o{ transactions : "recebe (sem FK)"
+    transactions ||--o| ground_truth : "tem gabarito"
+    transactions ||--o{ transaction_scores : "recebe nota"
+    model_versions ||--o{ transaction_scores : "dá a nota"
+    model_versions ||..o{ weekly_batches : "processa"
+    weekly_batches ||..o{ alerts : "agrupa (sem FK)"
+    model_versions ||..o{ alerts : "gera"
+    accounts ||..o{ alerts : "é alertada em"
+    alerts ||--o| evidence : "é explicado por"
+    alerts ||..o{ assessments : "recebe parecer"
+    alerts ||..o{ decisions : "recebe decisão"
+    assessments |o..o{ decisions : "apoia"
+    alerts ||..o{ reports : "vira comunicação"
+    decisions ||..o{ reports : "origina"
+    alerts ||--o| analyst_labels : "deixa rótulo"
+    decisions ||..o{ analyst_labels : "define"
+    model_versions |o..o{ datasets : "é a ativa de (sem FK)"
+    datasets ||--|| processing_settings : "é configurado por"
+    datasets ||..o{ jobs : "tem trabalhos"
+    datasets |o..o{ external_connections : "recebe dados de"
+    datasets ||..o{ chat_conversations : "tem conversas"
+    chat_conversations ||--o{ chat_messages : "contém"
+    classDef ground_truth_class fill:#FBE3E4,stroke:#B4232C,stroke-width:2px
+    class ground_truth ground_truth_class
+    classDef analyst_labels_class fill:#E3F1E5,stroke:#2E7D32,stroke-width:2px
+    class analyst_labels analyst_labels_class
